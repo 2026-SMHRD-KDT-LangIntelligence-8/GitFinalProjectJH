@@ -14,6 +14,15 @@ public class SecurityConfig {
 			.authorizeHttpRequests(authorize -> authorize.anyRequest().permitAll())
 			.csrf(csrf -> csrf.disable())
 			.formLogin(form -> form.disable())
+			// 카카오api
+			.oauth2Login(oauth2 -> oauth2
+				.loginPage("/login.html")
+				.defaultSuccessUrl("/main.html?login=success", true)
+			)
+			// 카카오api
+			.logout(logout -> logout
+				.logoutSuccessUrl("/main.html")
+			)
 			.httpBasic(httpBasic -> httpBasic.disable());
 
 		return http.build();

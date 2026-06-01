@@ -57,6 +57,10 @@
             cursor: pointer;
         }
 
+        .hidden {
+            display: none !important;
+        }
+
             /* 로그인/로그아웃 감싸는 컨테이너 (가로 정렬 및 간격 조절) */
 .auth-box {
     display: flex;
@@ -231,9 +235,9 @@
     <div class="top-header">
         <img src="/img/login-logout로고 .png" alt="로그인 로고" class="login-logo">
         <div class="auth-box">
-            <a href="login.html" class="login-btn" >로그인</a>
-            <span class="divider"></span>
-            <a href="#" class="login-btn" >로그아웃</a>
+            <a href="login.html" id="loginLink" class="login-btn">로그인</a>
+            <span id="authDivider" class="divider"></span>
+            <a href="#" id="logoutLink" class="login-btn">로그아웃</a>
         </div>
     </div>
 
@@ -269,6 +273,47 @@
     </a>
 
 </div>
+
+<script>
+    // 카카오api
+    const AUTH_STORAGE_KEY = 'isLoggedIn';
+    const KAKAO_LOGIN_PAGE_URL = '/login.html';
+    const KAKAO_LOGOUT_URL = '/logout';
+    const currentUrl = new URL(window.location.href);
+    const loginLink = document.getElementById('loginLink');
+    const logoutLink = document.getElementById('logoutLink');
+    const authDivider = document.getElementById('authDivider');
+
+    loginLink.href = KAKAO_LOGIN_PAGE_URL;
+    logoutLink.href = KAKAO_LOGOUT_URL;
+
+    if (currentUrl.searchParams.get('login') === 'success') {
+        localStorage.setItem(AUTH_STORAGE_KEY, 'true');
+        currentUrl.searchParams.delete('login');
+        window.history.replaceState({}, document.title, currentUrl.pathname);
+    }
+
+    function updateAuthUi() {
+        const isLoggedIn = localStorage.getItem(AUTH_STORAGE_KEY) === 'true';
+
+        loginLink.classList.toggle('hidden', isLoggedIn);
+        logoutLink.classList.toggle('hidden', !isLoggedIn);
+        authDivider.classList.add('hidden');
+    }
+
+    logoutLink.addEventListener('click', function (event) {
+        event.preventDefault();
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+        fetch(KAKAO_LOGOUT_URL, {
+            method: 'POST'
+        }).finally(function () {
+            updateAuthUi();
+            window.location.href = KAKAO_LOGIN_PAGE_URL.replace('/login.html', '/main.html');
+        });
+    });
+
+    updateAuthUi();
+</script>
 
 </body>
 </html>

@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>로그인</title>
 
-    <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js" integrity="sha384-TiCmbV6AUn/rYZeI5XF18q5fQ10Doy07H/V/S8fS/r8h6qB7aD8hKlwK9z/Zz/T+" crossorigin="anonymous"></script>
-
     <style>
         @import url('https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_2206-02@1.0/PyeongChangPeace-Bold.woff2');
 
@@ -180,33 +178,12 @@
 </div>
 
 <script>
-    // ==========================================
-    // 필수 설정: 본인의 JavaScript 키를 입력하세요
-    // ==========================================
-    const KAKAO_JS_KEY = '여기에_발급받은_JavaScript_키를_입력하세요';
+    // 카카오api
+    const KAKAO_LOGIN_URL = '/oauth2/authorization/kakao';
 
-    // 카카오 SDK 초기화
-    if (!Kakao.isInitialized()) {
-        Kakao.init(KAKAO_JS_KEY);
-    }
-
-    // 카카오 로그인 함수
+    // 카카오api
     function loginWithKakao() {
-        Kakao.Auth.login({
-            success: function(authObj) {
-                // 로그인 성공 시 로직
-                console.log('로그인 성공 토큰:', authObj);
-                alert('카카오 로그인에 성공했습니다!');
-
-                // 이후 다음 페이지로 넘어가거나, 서버로 정보를 보내는 코드를 작성하세요.
-                // 예: window.location.href = '/main.html';
-            },
-            fail: function(err) {
-                // 로그인 실패 시 로직
-                console.error('로그인 실패:', err);
-                alert('카카오 로그인에 실패했습니다. 키 설정 및 도메인을 확인해주세요.');
-            },
-        });
+        window.location.href = KAKAO_LOGIN_URL;
     }
 </script>
 
