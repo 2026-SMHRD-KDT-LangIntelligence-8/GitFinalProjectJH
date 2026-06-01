@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>수급자 관리</title>
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+
+        /* 💡 요청하신 body 스타일로 변경 적용 */
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f4f6f4;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+        }
+
+        /* 💡 요청하신 phone-frame 스타일로 변경 적용 */
+        .phone-frame {
+            width: 360px;
+            height: 740px;
+            border: 2px solid #EFEFEF;
+            border-radius: 40px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 24px;
+            box-sizing: border-box;
+            position: relative;
+            overflow: hidden;
+            background-color: #ffffff;
+        }
+
+        /* 상단 타이틀 영역 (세로 배열 및 좌측 정렬) */
+        .header-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            margin: 10px 0 28px 0; /* 시원하고 감각적인 공백 */
+            position: relative;
+            width: 100%;
+        }
+
+        .brand-sub {
+            font-size: 11px;
+            font-weight: 700;
+            color: #2e6f40;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 6px;
+        }
+
+        .page-title {
+            font-size: 26px;
+            font-weight: 800;
+            color: #11381c;
+            margin: 0;
+            letter-spacing: -0.5px;
+            position: relative;
+            z-index: 2; /* 은은한 배경보다 글씨가 위에 오도록 설정 */
+        }
+
+        /* 타이틀 뒤에 들어간 은은하고 감각적인 프리미엄 스팟 */
+        .page-title::before {
+            content: '';
+            position: absolute;
+            left: -8px;
+            bottom: -2px;
+            width: 50px;
+            height: 18px;
+            background-color: rgba(46, 111, 64, 0.08); /* 눈이 편안한 파스텔조 초록빛 투명도 */
+            border-radius: 6px;
+            z-index: -1; /* 글자 뒤로 배치 */
+        }
+
+        /* ①, ② 검색 영역 컨테이너 */
+        .search-container {
+            display: flex;
+            gap: 8px;
+            width: 100%;
+            margin-bottom: 28px;
+        }
+
+        /* ① 검색 입력창 */
+        .search-input {
+            flex: 1;
+            height: 46px;
+            border: 1.5px solid #e2ece6;
+            border-radius: 14px;
+            padding: 0 12px 0 40px;
+            font-size: 14px;
+            font-family: inherit;
+            box-sizing: border-box;
+            outline: none;
+            background-color: #f7faf8;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%232e6f40' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: 14px center;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.01);
+            transition: all 0.25s ease;
+        }
+
+        .search-input:focus {
+            border-color: #1e5e3a;
+            background-color: #ffffff;
+            box-shadow: 0 4px 12px rgba(30, 94, 58, 0.06);
+        }
+
+        /* ② 검색 버튼 */
+        .search-btn {
+            width: 72px;
+            height: 46px;
+            background: linear-gradient(135deg, #2e6f40 0%, #1e5e3a 100%);
+            color: #ffffff;
+            border: none;
+            border-radius: 14px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(30, 94, 58, 0.15);
+            transition: all 0.2s ease;
+        }
+
+        .search-btn:active {
+            transform: scale(0.96);
+            opacity: 0.95;
+        }
+
+        /* ③ 테이블 항목 헤더 (라벨 영역) */
+        .table-header-labels {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            padding: 14px 0; /* 글자가 커진 만큼 위아래 여백을 늘려 정돈 */
+            border-bottom: 2.5px solid #1e5e3a; /* 선을 조금 더 두껍고 명확하게 변경 */
+        }
+
+        /* 항목 이름은 유지하되, 크기를 키우고(14px) 색상을 더 선명하게 변경 */
+        .header-item {
+            font-size: 14px;
+            font-weight: 800;
+            color: #0d2b15; /* 눈에 띄는 고대비 다크그린 */
+            text-align: center;
+            letter-spacing: -0.5px;
+        }
+
+        /* 각 항목별 너비 비율 지정 */
+        .w-name { width: 22%; }
+        .w-birth { width: 30%; }
+        .w-gender { width: 18%; }
+        .w-grade { width: 30%; }
+
+        /* ⭐ [변경] 항목 라벨과의 위쪽 마진을 늘려 시원한 공간감을 확보했습니다 */
+        .content-blank-box {
+            flex: 1;
+            width: 100%;
+            margin-top: 18px;       /* 상단 녹색 바와의 간격을 넓혀 답답함 해소 */
+            margin-bottom: 20px;    /* 하단 여백도 밸런스에 맞춰 균형 조절 */
+            background-color: #f4f6f5;
+            border-radius: 16px;
+            border: 1.5px dashed #e2ece6;
+            box-sizing: border-box;
+        }
+
+        /* ④ 플로팅 추가 버튼 (+) */
+        .floating-add-btn {
+            position: absolute;
+            bottom: 34px;
+            right: 24px;
+            width: 56px;
+            height: 56px;
+            background-color: #11381c;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 6px 16px rgba(17, 56, 28, 0.25);
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        .floating-add-btn:active {
+            transform: scale(0.92) rotate(90deg);
+        }
+
+        /* + 아이콘 모양 생성 */
+        .floating-add-btn::before,
+        .floating-add-btn::after {
+            content: '';
+            position: absolute;
+            background-color: #ffffff;
+            border-radius: 2px;
+        }
+        .floating-add-btn::before { width: 18px; height: 3px; }
+        .floating-add-btn::after { width: 3px; height: 18px; }
+    </style>
+</head>
+
+<body>
+
+<div class="phone-frame">
+
+    <div class="header-wrapper">
+        <span class="brand-sub">Senior Care System</span>
+        <h2 class="page-title">수급자 관리</h2>
+    </div>
+
+    <div class="search-container">
+        <input type="text" class="search-input" placeholder="수급자 이름을 입력하세요">
+        <button type="button" class="search-btn">검색</button>
+    </div>
+
+    <div class="table-header-labels">
+        <div class="header-item w-name">수급자명</div>
+        <div class="header-item w-birth">생년월일</div>
+        <div class="header-item w-gender">성별</div>
+        <div class="header-item w-grade">장기요양등급</div>
+    </div>
+
+    <div class="content-blank-box"></div>
+
+    <a href="#" class="floating-add-btn"></a>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>
