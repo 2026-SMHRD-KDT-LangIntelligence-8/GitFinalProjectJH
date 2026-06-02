@@ -18,7 +18,6 @@
         font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
     }
 
-    /* 스마트폰 모양 틀 */
     .phone-frame {
         width: 360px;
         height: 740px;
@@ -28,11 +27,44 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding: 50px 24px 44px 24px;
+        padding: 32px 24px 44px 24px;
         box-sizing: border-box;
         position: relative;
         overflow: hidden;
         background-color: #ffffff;
+    }
+
+    /* 💡 뒤로가기 버튼 스타일 */
+    .top-nav-bar {
+        width: 100%;
+        display: flex;
+        justify-content: flex-start;
+        margin-bottom: 24px;
+    }
+
+    .back-btn {
+        font-size: 13.5px;
+        font-weight: 600;
+        color: #728a7a;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        cursor: pointer;
+        transition: color 0.2s ease;
+        padding: 4px 0;
+    }
+
+    .back-btn:hover {
+        color: #2e6f40;
+    }
+
+    .back-btn svg {
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
     }
 
     /* 상단 타이틀 영역 */
@@ -40,7 +72,7 @@
         display: flex;
         flex-direction: column;
         align-items: flex-start;
-        margin: 10px 0 36px 0;
+        margin: 0 0 36px 0;
         position: relative;
         width: 100%;
     }
@@ -82,7 +114,6 @@
         display: flex;
         flex-direction: column;
         gap: 14px;
-        width: 100%;
     }
 
     .form-row {
@@ -129,7 +160,6 @@
         box-shadow: 0 4px 14px rgba(30, 94, 58, 0.05);
     }
 
-    /* 중간 보안 안심 라벨 */
     .security-notice-box {
         width: 100%;
         flex: 1;
@@ -161,7 +191,6 @@
         letter-spacing: -0.3px;
     }
 
-    /* 하단 버튼 그룹 */
     .action-button-group {
         width: 100%;
         display: flex;
@@ -170,7 +199,6 @@
         padding-top: 10px;
     }
 
-    /* 수정하기 버튼 (기본 템플릿 규격) */
     .primary-btn {
         width: 100%;
         height: 50px;
@@ -195,15 +223,14 @@
         opacity: 0.95;
     }
 
-    /* 🛠️ 탈퇴하기 버튼 (수정하기 버튼과 완벽하게 대칭되도록 높이 및 모션 동기화 완료) */
     .secondary-btn {
         width: 100%;
-        height: 50px; /* 👈 기존 44px에서 50px로 일치 */
+        height: 50px;
         background: linear-gradient(135deg, #c34343 0%, #922b2b 100%);
         color: #ffffff;
-        border: none; /* 👈 선 굵기 편차 방지를 위해 보더 제거 후 그라데이션 일화 */
-        border-radius: 14px; /* 👈 기존 12px에서 14px로 일치 */
-        font-size: 15px; /* 👈 폰트 사이즈 통일 */
+        border: none;
+        border-radius: 14px;
+        font-size: 15px;
         font-weight: 700;
         cursor: pointer;
         box-shadow: 0 4px 12px rgba(146, 43, 43, 0.15);
@@ -212,13 +239,13 @@
     }
 
     .secondary-btn:hover {
-        transform: translateY(-1.5px); /* 👈 수정하기와 호버 도약 높이 통일 */
+        transform: translateY(-1.5px);
         background: linear-gradient(135deg, #a83535 0%, #7a2222 100%);
         box-shadow: 0 6px 16px rgba(146, 43, 43, 0.22);
     }
 
     .secondary-btn:active {
-        transform: translateY(0) scale(0.98); /* 👈 클릭 시 스케일 변화율 통일 */
+        transform: translateY(0) scale(0.98);
         opacity: 0.95;
     }
 
@@ -231,6 +258,15 @@
 <body>
 
 <div class="phone-frame">
+  <!-- 💡 뒤로가기 버튼 영역 추가 -->
+  <div class="top-nav-bar">
+    <a href="main.html" class="back-btn">
+      <svg width="14" height="14" viewBox="0 0 24 24">
+        <path d="M15 19l-7-7 7-7" />
+      </svg>
+      뒤로가기
+    </a>
+  </div>
 
   <div class="header-wrapper">
     <span class="brand-sub">Senior Care System</span>
