@@ -98,7 +98,7 @@
             window.history.replaceState({}, document.title, '/main.html');
         }
     }
-
+<!--로그인 상태 확인 후, 로그인 및 로그아웃 버튼 표시 여부 변경-->
     function updateAuthUi() {
         const isLoggedIn = localStorage.getItem(AUTH_STORAGE_KEY) === 'true';
         loginLink.classList.toggle('hidden', isLoggedIn);
