@@ -10,6 +10,22 @@
         body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #f4f6f4; font-family: 'Pretendard', sans-serif; }
         .phone-frame { width: 360px; height: 740px; border: 2px solid #EFEFEF; border-radius: 40px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12); display: flex; flex-direction: column; align-items: center; padding: 40px 24px; box-sizing: border-box; position: relative; overflow: hidden; background-color: #ffffff; }
 
+        /* 공란이나 텍스트 위에 마우스를 올렸을 때 I자 입력 커서가 보이지 않게 설정 */
+        .phone-frame,
+        .phone-frame * {
+            cursor: default;
+            user-select: none;
+        }
+
+        /* 클릭 가능한 요소는 손가락 커서가 보이게 다시 설정 */
+        .login-btn,
+        .menu-item,
+        .premium-ad-box,
+        .premium-ad-box *,
+        .shop-go-btn {
+            cursor: pointer;
+        }
+
         .top-header { width: 100%; display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-bottom: 20px; }
         .login-logo { width: 20px; height: 20px; object-fit: contain; }
         .login-btn { font-size: 14px; font-weight: 700; color: #2e6f40; text-decoration: none; cursor: pointer; }

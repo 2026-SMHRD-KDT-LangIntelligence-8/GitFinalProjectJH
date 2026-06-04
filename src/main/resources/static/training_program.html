@@ -34,6 +34,24 @@
             background-color: #ffffff;
         }
 
+
+        /* 공란이나 텍스트 위에 마우스를 올렸을 때 I자 입력 커서가 보이지 않게 설정 */
+        .phone-frame,
+        .phone-frame * {
+            cursor: default;
+            user-select: none;
+        }
+
+        /* 클릭 가능한 요소는 손가락 커서가 보이게 다시 설정 */
+        .login-btn,
+        .menu-item,
+        .premium-ad-box,
+        .premium-ad-box *,
+        .shop-go-btn {
+            cursor: pointer;
+        }
+
+
         /* 💡 뒤로가기 네비게이션 바 */
         .top-nav-bar {
             width: 100%;
