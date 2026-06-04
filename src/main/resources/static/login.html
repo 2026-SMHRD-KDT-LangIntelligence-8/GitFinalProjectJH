@@ -37,6 +37,13 @@
             background: linear-gradient(to bottom, #ffffff 30%, #f4fbf6 70%, #dcedf0 100%);
         }
 
+        /* 텍스트 위에 마우스를 올렸을 때 I자 입력 커서가 보이지 않게 설정 */
+        .phone-frame,
+        .phone-frame * {
+            cursor: default;
+            user-select: none;
+        }
+
         /* 3. 로고 영역 */
         .logo-box {
             text-align: center;
@@ -133,15 +140,31 @@
             border: none;
             box-shadow: 0 4px 16px rgba(254, 229, 0, 0.3);
             transition: all 0.2s ease;
-            gap: 12px;
+            gap: 10px;
             z-index: 1;
             margin-bottom: 50px;
+
+            /* 아이콘과 문장의 세로 정렬이 틀어지지 않도록 설정 */
+            line-height: 1;
+            font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+        }
+
+        /* 카카오 로그인 버튼 위에서는 클릭 가능한 손가락 커서가 보이게 설정 */
+        .kakao-btn,
+        .kakao-btn * {
+            cursor: pointer;
         }
 
         .kakao-icon {
             width: 22px;
-            height: auto;
+            height: 22px;
             object-fit: contain;
+
+            /* 이미지 아래쪽에 생기는 미세한 여백 제거 */
+            display: block;
+
+            /* 버튼 크기가 줄어도 아이콘 크기가 찌그러지지 않게 설정 */
+            flex-shrink: 0;
         }
 
         .kakao-btn:hover {
