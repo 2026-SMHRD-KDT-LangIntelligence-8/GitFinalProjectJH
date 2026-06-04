@@ -6,38 +6,50 @@ import org.springframework.web.bind.annotation.GetMapping;
 @Controller
 public class ViewController {
 
-    @GetMapping("/login")
+    // 화면 렌더링을 템플릿 기반으로 통일하고,
+    // 기존 .html 주소도 함께 매핑해 기존 접근 경로가 깨지지 않게 유지한다.
+    @GetMapping({"/", "/login", "/login.html"})
     public String loginPage() {
         return "login";
     }
 
-    @GetMapping("/main")
+    @GetMapping({"/main", "/main.html"})
     public String mainPage() {
         return "main";
     }
 
-    @GetMapping("/manage-seniors")
+    @GetMapping({"/manage-seniors", "/manage_seniors.html"})
     public String manageSeniors() {
         return "manage_seniors";
     }
 
-    @GetMapping("/profile-edit")
+    @GetMapping({"/manage-seniors/detail", "/manage_seniors_detail.html"})
+    public String manageSeniorsDetail() {
+        return "manage_seniors_detail";
+    }
+
+    @GetMapping({"/profile-edit", "/profile_edit.html"})
     public String profileEdit() {
         return "profile_edit";
     }
 
-    @GetMapping("/report")
+    @GetMapping({"/report", "/report.html"})
     public String reportPage() {
         return "report";
     }
 
-    @GetMapping("/test")
+    @GetMapping({"/test", "/test.html"})
     public String testPage() {
         return "test";
     }
 
-    @GetMapping("/training")
+    @GetMapping({"/training", "/training.html"})
     public String trainingPage() {
         return "training";
+    }
+
+    @GetMapping({"/training-program", "/training_program.html"})
+    public String trainingProgramPage() {
+        return "training_program";
     }
 }

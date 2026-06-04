@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>리포트</title>
+
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<div class="phone-frame" id="pdf-area">
+
+  <div class="top-nav-bar">
+    <a href="/main" class="back-btn">
+      <svg width="14" height="14" viewBox="0 0 24 24">
+        <path d="M15 19l-7-7 7-7" />
+      </svg>
+      뒤로가기
+    </a>
+  </div>
+
+  <div class="header-wrapper">
+    <h2 class="page-title"><span class="highlight-bg">리포트</span></h2>
+  </div>
+
+  <div class="scroll-content">
+    <div class="info-section">
+      <div class="section-label-row">
+        <h2 class="section-title">검사결과 조회</h2>
+        <select class="select-period-box">
+          <option>리포트 선택</option>
+          <option>최근 리포트</option>
+          <option>이전 리포트</option>
+        </select>
+      </div>
+      <div class="card-panel h-blank-medium"></div>
+      <div class="btn-align-right">
+        <button type="button" class="action-btn" onclick="downloadPDF()">출력</button>
+      </div>
+    </div>
+
+    <div class="info-section">
+      <div class="section-label-row">
+        <h2 class="section-title">기간별 변화 추이</h2>
+        <select class="select-period-box">
+          <option>기간 선택</option>
+          <option>최근 1주일</option>
+          <option>최근 1개월</option>
+          <option>최근 3개월</option>
+        </select>
+      </div>
+      <div class="card-panel h-blank-large"></div>
+      <div class="btn-align-right">
+        <button type="button" class="action-btn" onclick="downloadPDF()">출력</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<!-- PDF 출력 동작은 라이브러리 로드 후 별도 JS 파일에서 처리한다. -->
+<script src="/js/report.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>메인 메뉴</title>
+    <!-- 공통 CSS는 static 리소스로 제공하고, 이 템플릿은 그 경로만 참조한다. -->
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<div class="phone-frame">
+    <div class="top-header">
+        <img src="/img/login-logout.png" alt="로그인 로고" class="login-logo">
+        <div class="auth-box">
+            <a href="/login" id="loginLink" class="login-btn">로그인</a>
+            <span id="authDivider" class="divider"></span>
+            <a href="#" id="logoutLink" class="login-btn">로그아웃</a>
+        </div>
+    </div>
+
+    <div class="title-container">
+        <img src="/img/logo.png" alt="서비스 로고" class="service-logo">
+        <h1 class="service-title">인지검사</h1>
+    </div>
+
+    <div class="menu-container">
+        <!-- 정적 html 직접 이동 대신 Controller 경로를 사용한다. -->
+        <a href="/manage-seniors" class="menu-item bg-1">수급자 관리</a>
+        <a href="/test" class="menu-item bg-2">인지능력 검사</a>
+        <a href="/training" class="menu-item bg-3">인지능력 훈련</a>
+        <a href="/report" class="menu-item bg-4">리포트</a>
+        <a href="/profile-edit" class="menu-item bg-5">개인정보수정</a>
+    </div>
+
+    <a href="https://www.esthermall.co.kr/..." target="_blank" class="premium-ad-box">
+        <span class="hot-badge">광고</span>
+        <div class="ad-info">
+            <div class="tag-row"><span class="ad-category">인지지원 시니어몰</span></div>
+            <p class="ad-main-title">부모님 맞춤 영양제 베스트 5</p>
+            <p class="ad-price-info">최대 45% 할인 + 무료 배송</p>
+            <p class="ad-sub-text">인지력 개선 기능성 원료 우선</p>
+        </div>
+        <div class="shop-go-btn">보러가기</div>
+    </a>
+</div>
+
+<!-- 메인 화면 상태 관리는 별도 JS 파일에서 담당한다. -->
+<script src="/js/main.js"></script>
+</body>
+</html>
