@@ -1,0 +1,424 @@
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+@import url('https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_2206-02@1.0/PyeongChangPeace-Bold.woff2');
+
+/* ==========================================================================
+   1. 공통 스타일 (Global & Shared Styles)
+   ========================================================================== */
+body {
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: #f4f6f4;
+    font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+}
+
+/* 스마트폰 모양 틀 표준 규격 */
+.phone-frame {
+    width: 360px;
+    height: 740px;
+    border: 2px solid #EFEFEF;
+    border-radius: 40px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 24px 40px 24px;
+    box-sizing: border-box;
+    position: relative;
+    overflow: hidden;
+    background-color: #ffffff;
+}
+
+/* 상단 뒤로가기 네비게이션 바 */
+.top-nav-bar {
+    width: 100%;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.back-btn {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #728a7a;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    transition: color 0.2s ease;
+    padding: 4px 0;
+}
+
+.back-btn:hover {
+    color: #2e6f40;
+}
+
+.back-btn svg {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* 페이지 헤더 타이틀 공통 (HTML의 구조와 완벽 일치 매핑) */
+.header-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    margin-bottom: 28px;
+    position: relative;
+    width: 100%;
+}
+
+.page-title {
+    font-size: 26px;
+    font-weight: 800;
+    color: #11381c;
+    margin: 0;
+    letter-spacing: -0.5px;
+    position: relative;
+    z-index: 2;
+}
+
+/* 인지능력 검사/훈련 등의 중앙 정렬용 타이틀 컨테이너 */
+.title-container {
+    width: 100%;
+    text-align: center;
+    margin-top: 10px;
+    margin-bottom: 35px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.sub-badge {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #728a7a;
+    margin-bottom: 2px;
+}
+
+.main-title {
+    font-size: 27px;
+    font-weight: 800;
+    color: #11381c;
+    margin: 0;
+    letter-spacing: -0.5px;
+    line-height: 1.4;
+}
+
+/* 공통 내부 스크롤 컨테이너 */
+.scroll-content {
+    flex: 1;
+    width: 100%;
+    overflow-y: auto;
+    padding-right: 4px;
+    box-sizing: border-box;
+}
+
+.scroll-content::-webkit-scrollbar {
+    width: 5px;
+    background-color: rgba(46, 111, 64, 0.03);
+    border-radius: 3px;
+}
+
+.scroll-content::-webkit-scrollbar-thumb {
+    background-color: #8fa195;
+    border-radius: 3px;
+}
+
+/* 공통 섹션 컴포넌트 (상세보기, 리포트 등) */
+.info-section {
+    width: 100%;
+    margin-bottom: 34px;
+}
+
+.section-label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 14px;
+}
+
+.section-title {
+    font-size: 15px;
+    font-weight: 800;
+    color: #11381c;
+    margin: 0;
+    position: relative;
+    padding-left: 10px;
+}
+
+.section-title::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 3px;
+    width: 3.5px;
+    height: 14px;
+    background-color: #23B943;
+    border-radius: 2px;
+}
+
+.section-badge-info {
+    font-size: 9.5px;
+    font-weight: 600;
+    color: #676565;
+    background-color: rgba(46, 111, 64, 0.06);
+    padding: 2px 7px;
+    border-radius: 6px;
+    text-transform: uppercase;
+}
+
+/* 공통 카드 판넬 */
+.card-panel {
+    width: 100%;
+    background-color: #F4F6F4;
+    border-radius: 20px;
+    box-sizing: border-box;
+    border: 1px dashed #c8d4cb;
+}
+.h-blank-medium { height: 120px; }
+.h-blank-large { height: 200px; }
+
+/* 공통 우측 정렬 버튼 레이아웃 */
+.btn-align-right {
+    display: flex;
+    justify-content: flex-end;
+    width: 100%;
+    margin-top: 14px;
+}
+
+/* 공통 드롭다운 선택 상자 */
+.select-period-box {
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    color: #354a3b;
+    border: 1px solid #d2ded5;
+    background-color: #ffffff;
+    border-radius: 8px;
+    padding: 4px 20px 4px 8px;
+    outline: none;
+}
+
+
+/* ==========================================================================
+   2. 로그인 화면 (login.html)
+   ========================================================================== */
+.logo-box {
+    text-align: center;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    position: relative;
+    width: 100%;
+    height: 180px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.logo-bg {
+    position: absolute;
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle, rgba(220,245,225,0.5) 0%, rgba(255,255,255,0) 70%);
+    border-radius: 50%;
+}
+
+.logo-img {
+    width: 140px;
+    height: auto;
+    object-fit: contain;
+    z-index: 1;
+}
+
+.welcome-box {
+    text-align: center;
+    width: 100%;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.welcome-box .main-title {
+    font-family: 'PyeongChangPeace-Bold', sans-serif;
+    font-size: 22px;
+    font-weight: 500;
+    color: #333333;
+}
+
+.welcome-box .highlight {
+    display: inline-block;
+    font-size: 25px;
+    color: #2e6f40;
+    font-weight: 700;
+    margin-top: 5px;
+}
+
+.divider {
+    width: 60px;
+    height: 1px;
+    background-color: #D6D6D6;
+    margin: 20px auto;
+    border: none;
+}
+
+.sub-title {
+    font-size: 14px;
+    color: #666666;
+    margin: 0;
+}
+
+.kakao-btn {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 54px;
+    background-color: #FEE500;
+    color: #191919;
+    border: none;
+    border-radius: 14px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    gap: 10px;
+    margin-bottom: 30px;
+}
+
+.kakao-icon {
+    width: 20px;
+    height: 20px;
+}
+
+
+/* ==========================================================================
+   3. 메인 메뉴 및 광고 (main.html)
+   ========================================================================== */
+.top-header { width: 100%; display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-bottom: 10px; }
+.login-logo { width: 18px; height: 18px; }
+.auth-box { display: flex; align-items: center; }
+.login-btn { font-size: 13px; font-weight: 700; color: #2e6f40; text-decoration: none; }
+.top-header .divider { width: 1px; height: 12px; background-color: #cccccc; margin: 0 6px; }
+.hidden { display: none !important; }
+
+.service-logo { width: 36px; height: auto; }
+.service-title { font-size: 26px; font-weight: 800; color: #11381c; margin: 0; }
+
+.menu-container { width: 100%; display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; flex: 1; justify-content: center;}
+.menu-item {
+    width: 100%; height: 56px; border-radius: 14px; display: flex; justify-content: center; align-items: center; font-size: 18px; font-weight: 800; color: #ffffff; text-decoration: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: transform 0.2s;
+}
+.menu-item:active { transform: scale(0.98); }
+
+.bg-1 { background-color: #E63946; }
+.bg-2 { background-color: #F4A261; }
+.bg-3 { background-color: #2A9D8F; }
+.bg-4 { background-color: #457B9D; }
+.bg-5 { background-color: #6D597A; }
+
+.premium-ad-box { width: 100%; background-color: #f7fff9; border: 1.5px dashed #1e5e3a; border-radius: 14px; display: flex; align-items: center; padding: 10px; box-sizing: border-box; text-decoration: none; position: relative; }
+.hot-badge { position: absolute; top: 8px; right: 10px; font-size: 9px; font-weight: 800; color: #ffffff; background-color: #ff3b30; padding: 1px 4px; border-radius: 3px; }
+.ad-info { flex: 1; display: flex; flex-direction: column; }
+.ad-category { font-size: 10px; font-weight: 800; color: #2e6f40; }
+.ad-main-title { font-size: 14px; font-weight: 800; color: #11381c; margin: 2px 0; }
+.ad-price-info { font-size: 12px; font-weight: 700; color: #ff3b30; margin: 0; }
+.ad-sub-text { font-size: 11px; color: #6a8b73; margin: 0; }
+.shop-go-btn { font-size: 11px; font-weight: 800; color: #ffffff; background-color: #1e5e3a; padding: 6px 10px; border-radius: 6px; }
+
+
+/* ==========================================================================
+   4. 수급자 관리 리스트 (manage_seniors.html)
+   ========================================================================== */
+.search-container { display: flex; gap: 8px; width: 100%; margin-bottom: 20px; }
+.search-input { flex: 1; height: 40px; border: 1.5px solid #e2ece6; border-radius: 10px; padding: 0 12px; font-size: 13px; outline: none; }
+.search-btn { width: 60px; height: 40px; background-color: #2e6f40; color: #ffffff; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; }
+
+.table-header-labels { display: flex; justify-content: space-between; width: 100%; padding: 10px 0; border-bottom: 2px solid #1e5e3a; }
+.header-item { font-size: 13px; font-weight: 800; color: #0d2b15; text-align: center; }
+.w-name { width: 22%; } .w-birth { width: 30%; } .w-gender { width: 18%; } .w-grade { width: 30%; }
+.content-blank-box { flex: 1; width: 100%; margin-top: 10px; background-color: #f4f6f5; border-radius: 14px; border: 1.5px dashed #e2ece6; }
+
+.floating-add-btn {
+    position: absolute; bottom: 30px; right: 24px; width: 50px; height: 50px; background-color: #11381c; border-radius: 50%; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.2); text-decoration: none;
+}
+.floating-add-btn::before { content: '+'; color: white; font-size: 28px; font-weight: 300; }
+
+
+/* ==========================================================================
+   5. 수급자 상세 관리 (manage_seniors_detail.html)
+   ========================================================================== */
+.info-form-layout { padding: 10px; background-color: #e8ece9; border-radius: 18px; display: flex; flex-direction: column; gap: 6px; }
+.form-item-row { display: flex; align-items: center; justify-content: space-between; height: 40px; padding: 0 12px; background-color: #ffffff; border-radius: 10px; }
+.form-lbl { font-size: 13px; color: #777777; font-weight: 700; }
+.form-val { font-size: 13px; color: #11381c; font-weight: 800; text-align: right; }
+
+.date-input-field, .toggle-select {
+    font-family: inherit; font-size: 13px; font-weight: 800; color: #11381c; border: 1px solid #cce0d2; background-color: #f5f8f6; border-radius: 6px; height: 28px; padding: 0 6px; outline: none; text-align: right;
+}
+.date-input-field { width: 110px; }
+.toggle-select { width: 100px; }
+
+.edit-action-btn, .action-btn {
+    background-color: #2e6f40; color: #ffffff; border: none; border-radius: 10px; padding: 6px 16px; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+
+
+/* ==========================================================================
+   6. 개인정보 수정 (profile_edit.html)
+   ========================================================================== */
+.edit-form-container { width: 100%; display: flex; flex-direction: column; gap: 12px; }
+.form-row { display: flex; align-items: center; width: 100%; height: 44px; }
+.form-label { width: 70px; font-size: 14px; font-weight: 800; color: #0d2b15; }
+.form-input-wrapper { flex: 1; height: 100%; }
+.form-input { width: 100%; height: 100%; border: 1.5px solid #e2ece6; border-radius: 10px; padding: 0 12px; font-size: 13px; box-sizing: border-box; outline: none; }
+
+.security-notice-box { width: 100%; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+.security-icon { color: #2e6f40; background-color: rgba(46, 111, 64, 0.06); padding: 8px; border-radius: 50%; }
+.security-text { font-size: 12px; font-weight: 600; color: #728a7a; text-align: center; line-height: 1.4; }
+
+.action-button-group { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+.primary-btn, .secondary-btn { width: 100%; height: 44px; border: none; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; }
+.primary-btn { background-color: #2e6f40; color: white; }
+.secondary-btn { background-color: #c34343; color: white; }
+
+
+/* ==========================================================================
+   7. 리포트 출력 및 조회 (report.html)
+   ========================================================================== */
+.highlight-bg { background-color: rgba(35, 185, 67, 0.15); padding: 2px 6px; border-radius: 4px; }
+
+
+/* ==========================================================================
+   8. 검사 및 훈련 그래픽 대시보드 (test.html / training.html)
+   ========================================================================== */
+.graphic-container { width: 100%; display: flex; justify-content: center; align-items: center; flex: 1; }
+.center-illustration { width: 180px; height: 180px; }
+
+.action-container { width: 100%; display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.dropdown-wrapper { flex: 1; }
+.select-recipient { width: 100%; height: 44px; font-size: 14px; font-weight: 700; color: #354a3b; padding: 0 12px; border-radius: 10px; border: 1px solid #c8d4cb; background-color: #f6f8f6; outline: none; }
+.start-btn { height: 44px; padding: 0 20px; background-color: #2e6f40; color: #ffffff; border: none; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+
+
+/* ==========================================================================
+   9. 인지능력 훈련 세부 프로그램 리스트 (training_program.html)
+   ========================================================================== */
+.training-list { width: 100%; display: flex; flex-direction: column; gap: 10px; flex: 1; justify-content: center; }
+.training-item {
+    width: 100%; height: 56px; display: flex; align-items: center; text-decoration: none; border-radius: 14px; padding: 0 16px; box-sizing: border-box; background-color: #f6f8f6; border: 1px solid #c8d4cb;
+}
+.training-text { font-size: 16px; font-weight: 800; color: #11381c; }
+.arrow-icon { margin-left: auto; color: #728a7a; display: flex; align-items: center; }
