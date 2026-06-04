@@ -10,16 +10,17 @@
 
 <div class="phone-frame">
 
-    <div class="top-nav-bar">
-        <!-- 목록 화면은 정적 파일명이 아닌 Controller 경로로 연결한다. -->
-        <a href="/manage-seniors" class="back-btn">
+    <div class="top-nav-bar detail-top-nav-bar">
+        <!-- 목록 화면으로 돌아갈 때도 templates 라우팅 경로를 사용한다. -->
+        <a href="/manage-seniors" class="back-btn detail-back-btn">
             <svg width="14" height="14" viewBox="0 0 24 24">
                 <path d="M15 19l-7-7 7-7" />
             </svg>
             뒤로가기
         </a>
-        <h1 class="page-title">수급자 관리</h1>
-        <div style="width: 50px;"></div>
+        <!-- 상세 화면에서는 제목을 조금 더 가운데로 당겨서 균형을 맞춘다. -->
+        <h1 class="page-title detail-page-title">수급자 관리</h1>
+        <div class="detail-nav-spacer" aria-hidden="true"></div>
     </div>
 
     <div class="scroll-content">
@@ -38,12 +39,14 @@
 
                 <div class="form-item-row">
                     <span class="form-lbl">생년월일</span>
-                    <input type="text" class="date-input-field" id="val-keypad" placeholder="예: 2026052" maxlength="10">
+                    <!-- 상세 페이지는 조회 전용이라 입력은 읽기 전용으로 유지한다. -->
+                    <input type="text" class="date-input-field" id="val-keypad" placeholder="예: 2026-05-02" maxlength="10" readonly>
                 </div>
 
                 <div class="form-item-row">
                     <span class="form-lbl">성별</span>
-                    <select class="toggle-select" id="toggle-gender">
+                    <!-- 현재 페이지에서는 수정하지 못하게 막고, 값만 보여 준다. -->
+                    <select class="toggle-select" id="toggle-gender" disabled>
                         <option value="">선택</option>
                         <option value="male">남성</option>
                         <option value="female">여성</option>
@@ -52,7 +55,8 @@
 
                 <div class="form-item-row">
                     <span class="form-lbl">장기요양등급</span>
-                    <select class="toggle-select" id="toggle-grade">
+                    <!-- 요양등급 변경도 수정 전용 페이지에서만 가능하도록 비활성화한다. -->
+                    <select class="toggle-select" id="toggle-grade" disabled>
                         <option value="">등급 선택</option>
                         <option value="1">1등급</option>
                         <option value="2">2등급</option>
@@ -64,13 +68,21 @@
                 </div>
 
                 <div class="form-item-row">
+                    <!-- DB의 guardian_name 컬럼을 비상연락망 위에 보여 주는 조회 전용 행이다. -->
+                    <span class="form-lbl">보호자명</span>
+                    <span class="form-val" id="val-guardian-name"></span>
+                </div>
+
+                <div class="form-item-row">
                     <span class="form-lbl">비상연락망</span>
                     <span class="form-val" id="val-phone"></span>
                 </div>
+
                 <div class="form-item-row">
                     <span class="form-lbl">검사한 횟수</span>
                     <span class="form-val" id="val-count" style="color: #2e6f40;"></span>
                 </div>
+
                 <div class="form-item-row">
                     <span class="form-lbl">최근 검사일</span>
                     <span class="form-val" id="val-date"></span>
@@ -78,7 +90,8 @@
             </div>
 
             <div class="btn-align-right">
-                <button type="button" class="edit-action-btn">수정</button>
+                <!-- 상세 화면의 수정 버튼은 별도 수정 페이지로 이동만 담당한다. -->
+                <button type="button" class="edit-action-btn" id="detail-edit-button">수정</button>
             </div>
         </div>
 
@@ -126,8 +139,12 @@
     </div>
 </div>
 
-<!-- 입력 보정 스크립트는 별도 JS 파일로 분리해 상세 화면 마크업을 단순화한다. -->
+<!-- 현재 파일은 조회 전용이지만, 생년월일 표시 형식을 맞출 때 기존 보정 로직을 재사용한다. -->
 <script src="/js/manage_seniors_detail.js"></script>
+<!-- 목록에서 전달한 recipientId를 기준으로 실제 DB 데이터를 채우는 스크립트 -->
+<script src="/js/recipient_detail_data.js"></script>
+<!-- 수정 버튼 클릭 시 수정 전용 화면으로 이동시키는 스크립트 -->
+<script src="/js/manage_seniors_detail_navigation.js"></script>
 
 </body>
 </html>

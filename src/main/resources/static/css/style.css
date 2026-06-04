@@ -41,6 +41,11 @@ body {
     margin-bottom: 24px;
 }
 
+/* 상세 화면 헤더는 뒤로가기와 제목의 시각적 중심을 별도로 맞춘다. */
+.detail-top-nav-bar {
+    justify-content: space-between;
+}
+
 .back-btn {
     font-size: 13.5px;
     font-weight: 600;
@@ -66,6 +71,10 @@ body {
     stroke-linejoin: round;
 }
 
+.detail-back-btn {
+    margin-left: -6px;
+}
+
 /* 페이지 헤더 타이틀 공통 (HTML의 구조와 완벽 일치 매핑) */
 .header-wrapper {
     display: flex;
@@ -84,6 +93,17 @@ body {
     letter-spacing: -0.5px;
     position: relative;
     z-index: 2;
+}
+
+.detail-page-title {
+    flex: 1;
+    text-align: center;
+    margin-left: -14px;
+}
+
+.detail-nav-spacer {
+    width: 44px;
+    flex-shrink: 0;
 }
 
 /* 인지능력 검사/훈련 등의 중앙 정렬용 타이틀 컨테이너 */
@@ -351,6 +371,42 @@ body {
 .w-name { width: 22%; } .w-birth { width: 30%; } .w-gender { width: 18%; } .w-grade { width: 30%; }
 .content-blank-box { flex: 1; width: 100%; margin-top: 10px; background-color: #f4f6f5; border-radius: 14px; border: 1.5px dashed #e2ece6; }
 
+/* 수급자 목록은 JS가 동적으로 채우므로 행 스타일을 별도로 제공한다. */
+.recipient-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    min-height: 50px;
+    padding: 0 12px;
+    box-sizing: border-box;
+    text-decoration: none;
+    color: inherit;
+    border-bottom: 1px solid #d9e5dc;
+}
+
+.recipient-row:last-child {
+    border-bottom: none;
+}
+
+.recipient-cell {
+    font-size: 13px;
+    font-weight: 700;
+    color: #11381c;
+    text-align: center;
+}
+
+.recipient-empty-message {
+    height: 100%;
+    min-height: 180px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: #728a7a;
+}
+
 .floating-add-btn {
     position: absolute; bottom: 30px; right: 24px; width: 50px; height: 50px; background-color: #11381c; border-radius: 50%; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.2); text-decoration: none;
 }
@@ -393,6 +449,11 @@ body {
 .primary-btn, .secondary-btn { width: 100%; height: 44px; border: none; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; }
 .primary-btn { background-color: #2e6f40; color: white; }
 .secondary-btn { background-color: #c34343; color: white; }
+
+/* 수급자 수정 페이지는 같은 폼 스타일을 재사용하되 저장/취소 버튼 간격만 별도로 맞춘다. */
+.edit-page-actions {
+    margin-top: 18px;
+}
 
 
 /* ==========================================================================

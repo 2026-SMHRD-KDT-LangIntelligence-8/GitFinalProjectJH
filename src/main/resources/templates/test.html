@@ -9,7 +9,6 @@
 <body>
 
 <div class="phone-frame">
-    <!-- 뒤로가기 영역 -->
     <div class="top-nav-bar">
         <a href="/main" class="back-btn">
             <svg width="14" height="14" viewBox="0 0 24 24">
@@ -20,6 +19,7 @@
     </div>
 
     <div class="title-container">
+        <div class="sub-badge">COGNITIVE ASSESSMENT</div>
         <h1 class="main-title">인지능력 검사</h1>
     </div>
 
@@ -36,17 +36,18 @@
 
     <div class="action-container">
         <div class="dropdown-wrapper">
-            <select class="select-recipient">
+            <!-- 하드코딩 옵션 대신 JS가 DB 목록을 채워 넣는다. -->
+            <select class="select-recipient" id="recipient-select">
                 <option value="" disabled selected hidden>수급자명</option>
-                <option value="1">ooo 수급자</option>
-                <option value="2">ooo 수급자</option>
-                <option value="3">ooo 수급자</option>
             </select>
         </div>
         <button type="button" class="start-btn">시작하기</button>
     </div>
 
 </div>
+
+<!-- 검사 시작 화면용 수급자 목록 로딩 스크립트 -->
+<script src="/js/test.js"></script>
 
 </body>
 </html>
