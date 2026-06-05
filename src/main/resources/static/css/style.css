@@ -13,6 +13,16 @@ body {
     min-height: 100vh;
     background-color: #f4f6f4;
     font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+    user-select: none;
+    cursor: default;
+}
+
+input,
+textarea,
+select,
+button,
+a {
+    user-select: auto;
 }
 
 /* 스마트폰 모양 틀 표준 규격 */
@@ -330,7 +340,7 @@ body {
 .top-header { width: 100%; display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-bottom: 10px; }
 .login-logo { width: 18px; height: 18px; }
 .auth-box { display: flex; align-items: center; }
-.login-btn { font-size: 13px; font-weight: 700; color: #2e6f40; text-decoration: none; }
+.login-btn { font-size: 16px; font-weight: 700; color: #2e6f40; text-decoration: none; }
 .top-header .divider { width: 1px; height: 12px; background-color: #cccccc; margin: 0 6px; }
 .hidden { display: none !important; }
 
