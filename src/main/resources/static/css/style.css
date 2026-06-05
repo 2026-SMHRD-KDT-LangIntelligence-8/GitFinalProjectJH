@@ -96,7 +96,7 @@ a {
 }
 
 .page-title {
-    font-size: 26px;
+    font-size: 32px;
     font-weight: 800;
     color: #11381c;
     margin: 0;
@@ -138,7 +138,7 @@ a {
 }
 
 .main-title {
-    font-size: 27px;
+    font-size: 32px;
     font-weight: 800;
     color: #11381c;
     margin: 0;
@@ -338,26 +338,34 @@ a {
    3. 메인 메뉴 및 광고 (main.html)
    ========================================================================== */
 .top-header { width: 100%; display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-bottom: 10px; }
-.login-logo { width: 18px; height: 18px; }
+.login-logo { width: 22px; height: 22px; }
 .auth-box { display: flex; align-items: center; }
 .login-btn { font-size: 16px; font-weight: 700; color: #2e6f40; text-decoration: none; }
 .top-header .divider { width: 1px; height: 12px; background-color: #cccccc; margin: 0 6px; }
 .hidden { display: none !important; }
 
-.service-logo { width: 36px; height: auto; }
-.service-title { font-size: 26px; font-weight: 800; color: #11381c; margin: 0; }
+.main-title-container {
+    position: relative;
+    min-height: 56px;
+    justify-content: center;
+    transform: translate(8px, 16px);
+}
+
+.service-logo { width: 50px; height: 50px; object-fit: contain; }
+.main-title-container .service-logo { position: absolute; left: calc(50% - 112px); top: 50%; transform: translateY(-50%); }
+.service-title { width: 100%; text-align: center; font-size: 40px; font-weight: 800; color: #11381c; margin: 0; transform: translateX(5px); }
 
 .menu-container { width: 100%; display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; flex: 1; justify-content: center;}
 .menu-item {
-    width: 100%; height: 56px; border-radius: 14px; display: flex; justify-content: center; align-items: center; font-size: 18px; font-weight: 800; color: #ffffff; text-decoration: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: transform 0.2s;
+    width: 100%; height: 70px; border-radius: 14px; display: flex; justify-content: center; align-items: center; font-size: 25px; font-weight: 800; color: #ffffff; text-decoration: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: transform 0.2s;
 }
 .menu-item:active { transform: scale(0.98); }
 
-.bg-1 { background-color: #E63946; }
-.bg-2 { background-color: #F4A261; }
-.bg-3 { background-color: #2A9D8F; }
-.bg-4 { background-color: #457B9D; }
-.bg-5 { background-color: #6D597A; }
+.bg-1 { background-color: #F94144; }
+.bg-2 { background-color: #F77F00; }
+.bg-3 { background-color: #00B050; }
+.bg-4 { background-color: #277DA1; }
+.bg-5 { background-color: #73508F; }
 
 .premium-ad-box { width: 100%; background-color: #f7fff9; border: 1.5px dashed #1e5e3a; border-radius: 14px; display: flex; align-items: center; padding: 10px; box-sizing: border-box; text-decoration: none; position: relative; }
 .hot-badge { position: absolute; top: 8px; right: 10px; font-size: 9px; font-weight: 800; color: #ffffff; background-color: #ff3b30; padding: 1px 4px; border-radius: 3px; }
