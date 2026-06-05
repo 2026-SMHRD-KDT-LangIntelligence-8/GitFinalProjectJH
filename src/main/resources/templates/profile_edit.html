@@ -9,7 +9,6 @@
 <body>
 
 <div class="phone-frame">
-  <!-- 💡 뒤로가기 버튼 영역 추가 -->
   <div class="top-nav-bar">
     <a href="/main" class="back-btn">
       <svg width="14" height="14" viewBox="0 0 24 24">
@@ -27,21 +26,51 @@
     <div class="form-row">
       <div class="form-label">이름</div>
       <div class="form-input-wrapper">
-        <input type="text" class="form-input" placeholder="이름을 입력하세요">
+        <input type="text" id="profile-name" class="form-input" placeholder="이름을 입력하세요">
       </div>
     </div>
 
-    <div class="form-row">
+    <div class="form-row profile-email-row">
       <div class="form-label">이메일</div>
       <div class="form-input-wrapper">
-        <input type="email" class="form-input" placeholder="example@email.com">
+        <!-- 이메일은 아이디와 도메인을 분리해서 입력받고, 직접 입력 도메인 선택도 지원한다. -->
+        <div class="email-input-group">
+          <!-- 아이디와 도메인 선택을 한 줄에 두어 일반적인 이메일 입력 흐름을 유지한다. -->
+          <input type="text" id="email-id" class="form-input email-part-input" placeholder="example">
+          <span class="email-at">@</span>
+          <!-- 도메인 선택칸은 셀렉트임을 바로 알 수 있도록 화살표 표시용 래퍼로 감싼다. -->
+          <div class="email-domain-select-wrap">
+            <select id="email-domain-select" class="form-input email-domain-select">
+              <option value="naver.com">naver.com</option>
+              <option value="gmail.com">gmail.com</option>
+              <option value="daum.net">daum.net</option>
+              <option value="kakao.com">kakao.com</option>
+              <option value="직접입력">직접 입력</option>
+            </select>
+          </div>
+        </div>
+        <!-- 직접 입력 선택 시에만 열리는 도메인 입력창이다. -->
+        <input
+                type="text"
+                id="email-domain-custom"
+                class="form-input email-custom-domain hidden"
+                placeholder="도메인을 직접 입력하세요"
+        >
       </div>
     </div>
 
     <div class="form-row">
       <div class="form-label">전화번호</div>
       <div class="form-input-wrapper">
-        <input type="tel" class="form-input" placeholder="010-0000-0000">
+        <!-- 전화번호는 숫자 입력을 기본으로 유도하고, 하이픈 포함 최대 길이를 제한한다. -->
+        <input
+                type="text"
+                id="profile-phone"
+                class="form-input"
+                inputmode="numeric"
+                maxlength="13"
+                placeholder="010-0000-0000"
+        >
       </div>
     </div>
   </div>
@@ -58,11 +87,15 @@
   </div>
 
   <div class="action-button-group">
-    <button type="submit" class="primary-btn">수정하기</button>
+    <!-- 저장 버튼은 JS에서 변경 여부를 확인한 뒤 localStorage 저장과 완료 안내를 처리한다. -->
+    <button type="button" id="profile-save-button" class="primary-btn">수정하기</button>
     <button type="button" class="secondary-btn">탈퇴하기</button>
   </div>
 
 </div>
+
+<!-- 개인정보수정 화면의 전화번호 포맷, 이메일 입력 분리, 변경 내용 저장을 담당하는 스크립트 -->
+<script src="/js/profile_edit.js"></script>
 
 </body>
 </html>

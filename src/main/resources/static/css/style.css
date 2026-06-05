@@ -459,6 +459,74 @@ a {
 .form-input-wrapper { flex: 1; height: 100%; }
 .form-input { width: 100%; height: 100%; border: 1.5px solid #e2ece6; border-radius: 10px; padding: 0 12px; font-size: 13px; box-sizing: border-box; outline: none; }
 
+/* 이메일은 아이디, @, 도메인 선택이 한 줄에서 자연스럽게 보이도록 별도 레이아웃을 둔다. */
+.profile-email-row {
+    align-items: flex-start;
+    min-height: 84px;
+    height: auto;
+}
+
+.email-input-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+}
+
+/* 아이디 입력칸과 도메인 선택칸의 너비 비율을 다르게 줘서 긴 도메인도 무리 없이 보이게 한다. */
+.email-part-input {
+    flex: 1 1 40%;
+    min-width: 0;
+}
+
+.email-at {
+    font-size: 14px;
+    font-weight: 700;
+    color: #354a3b;
+}
+
+.email-domain-select-wrap {
+    position: relative;
+    flex: 1 1 60%;
+    min-width: 0;
+}
+
+.email-domain-select {
+    width: 100%;
+    appearance: none;
+    background-color: #ffffff;
+    padding-right: 34px;
+}
+
+/* 도메인 선택칸 오른쪽에 아래 화살표를 고정 표시해 셀렉트임을 바로 알 수 있게 한다. */
+.email-domain-select-wrap::after {
+    content: "";
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid #728a7a;
+    border-bottom: 2px solid #728a7a;
+    transform: translateY(-65%) rotate(45deg);
+    pointer-events: none;
+}
+
+/* 직접 입력 도메인 칸은 셀렉트 아래에 나타나도록 여백만 별도로 준다. */
+.email-custom-domain {
+    margin-top: 12px;
+}
+
+/* 개인정보수정 화면은 입력칸이 조금 더 여유 있게 보이도록 세로 간격을 키운다. */
+.edit-form-container .form-row {
+    min-height: 56px;
+    margin-bottom: 10px;
+}
+
+.edit-form-container .form-input {
+    height: 56px;
+}
+
 .security-notice-box { width: 100%; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
 .security-icon { color: #2e6f40; background-color: rgba(46, 111, 64, 0.06); padding: 8px; border-radius: 50%; }
 .security-text { font-size: 12px; font-weight: 600; color: #728a7a; text-align: center; line-height: 1.4; }
