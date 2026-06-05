@@ -32,7 +32,10 @@ public class SecurityConfig {
 						.defaultSuccessUrl("/main?login=success", true)
 				)
 				.logout(logout -> logout
-						.logoutSuccessUrl("/main")
+						.invalidateHttpSession(true)
+						.clearAuthentication(true)
+						.deleteCookies("JSESSIONID")
+						.logoutSuccessUrl("/login")
 				)
 				.httpBasic(httpBasic -> httpBasic.disable());
 
