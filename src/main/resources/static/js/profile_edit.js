@@ -10,6 +10,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const customDomainInput = document.getElementById("email-domain-custom");
     const emailIdInput = document.getElementById("email-id");
     const saveButton = document.getElementById("profile-save-button");
+    const withdrawButton = document.getElementById("profile-withdraw-button");
 
     const defaultProfile = {
         name: "",
@@ -119,5 +120,48 @@ document.addEventListener("DOMContentLoaded", () => {
         // 수정 완료 안내를 보여준 뒤 메인 페이지로 이동시켜 사용 흐름을 마무리한다.
         alert("수정이 완료되었습니다.");
         window.location.href = "/main";
+    });
+
+    withdrawButton.addEventListener("click", async () => {
+        const shouldWithdraw = confirm(
+            "\uc815\ub9d0 \ud0c8\ud1f4\ud558\uc2dc\uaca0\uc2b5\ub2c8\uae4c? \ud0c8\ud1f4 \ud6c4 \uacc4\uc815 \uc815\ubcf4\uac00 \uc0ad\uc81c\ub429\ub2c8\ub2e4."
+        );
+
+        if (!shouldWithdraw) {
+            return;
+        }
+
+        withdrawButton.disabled = true;
+
+        try {
+            const response = await fetch("/api/users/me", {
+                method: "DELETE"
+            });
+
+            if (response.status === 401) {
+                alert("\ub85c\uadf8\uc778 \uc138\uc158\uc774 \uc5c6\uc2b5\ub2c8\ub2e4. \ub2e4\uc2dc \ub85c\uadf8\uc778\ud55c \ub4a4 \ud0c8\ud1f4\ub97c \uc9c4\ud589\ud574 \uc8fc\uc138\uc694.");
+                localStorage.removeItem("isLoggedIn");
+                window.location.href = "/login";
+                return;
+            }
+
+            if (response.status === 404) {
+                alert("\ud0c8\ud1f4 API\uac00 \uc11c\ubc84\uc5d0 \ubc18\uc601\ub418\uc9c0 \uc54a\uc558\uc2b5\ub2c8\ub2e4. \uc11c\ubc84\ub97c \uc7ac\uc2dc\uc791\ud55c \ub4a4 \ub2e4\uc2dc \uc2dc\ub3c4\ud574 \uc8fc\uc138\uc694.");
+                return;
+            }
+
+            if (!response.ok) {
+                throw new Error(`Failed to withdraw. status=${response.status}`);
+            }
+
+            localStorage.removeItem(storageKey);
+            localStorage.removeItem("isLoggedIn");
+            alert("\ud0c8\ud1f4\uac00 \uc644\ub8cc\ub418\uc5c8\uc2b5\ub2c8\ub2e4.");
+            window.location.href = "/login";
+        } catch (error) {
+            console.error(error);
+            alert("\ud0c8\ud1f4 \ucc98\ub9ac \uc911 \ubb38\uc81c\uac00 \ubc1c\uc0dd\ud588\uc2b5\ub2c8\ub2e4.");
+            withdrawButton.disabled = false;
+        }
     });
 });
