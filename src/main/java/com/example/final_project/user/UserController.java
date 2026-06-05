@@ -39,7 +39,7 @@ public class UserController {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String userId = currentUserService.getRequiredUserId();
 
-        // When a user leaves, clear the user-recipient mappings first and then remove orphan recipient rows.
+        // 회원 탈퇴 시 사용자-수급자 매핑을 먼저 정리하고, 연결이 끊긴 수급자 데이터만 삭제한다.
         recipientRepository.deleteAllByUserId(userId);
         jdbcTemplate.update("delete from USERS where user_id = ?", userId);
         new SecurityContextLogoutHandler().logout(request, response, authentication);

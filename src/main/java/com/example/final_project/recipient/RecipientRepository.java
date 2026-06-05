@@ -41,8 +41,8 @@ public class RecipientRepository {
     }
 
     /**
-     * Show only the recipients mapped to the currently logged-in Kakao user.
-     * USER_RECIPIENTS is the ownership table used by the recipient list screen.
+     * 현재 로그인한 카카오 사용자와 USER_RECIPIENTS로 연결된 수급자만 조회한다.
+     * 수급자 관리 목록 화면은 이 조회 결과만 사용한다.
      */
     public List<RecipientResponse> findAllByUserId(String userId) {
         String sql = """
@@ -58,7 +58,7 @@ public class RecipientRepository {
     }
 
     /**
-     * Detail lookup is also protected by USER_RECIPIENTS so that a user cannot open another user's recipient.
+     * 상세 조회도 USER_RECIPIENTS 매핑을 기준으로 제한하여 다른 사용자의 수급자에 접근하지 못하게 한다.
      */
     public Optional<RecipientResponse> findByIdAndUserId(Long recipientId, String userId) {
         String sql = """
@@ -75,8 +75,9 @@ public class RecipientRepository {
     }
 
     /**
-     * Save the recipient to RECIPIENTS first, then connect it to the Kakao user in USER_RECIPIENTS.
-     * The mapping row is what makes the newly created recipient appear in that user's list.
+     * 수급자 기본 정보는 RECIPIENTS에 먼저 저장하고,
+     * 생성된 recipient_id를 USER_RECIPIENTS에 현재 카카오 user_id와 함께 저장한다.
+     * 이 매핑 정보가 있어야 등록한 사용자의 목록에 새 수급자가 보인다.
      */
     public RecipientResponse save(RecipientCreateRequest request, String userId) {
         String sql = """
@@ -106,7 +107,7 @@ public class RecipientRepository {
 
         Number generatedId = keyHolder.getKey();
         if (generatedId == null) {
-            throw new IllegalStateException("Generated recipient id was not found.");
+            throw new IllegalStateException("생성된 수급자 ID를 확인할 수 없습니다.");
         }
 
         jdbcTemplate.update(
@@ -116,11 +117,11 @@ public class RecipientRepository {
         );
 
         return findByIdAndUserId(generatedId.longValue(), userId)
-                .orElseThrow(() -> new IllegalStateException("Saved recipient was not found."));
+                .orElseThrow(() -> new IllegalStateException("저장된 수급자 정보를 다시 조회하지 못했습니다."));
     }
 
     /**
-     * Update is allowed only when the current user-recipient mapping exists.
+     * 현재 사용자와 수급자 매핑이 있는 경우에만 수정이 가능하다.
      */
     public RecipientResponse update(Long recipientId, RecipientUpdateRequest request, String userId) {
         String sql = """
@@ -145,16 +146,16 @@ public class RecipientRepository {
         );
 
         if (updatedCount == 0) {
-            throw new IllegalArgumentException("Recipient was not found. id=" + recipientId);
+            throw new IllegalArgumentException("해당 수급자를 찾을 수 없습니다. id=" + recipientId);
         }
 
         return findByIdAndUserId(recipientId, userId)
-                .orElseThrow(() -> new IllegalStateException("Updated recipient was not found."));
+                .orElseThrow(() -> new IllegalStateException("수정된 수급자 정보를 다시 조회하지 못했습니다."));
     }
 
     /**
-     * Remove the current user's mappings first.
-     * Then delete recipient rows only when they are no longer mapped to any user.
+     * 회원 탈퇴 시 먼저 USER_RECIPIENTS에서 현재 사용자의 매핑을 지우고,
+     * 더 이상 어떤 사용자와도 연결되지 않은 수급자 데이터만 RECIPIENTS에서 삭제한다.
      */
     public void deleteAllByUserId(String userId) {
         List<Long> recipientIds = jdbcTemplate.queryForList(

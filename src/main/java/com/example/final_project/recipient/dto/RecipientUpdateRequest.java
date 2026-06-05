@@ -5,17 +5,17 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * Request DTO used by the recipient edit page.
- * Only the fields editable on the UI are included here.
+ * 수급자 수정 화면에서 사용하는 요청 DTO.
+ * 현재 요구사항에 맞춰 생년월일, 요양등급, 보호자명, 비상연락망만 수정 대상으로 둔다.
  */
 @Getter
 @Setter
 public class RecipientUpdateRequest {
 
-    @NotBlank(message = "Birth date is required.")
+    @NotBlank(message = "생년월일은 필수 입력입니다.")
     private String birthDate;
 
-    @NotBlank(message = "Care grade is required.")
+    @NotBlank(message = "장기요양등급은 필수 입력입니다.")
     private String careGrade;
 
     private String guardianName;

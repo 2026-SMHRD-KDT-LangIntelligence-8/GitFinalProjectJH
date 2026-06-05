@@ -27,7 +27,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
         OAuth2User oauth2User = delegate.loadUser(userRequest);
 
-        // Persist only Kakao login users because recipient ownership is keyed by the Kakao unique id.
+        // 수급자 소유권 매핑은 카카오 고유 ID를 기준으로 하므로 카카오 로그인 사용자만 저장한다.
         if ("kakao".equals(userRequest.getClientRegistration().getRegistrationId())) {
             saveKakaoUser(oauth2User);
         }
@@ -41,7 +41,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         Map<String, Object> kakaoAccount = (Map<String, Object>) attributes.get("kakao_account");
         Map<String, Object> profile = kakaoAccount == null ? null : (Map<String, Object>) kakaoAccount.get("profile");
 
-        // Extract the Kakao unique id and nickname from the OAuth response.
+        // OAuth 응답에서 카카오 고유 ID와 닉네임을 추출한다.
         String kakaoId = String.valueOf(attributes.get("id"));
         String nickname = profile == null ? null : String.valueOf(profile.get("nickname"));
 
@@ -53,15 +53,15 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
             throw new OAuth2AuthenticationException(new OAuth2Error("kakao_nickname_not_found"), "Kakao nickname not found");
         }
 
-        // USERS.user_id stores the Kakao unique id.
-        // USER_RECIPIENTS.user_id uses this same value to connect a user and a recipient.
+        // USERS.user_id에는 카카오 고유 ID를 저장한다.
+        // USER_RECIPIENTS.user_id도 같은 값을 사용하여 사용자와 수급자를 연결한다.
         Integer count = jdbcTemplate.queryForObject(
                 "select count(*) from USERS where user_id = ?",
                 Integer.class,
                 kakaoId
         );
 
-        // Keep the Kakao id stable and refresh only the display nickname on re-login.
+        // 카카오 ID는 유지하고, 재로그인 시에는 화면 표시용 닉네임만 갱신한다.
         if (count != null && count > 0) {
             jdbcTemplate.update(
                     "update USERS set user_name = ? where user_id = ?",

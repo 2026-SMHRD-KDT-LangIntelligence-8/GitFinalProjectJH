@@ -28,8 +28,8 @@ public class RecipientController {
     }
 
     /**
-     * Return only the recipients mapped to the currently logged-in Kakao user.
-     * The frontend still calls /api/recipients without extra parameters.
+     * 현재 로그인한 카카오 사용자와 연결된 수급자만 목록으로 반환한다.
+     * 프론트는 기존처럼 /api/recipients를 호출하고, 사용자 필터링은 서버에서 처리한다.
      */
     @GetMapping
     public List<RecipientResponse> getRecipients() {
@@ -37,7 +37,7 @@ public class RecipientController {
     }
 
     /**
-     * Allow detail lookup only when the current user-recipient mapping exists.
+     * 현재 사용자와 매핑된 수급자만 상세 조회할 수 있도록 제한한다.
      */
     @GetMapping("/{recipientId}")
     public RecipientResponse getRecipient(@PathVariable Long recipientId) {
@@ -45,7 +45,7 @@ public class RecipientController {
     }
 
     /**
-     * Create a recipient and connect it to the current Kakao user in USER_RECIPIENTS.
+     * 수급자 등록 후 USER_RECIPIENTS에 현재 카카오 사용자와의 연결 정보를 함께 저장한다.
      */
     @PostMapping
     public RecipientResponse createRecipient(@Valid @RequestBody RecipientCreateRequest request) {
@@ -53,7 +53,7 @@ public class RecipientController {
     }
 
     /**
-     * Update only the recipients owned by the current Kakao user.
+     * 현재 로그인한 사용자가 등록한 수급자만 수정할 수 있도록 제한한다.
      */
     @PutMapping("/{recipientId}")
     public RecipientResponse updateRecipient(

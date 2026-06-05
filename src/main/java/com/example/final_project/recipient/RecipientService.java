@@ -17,29 +17,29 @@ public class RecipientService {
     }
 
     /**
-     * Delegate list lookup to the repository with the current Kakao user id.
+     * 현재 카카오 사용자 ID를 기준으로 수급자 목록 조회를 위임한다.
      */
     public List<RecipientResponse> getRecipients(String userId) {
         return recipientRepository.findAllByUserId(userId);
     }
 
     /**
-     * Load one recipient only when the current user-recipient mapping exists.
+     * 현재 사용자와 수급자 매핑이 있을 때만 상세 정보를 조회한다.
      */
     public RecipientResponse getRecipient(Long recipientId, String userId) {
         return recipientRepository.findByIdAndUserId(recipientId, userId)
-                .orElseThrow(() -> new IllegalArgumentException("Recipient was not found. id=" + recipientId));
+                .orElseThrow(() -> new IllegalArgumentException("해당 수급자를 찾을 수 없습니다. id=" + recipientId));
     }
 
     /**
-     * Save the recipient row and the USER_RECIPIENTS mapping in one flow.
+     * 수급자 저장과 사용자-수급자 매핑 저장을 한 흐름으로 처리한다.
      */
     public RecipientResponse createRecipient(RecipientCreateRequest request, String userId) {
         return recipientRepository.save(request, userId);
     }
 
     /**
-     * Update only the recipient rows connected to the current user.
+     * 현재 사용자와 연결된 수급자 데이터만 수정한다.
      */
     public RecipientResponse updateRecipient(Long recipientId, RecipientUpdateRequest request, String userId) {
         return recipientRepository.update(recipientId, request, userId);

@@ -3,8 +3,10 @@ package com.example.final_project.recipient.dto;
 import lombok.Builder;
 import lombok.Getter;
 
+
 /**
- * Response DTO shared by the recipient list, detail, edit, test, and training screens.
+ * 수급자 조회 응답 DTO.
+ * 수급자 관리 목록, 상세, 수정, 검사, 훈련 화면에서 공통으로 사용한다.
  */
 @Getter
 @Builder
