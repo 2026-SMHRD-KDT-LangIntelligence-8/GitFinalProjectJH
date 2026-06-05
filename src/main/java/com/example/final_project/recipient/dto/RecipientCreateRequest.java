@@ -5,23 +5,23 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * 수급자 등록 요청 DTO.
- * 등록 페이지에서 입력한 값을 POST API로 전달할 때 사용한다.
+ * Request DTO used by the recipient create page.
+ * The browser sends this payload to POST /api/recipients.
  */
 @Getter
 @Setter
 public class RecipientCreateRequest {
 
-    @NotBlank(message = "수급자명은 필수입니다.")
+    @NotBlank(message = "Recipient name is required.")
     private String recipientName;
 
-    @NotBlank(message = "생년월일은 필수입니다.")
+    @NotBlank(message = "Birth date is required.")
     private String birthDate;
 
-    @NotBlank(message = "성별은 필수입니다.")
+    @NotBlank(message = "Gender is required.")
     private String gender;
 
-    @NotBlank(message = "장기요양등급은 필수입니다.")
+    @NotBlank(message = "Care grade is required.")
     private String careGrade;
 
     private String guardianName;

@@ -4,8 +4,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 /**
- * 화면으로 내려줄 수급자 조회 응답 DTO.
- * 관리 목록, 검사/훈련 드롭다운, 상세/수정 화면이 같은 응답 구조를 사용한다.
+ * Response DTO shared by the recipient list, detail, edit, test, and training screens.
  */
 @Getter
 @Builder

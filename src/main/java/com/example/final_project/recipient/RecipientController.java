@@ -1,5 +1,8 @@
 package com.example.final_project.recipient;
 
+import com.example.final_project.recipient.dto.RecipientCreateRequest;
+import com.example.final_project.recipient.dto.RecipientResponse;
+import com.example.final_project.recipient.dto.RecipientUpdateRequest;
 import com.example.final_project.user.CurrentUserService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,21 +27,34 @@ public class RecipientController {
         this.currentUserService = currentUserService;
     }
 
+    /**
+     * Return only the recipients mapped to the currently logged-in Kakao user.
+     * The frontend still calls /api/recipients without extra parameters.
+     */
     @GetMapping
     public List<RecipientResponse> getRecipients() {
         return recipientService.getRecipients(currentUserService.getRequiredUserId());
     }
 
+    /**
+     * Allow detail lookup only when the current user-recipient mapping exists.
+     */
     @GetMapping("/{recipientId}")
     public RecipientResponse getRecipient(@PathVariable Long recipientId) {
         return recipientService.getRecipient(recipientId, currentUserService.getRequiredUserId());
     }
 
+    /**
+     * Create a recipient and connect it to the current Kakao user in USER_RECIPIENTS.
+     */
     @PostMapping
     public RecipientResponse createRecipient(@Valid @RequestBody RecipientCreateRequest request) {
         return recipientService.createRecipient(request, currentUserService.getRequiredUserId());
     }
 
+    /**
+     * Update only the recipients owned by the current Kakao user.
+     */
     @PutMapping("/{recipientId}")
     public RecipientResponse updateRecipient(
             @PathVariable Long recipientId,

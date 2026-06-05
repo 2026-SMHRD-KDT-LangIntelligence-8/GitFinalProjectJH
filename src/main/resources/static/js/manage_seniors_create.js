@@ -1,5 +1,5 @@
-// 수급자 등록 페이지 전용 스크립트.
-// 등록 폼에서 입력한 값을 POST API로 보내고, 저장 완료 후 목록 페이지로 복귀시킨다.
+// Recipient create page script.
+// After the form is submitted, the server creates the recipient row and the USER_RECIPIENTS mapping for the logged-in Kakao user.
 document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById("recipient-create-form");
     const cancelButton = document.getElementById("create-cancel-button");
@@ -9,7 +9,7 @@ document.addEventListener("DOMContentLoaded", () => {
         window.location.href = "/manage-seniors";
     });
 
-    // 비상연락망은 숫자만 최대 11자리까지 허용하고, 번호 체계에 맞춰 하이픈을 자동으로 넣는다.
+    // Keep only digits, limit to 11 numbers, and insert hyphens while the user types.
     emergencyContactInput.addEventListener("input", (event) => {
         const numbersOnly = event.target.value.replace(/[^0-9]/g, "").slice(0, 11);
         let formattedValue = numbersOnly;
@@ -40,7 +40,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 formattedValue = `${numbersOnly.slice(0, 3)}-${numbersOnly.slice(3, 7)}-${numbersOnly.slice(7)}`;
             }
         } else {
-            // 031, 062 같은 지역번호는 3자리 국번 기준으로 우선 처리한다.
+            // Handle area codes such as 031 and 062 with the 3-x-4 pattern.
             if (numbersOnly.length <= 3) {
                 formattedValue = numbersOnly;
             } else if (numbersOnly.length <= 6) {
@@ -64,7 +64,7 @@ document.addEventListener("DOMContentLoaded", () => {
             gender: document.getElementById("create-gender").value,
             careGrade: document.getElementById("create-care-grade").value,
             guardianName: document.getElementById("create-guardian-name").value,
-            // DB에는 비상 연락망을 숫자만 저장하도록 처리한다.
+            // Store the phone number as digits only so the database stays format-neutral.
             emergencyContact: document.getElementById("create-emergency-contact").value.replace(/[^0-9]/g, ""),
             notes: document.getElementById("create-notes").value
         };
@@ -82,7 +82,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 throw new Error("수급자 등록 실패");
             }
 
-            // 등록 성공 시 완료 알림을 먼저 보여 준 뒤 목록 페이지로 돌아간다.
+            // After success, return to the list page where the new user-recipient mapping can be verified.
             alert("수급자 등록이 완료되었습니다.");
             window.location.href = "/manage-seniors";
         } catch (error) {

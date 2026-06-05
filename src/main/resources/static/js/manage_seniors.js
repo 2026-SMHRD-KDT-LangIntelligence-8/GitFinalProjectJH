@@ -1,5 +1,5 @@
-// 수급자 관리 목록 화면 전용 스크립트.
-// RECIPIENTS 테이블에서 조회한 데이터를 목록으로 보여주고, 이름 검색도 클라이언트에서 처리한다.
+// Recipient list page script.
+// The browser still calls /api/recipients, and the server returns only the recipients mapped to the logged-in Kakao user.
 document.addEventListener("DOMContentLoaded", async () => {
     const searchInput = document.getElementById("recipient-search-input");
     const searchButton = document.getElementById("recipient-search-button");
@@ -51,7 +51,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
 
-    // 검색 버튼과 Enter 입력 모두 같은 필터 함수를 사용한다.
+    // Reuse the same filter function for both the search button and the Enter key.
     const runSearch = () => renderRecipients(searchInput.value);
 
     searchButton.addEventListener("click", runSearch);

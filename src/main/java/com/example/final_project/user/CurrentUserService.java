@@ -10,6 +10,10 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class CurrentUserService {
 
+    /**
+     * Read the Kakao unique id from the authenticated OAuth2 principal.
+     * This same value is stored in USERS.user_id and USER_RECIPIENTS.user_id.
+     */
     public String getRequiredUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
