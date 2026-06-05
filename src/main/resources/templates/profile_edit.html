@@ -41,7 +41,16 @@
     <div class="form-row">
       <div class="form-label">전화번호</div>
       <div class="form-input-wrapper">
-        <input type="tel" class="form-input" placeholder="010-0000-0000">
+        <input
+          type="tel"
+          id="profile-phone"
+          class="form-input"
+          placeholder="010-0000-0000"
+          inputmode="numeric"
+          autocomplete="tel"
+          maxlength="13"
+          pattern="010-[0-9]{4}-[0-9]{4}"
+        >
       </div>
     </div>
   </div>
@@ -64,5 +73,6 @@
 
 </div>
 
+<script src="/js/profile_edit.js"></script>
 </body>
 </html>
