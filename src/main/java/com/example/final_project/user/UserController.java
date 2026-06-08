@@ -10,6 +10,7 @@ import org.springframework.security.web.authentication.logout.CookieClearingLogo
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -32,6 +33,15 @@ public class UserController {
         this.jdbcTemplate = jdbcTemplate;
         this.currentUserService = currentUserService;
         this.recipientRepository = recipientRepository;
+    }
+
+    @GetMapping("/me")
+    public Map<String, Object> getCurrentUser() {
+        String userId = currentUserService.getRequiredUserId();
+        return Map.of(
+                "authenticated", true,
+                "userId", userId
+        );
     }
 
     @DeleteMapping("/me")

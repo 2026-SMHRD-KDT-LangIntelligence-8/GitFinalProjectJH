@@ -14,11 +14,29 @@ function syncLoginStateFromUrl() {
     }
 }
 
-function updateAuthUi() {
-    const isLoggedIn = localStorage.getItem(AUTH_STORAGE_KEY) === "true";
+function updateAuthUi(isLoggedIn) {
     loginLink.classList.toggle("hidden", isLoggedIn);
     logoutLink.classList.toggle("hidden", !isLoggedIn);
     authDivider.classList.add("hidden");
+}
+
+async function refreshAuthState() {
+    try {
+        const response = await fetch("/api/users/me", {
+            cache: "no-store"
+        });
+
+        if (response.ok) {
+            localStorage.setItem(AUTH_STORAGE_KEY, "true");
+            updateAuthUi(true);
+            return;
+        }
+    } catch (error) {
+        console.error(error);
+    }
+
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+    updateAuthUi(false);
 }
 
 logoutLink.addEventListener("click", (event) => {
@@ -28,4 +46,5 @@ logoutLink.addEventListener("click", (event) => {
 });
 
 syncLoginStateFromUrl();
-updateAuthUi();
+updateAuthUi(false);
+refreshAuthState();
