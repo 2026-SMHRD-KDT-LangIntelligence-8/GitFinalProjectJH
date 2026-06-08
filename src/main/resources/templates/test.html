@@ -22,30 +22,60 @@
         <h1 class="main-title">인지능력 검사</h1>
     </div>
 
-    <div class="graphic-container">
-        <svg class="center-illustration" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="100" cy="100" r="75" fill="none" stroke="#1a5345" stroke-width="1" stroke-dasharray="4 6" opacity="0.15"/>
-            <circle cx="100" cy="100" r="55" fill="#f0f5f2" opacity="0.6"/>
-            <path d="M65,115 C75,100 85,90 100,95 C115,100 125,85 135,75" fill="none" stroke="#1a5345" stroke-width="3" stroke-linecap="round"/>
-            <path d="M70,125 C82,112 92,105 102,110 C118,118 128,95 140,90" fill="none" stroke="#2fa36b" stroke-width="2.5" stroke-linecap="round" opacity="0.8"/>
-            <path d="M60,105 C72,92 85,85 95,100 C105,115 118,102 130,85" fill="none" stroke="#55776d" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
-            <path d="M100,75 C97,70 100,66 103,68 C106,66 109,70 106,75 L103,79 Z" fill="#2fa36b" opacity="0.8"/>
-        </svg>
-    </div>
-
-    <div class="action-container">
-        <div class="dropdown-wrapper">
-            <!-- 하드코딩 옵션 대신 JS가 DB 목록을 채워 넣는다. -->
-            <select class="select-recipient" id="recipient-select">
-                <option value="" disabled selected hidden>수급자명</option>
-            </select>
+    <!-- 검사 시작 전에는 수급자 선택 영역만 보여준다. -->
+    <div class="test-intro-view" id="test-intro-view">
+        <div class="graphic-container">
+            <svg class="center-illustration" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="100" cy="100" r="75" fill="none" stroke="#1a5345" stroke-width="1" stroke-dasharray="4 6" opacity="0.15"/>
+                <circle cx="100" cy="100" r="55" fill="#f0f5f2" opacity="0.6"/>
+                <path d="M65,115 C75,100 85,90 100,95 C115,100 125,85 135,75" fill="none" stroke="#1a5345" stroke-width="3" stroke-linecap="round"/>
+                <path d="M70,125 C82,112 92,105 102,110 C118,118 128,95 140,90" fill="none" stroke="#2fa36b" stroke-width="2.5" stroke-linecap="round" opacity="0.8"/>
+                <path d="M60,105 C72,92 85,85 95,100 C105,115 118,102 130,85" fill="none" stroke="#55776d" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+                <path d="M100,75 C97,70 100,66 103,68 C106,66 109,70 106,75 L103,79 Z" fill="#2fa36b" opacity="0.8"/>
+            </svg>
         </div>
-        <button type="button" class="start-btn">시작하기</button>
+
+        <div class="action-container">
+            <div class="dropdown-wrapper">
+                <select class="select-recipient" id="recipient-select">
+                    <option value="" disabled selected hidden>수급자명</option>
+                </select>
+            </div>
+            <button type="button" class="start-btn" id="start-test-btn">시작하기</button>
+        </div>
     </div>
 
+    <!-- 검사 시작 후에는 같은 페이지 안에서 문제 카드와 타이머만 갱신한다. -->
+    <div class="test-session-view hidden" id="test-session-view">
+        <div class="test-status-bar">
+            <div class="test-status-chip" id="recipient-name-chip">수급자</div>
+            <div class="test-status-chip" id="question-progress-chip">1 / 25</div>
+        </div>
+
+        <div class="test-timer-card">
+            <span class="timer-label">남은 시간</span>
+            <strong class="timer-value" id="question-timer">01:10</strong>
+        </div>
+
+        <div class="test-question-card">
+            <div class="question-meta-row">
+                <span class="question-type-badge" id="question-type-name">문항 유형</span>
+                <span class="question-sequence-text" id="question-sequence-text">유형 내 1번</span>
+            </div>
+
+            <p class="question-text" id="question-text"></p>
+
+            <p class="question-purpose hidden" id="question-purpose"></p>
+
+            <div class="question-image-wrap hidden" id="question-image-wrap">
+                <img class="question-image" id="question-image" alt="검사 문항 이미지">
+            </div>
+
+            <p class="question-criteria hidden" id="question-criteria"></p>
+        </div>
+    </div>
 </div>
 
-<!-- 검사 시작 화면용 수급자 목록 로딩 스크립트 -->
 <script src="/js/test.js"></script>
 
 </body>

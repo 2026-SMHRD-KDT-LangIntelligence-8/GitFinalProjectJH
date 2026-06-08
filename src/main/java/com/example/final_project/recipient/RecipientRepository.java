@@ -40,10 +40,6 @@ public class RecipientRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    /**
-     * 현재 로그인한 카카오 사용자와 USER_RECIPIENTS로 연결된 수급자만 조회한다.
-     * 수급자 관리 목록 화면은 이 조회 결과만 사용한다.
-     */
     public List<RecipientResponse> findAllByUserId(String userId) {
         String sql = """
                 SELECT r.recipient_id, r.recipient_name, r.birth_date, r.gender, r.care_grade,
@@ -57,9 +53,6 @@ public class RecipientRepository {
         return jdbcTemplate.query(sql, RECIPIENT_ROW_MAPPER, userId);
     }
 
-    /**
-     * 상세 조회도 USER_RECIPIENTS 매핑을 기준으로 제한하여 다른 사용자의 수급자에 접근하지 못하게 한다.
-     */
     public Optional<RecipientResponse> findByIdAndUserId(Long recipientId, String userId) {
         String sql = """
                 SELECT r.recipient_id, r.recipient_name, r.birth_date, r.gender, r.care_grade,
@@ -74,11 +67,6 @@ public class RecipientRepository {
         return results.stream().findFirst();
     }
 
-    /**
-     * 수급자 기본 정보는 RECIPIENTS에 먼저 저장하고,
-     * 생성된 recipient_id를 USER_RECIPIENTS에 현재 카카오 user_id와 함께 저장한다.
-     * 이 매핑 정보가 있어야 등록한 사용자의 목록에 새 수급자가 보인다.
-     */
     public RecipientResponse save(RecipientCreateRequest request, String userId) {
         String sql = """
                 INSERT INTO RECIPIENTS (
@@ -120,9 +108,6 @@ public class RecipientRepository {
                 .orElseThrow(() -> new IllegalStateException("저장된 수급자 정보를 다시 조회하지 못했습니다."));
     }
 
-    /**
-     * 현재 사용자와 수급자 매핑이 있는 경우에만 수정이 가능하다.
-     */
     public RecipientResponse update(Long recipientId, RecipientUpdateRequest request, String userId) {
         String sql = """
                 UPDATE RECIPIENTS r
@@ -153,10 +138,6 @@ public class RecipientRepository {
                 .orElseThrow(() -> new IllegalStateException("수정된 수급자 정보를 다시 조회하지 못했습니다."));
     }
 
-    /**
-     * 회원 탈퇴 시 먼저 USER_RECIPIENTS에서 현재 사용자의 매핑을 지우고,
-     * 더 이상 어떤 사용자와도 연결되지 않은 수급자 데이터만 RECIPIENTS에서 삭제한다.
-     */
     public void deleteAllByUserId(String userId) {
         List<Long> recipientIds = jdbcTemplate.queryForList(
                 "SELECT recipient_id FROM USER_RECIPIENTS WHERE user_id = ?",

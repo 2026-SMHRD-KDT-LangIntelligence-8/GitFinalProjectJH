@@ -19,6 +19,7 @@ import java.util.List;
 @RequestMapping("/api/recipients")
 public class RecipientController {
 
+    // 현재 로그인 사용자 확인과 수급자 비즈니스 처리를 분리해 컨트롤러는 요청/응답 연결에만 집중한다.
     private final RecipientService recipientService;
     private final CurrentUserService currentUserService;
 

@@ -20,6 +20,7 @@ public class SecurityConfig {
 
 	@Bean
 	SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+		// 현재 프로젝트는 화면 접근을 우선 열어두고, 로그인/로그아웃 흐름만 OAuth2 기준으로 제어한다.
 		http
 				.authorizeHttpRequests(authorize -> authorize.anyRequest().permitAll())
 				.csrf(csrf -> csrf.disable())
@@ -32,6 +33,7 @@ public class SecurityConfig {
 						.defaultSuccessUrl("/main?login=success", true)
 				)
 				.logout(logout -> logout
+						// 세션과 인증 정보를 함께 정리해 재접속 시 이전 로그인 상태가 남지 않게 한다.
 						.invalidateHttpSession(true)
 						.clearAuthentication(true)
 						.deleteCookies("JSESSIONID")

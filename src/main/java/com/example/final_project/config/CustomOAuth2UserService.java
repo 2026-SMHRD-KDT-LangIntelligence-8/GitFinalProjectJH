@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequest, OAuth2User> {
 
+    // 스프링 기본 OAuth2 사용자 조회 결과를 받아온 뒤, 우리 서비스용 사용자 저장 로직을 덧붙인다.
     private final DefaultOAuth2UserService delegate = new DefaultOAuth2UserService();
     private final JdbcTemplate jdbcTemplate;
 
@@ -25,6 +26,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
     @Override
     @Transactional
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
+        // 먼저 카카오에서 내려준 사용자 정보를 기본 구현체로 조회한다.
         OAuth2User oauth2User = delegate.loadUser(userRequest);
 
         // 수급자 소유권 매핑은 카카오 고유 ID를 기준으로 하므로 카카오 로그인 사용자만 저장한다.
@@ -37,6 +39,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
 
     @SuppressWarnings("unchecked")
     private void saveKakaoUser(OAuth2User oauth2User) {
+        // 카카오 응답 구조가 중첩 Map 형태라 필요한 영역만 단계적으로 꺼낸다.
         Map<String, Object> attributes = oauth2User.getAttributes();
         Map<String, Object> kakaoAccount = (Map<String, Object>) attributes.get("kakao_account");
         Map<String, Object> profile = kakaoAccount == null ? null : (Map<String, Object>) kakaoAccount.get("profile");
