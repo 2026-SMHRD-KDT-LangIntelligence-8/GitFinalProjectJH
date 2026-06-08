@@ -15,6 +15,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const questionImageWrap = document.getElementById("question-image-wrap");
     const questionImage = document.getElementById("question-image");
     const questionCriteria = document.getElementById("question-criteria");
+    const timerStartButton = document.getElementById("timer-start-btn");
+    const nextQuestionButton = document.getElementById("next-question-btn");
 
     // 한 페이지 안에서 검사 진행 상태를 유지하기 위한 화면 전용 상태다.
     const state = {
@@ -23,7 +25,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         timerId: null,
         remainingSeconds: TEST_DURATION_SECONDS,
         questionDurationSeconds: TEST_DURATION_SECONDS,
-        recipientName: ""
+        recipientName: "",
+        timerStarted: false
     };
 
     try {
@@ -48,18 +51,29 @@ document.addEventListener("DOMContentLoaded", async () => {
             state.questionDurationSeconds = payload.questionDurationSeconds || TEST_DURATION_SECONDS;
             state.remainingSeconds = state.questionDurationSeconds;
             state.recipientName = payload.recipientName;
+            state.timerStarted = false;
 
             introView.classList.add("hidden");
             sessionView.classList.remove("hidden");
             recipientNameChip.textContent = `${payload.recipientName} 검사`;
+            timerStartButton.disabled = false;
 
             renderCurrentQuestion();
-            runQuestionTimer();
         } catch (error) {
             console.error(error);
             alert("검사 문항을 불러오지 못했습니다.");
             startButton.disabled = false;
         }
+    });
+
+    timerStartButton.addEventListener("click", () => {
+        timerStartButton.disabled = true;
+        state.timerStarted = true;
+        runQuestionTimer();
+    });
+
+    nextQuestionButton.addEventListener("click", () => {
+        moveToNextQuestion(false);
     });
 
     function renderCurrentQuestion() {
@@ -70,14 +84,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         questionProgressChip.textContent = `${state.currentIndex + 1} / ${state.questions.length}`;
         questionTypeName.textContent = currentQuestion.questionTypeName;
-        questionSequenceText.textContent = `유형 내 ${currentQuestion.questionSequence}번`;
+        questionSequenceText.textContent = "";
+        questionSequenceText.classList.add("hidden");
         questionText.textContent = currentQuestion.questionText;
 
-        toggleTextBlock(
-            questionPurpose,
-            currentQuestion.questionPurpose,
-            `검사 의도: ${currentQuestion.questionPurpose}`
-        );
+        questionPurpose.textContent = "";
+        questionPurpose.classList.add("hidden");
+
 
         // 이미지형 문항만 이미지 영역을 보여주고, 나머지는 텍스트 중심으로 표시한다.
         const normalizedImagePath = normalizeImagePath(currentQuestion.imageFilePath);
@@ -89,11 +102,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             questionImageWrap.classList.add("hidden");
         }
 
-        toggleTextBlock(
-            questionCriteria,
-            currentQuestion.imageDescriptionCriteria,
-            `설명 기준: ${currentQuestion.imageDescriptionCriteria}`
-        );
+        questionCriteria.textContent = "";
+        questionCriteria.classList.add("hidden");
 
         updateTimerText(state.remainingSeconds);
     }
@@ -109,14 +119,19 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             if (state.remainingSeconds <= 0) {
                 clearQuestionTimer();
-                moveToNextQuestion();
+                moveToNextQuestion(true);
             }
         }, 1000);
     }
 
-    function moveToNextQuestion() {
+    function moveToNextQuestion(showCompletionAlert) {
         const completedQuestionNumber = state.currentIndex + 1;
-        alert(`${completedQuestionNumber}번 문제 검사가 완료되었습니다.`);
+        clearQuestionTimer();
+        state.timerStarted = false;
+
+        if (showCompletionAlert) {
+            alert(`${completedQuestionNumber}번 문제 검사가 완료되었습니다.`);
+        }
 
         if (completedQuestionNumber >= state.questions.length) {
             alert("인지능력 검사가 완료되었습니다.");
@@ -126,8 +141,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         state.currentIndex += 1;
         state.remainingSeconds = state.questionDurationSeconds;
+        timerStartButton.disabled = false;
         renderCurrentQuestion();
-        runQuestionTimer();
     }
 
     function clearQuestionTimer() {

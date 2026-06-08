@@ -574,6 +574,10 @@ a {
 .timer-value { font-size: 26px; font-weight: 800; color: #11381c; letter-spacing: -0.5px; }
 /* 텍스트형과 이미지형 문항을 모두 담을 수 있도록 카드 레이아웃을 넉넉하게 잡았다. */
 .test-question-card { width: 100%; flex: 1; background-color: #f8faf8; border: 1px solid #d8e2db; border-radius: 22px; padding: 20px 18px; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
+.test-session-actions { width: 100%; display: flex; justify-content: center; align-items: center; gap: 10px; }
+.timer-start-btn { flex: 1; height: 48px; min-width: 0; padding: 0 16px; background-color: #3f9f5a; color: #ffffff; border: none; border-radius: 10px; font-size: 17px; font-weight: 800; cursor: pointer; white-space: nowrap; }
+.timer-start-btn:disabled { opacity: 0.45; cursor: default; }
+.next-question-btn { flex: 1; height: 48px; min-width: 0; padding: 0 16px; background-color: #eef6f0; color: #24633a; border: 1px solid #cfe4d5; border-radius: 10px; font-size: 17px; font-weight: 800; cursor: pointer; white-space: nowrap; }
 .question-meta-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .question-type-badge { display: inline-flex; align-items: center; min-height: 28px; padding: 0 12px; border-radius: 999px; background-color: #dff2e3; color: #1d6b32; font-size: 12px; font-weight: 800; }
 .question-sequence-text { font-size: 12px; font-weight: 700; color: #728a7a; }
