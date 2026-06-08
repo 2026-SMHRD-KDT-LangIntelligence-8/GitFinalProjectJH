@@ -35,7 +35,7 @@ public class CognitiveTestRepository {
      * QUESTION_TYPES별로 무작위 순번을 매긴 뒤
      * 각 유형마다 필요한 개수만큼만 잘라 총 검사 문항을 만든다.
      */
-    public List<CognitiveQuestionResponse> findRandomQuestionsPerType(int questionsPerType) {
+    public List<CognitiveQuestionResponse> findRandomQuestionsPerType(int questionsPerType, String questionPurpose) {
         String sql = """
                 SELECT question_id,
                        question_type_id,
@@ -57,11 +57,24 @@ public class CognitiveTestRepository {
                            ROW_NUMBER() OVER (PARTITION BY q.question_type_id ORDER BY RAND()) AS question_sequence
                     FROM QUESTIONS q
                     INNER JOIN QUESTION_TYPES qt ON q.question_type_id = qt.question_type_id
+                    WHERE q.question_purpose = ?
                 ) ranked_questions
                 WHERE question_sequence <= ?
                 ORDER BY question_type_id ASC, question_sequence ASC
                 """;
 
-        return jdbcTemplate.query(sql, QUESTION_ROW_MAPPER, questionsPerType);
+        return jdbcTemplate.query(sql, QUESTION_ROW_MAPPER, questionPurpose, questionsPerType);
+    }
+
+    public void savePerformanceRecord(Long recipientId, String userId) {
+        jdbcTemplate.update(
+                """
+                -- 수급자 상세 화면의 검사 횟수와 최근 검사일 집계 기준이 되는 완료 이력이다.
+                INSERT INTO PERFORMANCE_RECORDS (user_id, recipient_id, performed_at)
+                VALUES (?, ?, NOW())
+                """,
+                userId,
+                recipientId
+        );
     }
 }

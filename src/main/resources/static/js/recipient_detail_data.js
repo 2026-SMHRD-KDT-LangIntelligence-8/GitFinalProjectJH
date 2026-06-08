@@ -1,5 +1,4 @@
-// 수급자 상세 화면에서 URL의 recipientId를 읽어 실제 DB 데이터를 화면에 채운다.
-// 목록에서 클릭한 대상과 상세 화면 정보가 이어지도록 하는 연결 스크립트다.
+// 수급자 상세 화면은 전용 상세 API를 호출해 기본 정보와 검사/훈련 요약을 함께 채운다.
 document.addEventListener("DOMContentLoaded", async () => {
     const params = new URLSearchParams(window.location.search);
     const recipientId = params.get("recipientId");
@@ -9,7 +8,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     try {
-        const response = await fetch(`/api/recipients/${recipientId}`);
+        const response = await fetch(`/api/recipients/${recipientId}/detail`);
         if (!response.ok) {
             throw new Error("수급자 상세 조회 실패");
         }
@@ -20,21 +19,55 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.getElementById("val-keypad").value = recipient.birthDate ?? "";
         document.getElementById("val-guardian-name").textContent = recipient.guardianName ?? "";
         document.getElementById("val-phone").textContent = recipient.emergencyContact ?? "";
+        document.getElementById("val-count").textContent = String(recipient.testCount ?? 0);
+        document.getElementById("val-date").textContent = recipient.latestTestDate ?? "-";
 
-        // DB 값은 남/여, 1등급~5등급 형태이므로 현재 select 값으로 맞춰서 변환한다.
         const genderSelect = document.getElementById("toggle-gender");
         const gradeSelect = document.getElementById("toggle-grade");
 
-        if (recipient.gender === "남") {
+        if (recipient.gender === "남성") {
             genderSelect.value = "male";
-        } else if (recipient.gender === "여") {
+        } else if (recipient.gender === "여성") {
             genderSelect.value = "female";
         }
 
         if (recipient.careGrade) {
             gradeSelect.value = recipient.careGrade.replace("등급", "");
         }
+
+        renderTrainingStatuses(recipient.trainingStatuses ?? []);
     } catch (error) {
         console.error(error);
     }
 });
+
+// 훈련 현황 영역은 최근 분석 점수가 낮은 유형부터 우선순위 카드로 표시한다.
+function renderTrainingStatuses(trainingStatuses) {
+    const container = document.getElementById("training-status-list");
+
+    if (trainingStatuses.length === 0) {
+        container.innerHTML = `
+            <div class="recipient-empty-message">
+                검사 이력이 없어 훈련 현황을 계산할 수 없습니다.
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = trainingStatuses.map((status) => `
+        <div class="recipient-row">
+            <span class="recipient-cell w-name">${escapeHtml(status.questionTypeName)}</span>
+            <span class="recipient-cell w-grade">${escapeHtml(status.statusLabel)}</span>
+            <span class="recipient-cell w-birth">평균 ${status.averageAppropriatenessScore}점</span>
+        </div>
+    `).join("");
+}
+
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll("\"", "&quot;")
+        .replaceAll("'", "&#39;");
+}

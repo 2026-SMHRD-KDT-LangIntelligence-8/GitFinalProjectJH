@@ -1,5 +1,6 @@
 package com.example.final_project.cognitive;
 
+import com.example.final_project.cognitive.dto.CognitiveTestCompleteRequest;
 import com.example.final_project.cognitive.dto.CognitiveTestStartRequest;
 import com.example.final_project.cognitive.dto.CognitiveTestStartResponse;
 import jakarta.validation.Valid;
@@ -25,5 +26,16 @@ public class CognitiveTestController {
     @PostMapping("/start")
     public CognitiveTestStartResponse startTest(@Valid @RequestBody CognitiveTestStartRequest request) {
         return cognitiveTestService.startTest(request);
+    }
+
+    @PostMapping("/training/start")
+    public CognitiveTestStartResponse startTraining(@Valid @RequestBody CognitiveTestStartRequest request) {
+        return cognitiveTestService.startTraining(request);
+    }
+
+    @PostMapping("/complete")
+    public void completeTest(@Valid @RequestBody CognitiveTestCompleteRequest request) {
+        // 마지막 문항까지 끝난 시점을 검사 완료로 보고 수행 이력을 저장한다.
+        cognitiveTestService.completeTest(request);
     }
 }

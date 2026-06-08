@@ -1,7 +1,9 @@
 package com.example.final_project.recipient;
 
 import com.example.final_project.recipient.dto.RecipientCreateRequest;
+import com.example.final_project.recipient.dto.RecipientDetailResponse;
 import com.example.final_project.recipient.dto.RecipientResponse;
+import com.example.final_project.recipient.dto.TrainingStatusResponse;
 import com.example.final_project.recipient.dto.RecipientUpdateRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -65,6 +67,36 @@ public class RecipientRepository {
 
         List<RecipientResponse> results = jdbcTemplate.query(sql, RECIPIENT_ROW_MAPPER, recipientId, userId);
         return results.stream().findFirst();
+    }
+
+    /**
+     * 수급자 상세 화면에서 기본 정보와 검사/훈련 요약을 한 번에 내려주기 위한 조회다.
+     */
+    public Optional<RecipientDetailResponse> findDetailByIdAndUserId(Long recipientId, String userId) {
+        Optional<RecipientResponse> recipient = findByIdAndUserId(recipientId, userId);
+        if (recipient.isEmpty()) {
+            return Optional.empty();
+        }
+
+        long testCount = countPerformancesByRecipientIdAndUserId(recipientId, userId);
+        String latestTestDate = findLatestPerformanceDateByRecipientIdAndUserId(recipientId, userId);
+
+        RecipientResponse base = recipient.get();
+        return Optional.of(
+                RecipientDetailResponse.builder()
+                        .recipientId(base.getRecipientId())
+                        .recipientName(base.getRecipientName())
+                        .birthDate(base.getBirthDate())
+                        .gender(base.getGender())
+                        .careGrade(base.getCareGrade())
+                        .guardianName(base.getGuardianName())
+                        .emergencyContact(base.getEmergencyContact())
+                        .notes(base.getNotes())
+                        .testCount(testCount)
+                        .latestTestDate(latestTestDate)
+                        .trainingStatuses(findTrainingStatusesByRecipientIdAndUserId(recipientId, userId))
+                        .build()
+        );
     }
 
     public RecipientResponse save(RecipientCreateRequest request, String userId) {
@@ -163,5 +195,65 @@ public class RecipientRepository {
         for (Long recipientId : orphanRecipientIds) {
             jdbcTemplate.update("DELETE FROM RECIPIENTS WHERE recipient_id = ?", recipientId);
         }
+    }
+
+    private long countPerformancesByRecipientIdAndUserId(Long recipientId, String userId) {
+        Long count = jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM PERFORMANCE_RECORDS
+                WHERE recipient_id = ?
+                  AND user_id = ?
+                """,
+                Long.class,
+                recipientId,
+                userId
+        );
+
+        return count != null ? count : 0L;
+    }
+
+    private String findLatestPerformanceDateByRecipientIdAndUserId(Long recipientId, String userId) {
+        return jdbcTemplate.query(
+                """
+                SELECT DATE_FORMAT(MAX(performed_at), '%Y-%m-%d') AS latest_test_date
+                FROM PERFORMANCE_RECORDS
+                WHERE recipient_id = ?
+                  AND user_id = ?
+                """,
+                rs -> rs.next() ? rs.getString("latest_test_date") : null,
+                recipientId,
+                userId
+        );
+    }
+
+    private List<TrainingStatusResponse> findTrainingStatusesByRecipientIdAndUserId(Long recipientId, String userId) {
+        String sql = """
+                SELECT qt.question_type_name,
+                       ROUND(AVG(ar.appropriateness_score)) AS average_appropriateness_score,
+                       COUNT(ar.question_result_id) AS analyzed_question_count
+                FROM PERFORMANCE_RECORDS pr
+                INNER JOIN QUESTION_RESULTS qr ON pr.performance_id = qr.performance_id
+                INNER JOIN ANALYSIS_RESULTS ar ON qr.question_result_id = ar.question_result_id
+                INNER JOIN QUESTIONS q ON qr.question_id = q.question_id
+                INNER JOIN QUESTION_TYPES qt ON q.question_type_id = qt.question_type_id
+                WHERE pr.recipient_id = ?
+                  AND pr.user_id = ?
+                GROUP BY q.question_type_id, qt.question_type_name
+                HAVING analyzed_question_count > 0
+                ORDER BY average_appropriateness_score ASC, analyzed_question_count DESC
+                LIMIT 3
+                """;
+
+        return jdbcTemplate.query(sql, (rs, rowNum) ->
+                        TrainingStatusResponse.builder()
+                                .questionTypeName(rs.getString("question_type_name"))
+                                .averageAppropriatenessScore(rs.getInt("average_appropriateness_score"))
+                                .analyzedQuestionCount(rs.getInt("analyzed_question_count"))
+                                .statusLabel(rs.getInt("average_appropriateness_score") < 80 ? "훈련 필요" : "안정")
+                                .build(),
+                recipientId,
+                userId
+        );
     }
 }

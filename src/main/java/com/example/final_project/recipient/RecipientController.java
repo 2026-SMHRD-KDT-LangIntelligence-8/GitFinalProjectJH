@@ -1,6 +1,7 @@
 package com.example.final_project.recipient;
 
 import com.example.final_project.recipient.dto.RecipientCreateRequest;
+import com.example.final_project.recipient.dto.RecipientDetailResponse;
 import com.example.final_project.recipient.dto.RecipientResponse;
 import com.example.final_project.recipient.dto.RecipientUpdateRequest;
 import com.example.final_project.user.CurrentUserService;
@@ -43,6 +44,14 @@ public class RecipientController {
     @GetMapping("/{recipientId}")
     public RecipientResponse getRecipient(@PathVariable Long recipientId) {
         return recipientService.getRecipient(recipientId, currentUserService.getRequiredUserId());
+    }
+
+    /**
+     * 상세 화면은 기본 정보 외에 검사 횟수, 최근 검사일, 훈련 현황 요약을 추가로 내려준다.
+     */
+    @GetMapping("/{recipientId}/detail")
+    public RecipientDetailResponse getRecipientDetail(@PathVariable Long recipientId) {
+        return recipientService.getRecipientDetail(recipientId, currentUserService.getRequiredUserId());
     }
 
     /**

@@ -1,4 +1,5 @@
 const TEST_DURATION_SECONDS = 70;
+const TEST_PROGRESS_STORAGE_KEY = "latestCognitiveTestProgress";
 
 document.addEventListener("DOMContentLoaded", async () => {
     const recipientSelect = document.getElementById("recipient-select");
@@ -18,15 +19,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     const timerStartButton = document.getElementById("timer-start-btn");
     const nextQuestionButton = document.getElementById("next-question-btn");
 
-    // 한 페이지 안에서 검사 진행 상태를 유지하기 위한 화면 전용 상태다.
     const state = {
+        recipientId: null,
+        recipientName: "",
         questions: [],
         currentIndex: 0,
         timerId: null,
         remainingSeconds: TEST_DURATION_SECONDS,
         questionDurationSeconds: TEST_DURATION_SECONDS,
-        recipientName: "",
-        timerStarted: false
+        timerStarted: false,
+        completedQuestionIds: [],
+        timedOutQuestionIds: []
     };
 
     try {
@@ -46,12 +49,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         try {
             const payload = await startTest(recipientSelect.value);
+            state.recipientId = payload.recipientId;
+            state.recipientName = payload.recipientName;
             state.questions = payload.questions;
             state.currentIndex = 0;
             state.questionDurationSeconds = payload.questionDurationSeconds || TEST_DURATION_SECONDS;
             state.remainingSeconds = state.questionDurationSeconds;
-            state.recipientName = payload.recipientName;
             state.timerStarted = false;
+            state.completedQuestionIds = [];
+            state.timedOutQuestionIds = [];
+
+            saveTestProgress(state);
 
             introView.classList.add("hidden");
             sessionView.classList.remove("hidden");
@@ -76,6 +84,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         moveToNextQuestion(false);
     });
 
+    window.addEventListener("beforeunload", () => {
+        if (state.questions.length > 0) {
+            saveTestProgress(state);
+        }
+    });
+
     function renderCurrentQuestion() {
         const currentQuestion = state.questions[state.currentIndex];
         if (!currentQuestion) {
@@ -91,8 +105,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         questionPurpose.textContent = "";
         questionPurpose.classList.add("hidden");
 
-
-        // 이미지형 문항만 이미지 영역을 보여주고, 나머지는 텍스트 중심으로 표시한다.
         const normalizedImagePath = normalizeImagePath(currentQuestion.imageFilePath);
         if (normalizedImagePath) {
             questionImage.src = normalizedImagePath;
@@ -106,13 +118,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         questionCriteria.classList.add("hidden");
 
         updateTimerText(state.remainingSeconds);
+        saveTestProgress(state);
     }
 
     function runQuestionTimer() {
         clearQuestionTimer();
         updateTimerText(state.remainingSeconds);
 
-        // 문항당 70초가 지나면 완료 알림 후 다음 문제로 자동 이동한다.
         state.timerId = window.setInterval(() => {
             state.remainingSeconds -= 1;
             updateTimerText(state.remainingSeconds);
@@ -124,18 +136,21 @@ document.addEventListener("DOMContentLoaded", async () => {
         }, 1000);
     }
 
-    function moveToNextQuestion(showCompletionAlert) {
-        const completedQuestionNumber = state.currentIndex + 1;
-        clearQuestionTimer();
-        state.timerStarted = false;
-
-        if (showCompletionAlert) {
-            alert(`${completedQuestionNumber}번 문제 검사가 완료되었습니다.`);
+    function moveToNextQuestion(timedOut) {
+        const currentQuestion = state.questions[state.currentIndex];
+        if (!currentQuestion) {
+            return;
         }
 
-        if (completedQuestionNumber >= state.questions.length) {
-            alert("인지능력 검사가 완료되었습니다.");
-            window.location.href = "/test";
+        clearQuestionTimer();
+        state.timerStarted = false;
+        markQuestionCompleted(currentQuestion.questionId, timedOut);
+
+        if (state.currentIndex >= state.questions.length - 1) {
+            finishTest().catch((error) => {
+                console.error(error);
+                alert("검사 완료 기록 저장에 실패했습니다. 다시 시도해주세요.");
+            });
             return;
         }
 
@@ -143,6 +158,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         state.remainingSeconds = state.questionDurationSeconds;
         timerStartButton.disabled = false;
         renderCurrentQuestion();
+    }
+
+    function markQuestionCompleted(questionId, timedOut) {
+        if (!state.completedQuestionIds.includes(questionId)) {
+            state.completedQuestionIds.push(questionId);
+        }
+
+        if (timedOut && !state.timedOutQuestionIds.includes(questionId)) {
+            state.timedOutQuestionIds.push(questionId);
+        }
+
+        saveTestProgress(state);
     }
 
     function clearQuestionTimer() {
@@ -159,15 +186,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         questionTimer.textContent = `${minutes}:${seconds}`;
     }
 
-    function toggleTextBlock(element, value, text) {
-        if (value) {
-            element.textContent = text;
-            element.classList.remove("hidden");
-            return;
-        }
+    async function finishTest() {
+        nextQuestionButton.disabled = true;
+        timerStartButton.disabled = true;
+        saveTestProgress(state, true);
 
-        element.textContent = "";
-        element.classList.add("hidden");
+        // 검사 종료 직후 완료 API를 호출해 검사 횟수와 최근 검사일 집계용 기록을 남긴다.
+        await completeTest(state.recipientId);
+        sessionStorage.removeItem(TEST_PROGRESS_STORAGE_KEY);
+
+        alert("인지능력 검사가 완료되었습니다.");
+        window.location.href = "/test";
     }
 });
 
@@ -187,7 +216,6 @@ async function loadRecipients(recipientSelect) {
 }
 
 async function startTest(recipientId) {
-    // 서버가 유형별 랜덤 5문항씩 묶어서 내려주는 시작 API다.
     const response = await fetch("/api/cognitive-tests/start", {
         method: "POST",
         headers: {
@@ -205,15 +233,93 @@ async function startTest(recipientId) {
     return response.json();
 }
 
+async function completeTest(recipientId) {
+    const response = await fetch("/api/cognitive-tests/complete", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            recipientId: Number(recipientId)
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error("검사 완료 저장 실패");
+    }
+}
+
+function saveTestProgress(state, completed = false) {
+    const questionsByType = new Map();
+    const completedCounts = new Map();
+    const timedOutCounts = new Map();
+
+    state.questions.forEach((question) => {
+        const currentCount = questionsByType.get(question.questionTypeId) || 0;
+        questionsByType.set(question.questionTypeId, currentCount + 1);
+    });
+
+    state.questions
+        .filter((question) => state.completedQuestionIds.includes(question.questionId))
+        .forEach((question) => {
+            completedCounts.set(
+                question.questionTypeId,
+                (completedCounts.get(question.questionTypeId) || 0) + 1
+            );
+        });
+
+    state.questions
+        .filter((question) => state.timedOutQuestionIds.includes(question.questionId))
+        .forEach((question) => {
+            timedOutCounts.set(
+                question.questionTypeId,
+                (timedOutCounts.get(question.questionTypeId) || 0) + 1
+            );
+        });
+
+    const weakTypeIds = Array.from(questionsByType.entries())
+        .filter(([questionTypeId, totalCount]) => {
+            const completedCount = completedCounts.get(questionTypeId) || 0;
+            const timedOutCount = timedOutCounts.get(questionTypeId) || 0;
+            return completedCount < totalCount || timedOutCount > 0;
+        })
+        .map(([questionTypeId]) => questionTypeId);
+
+    const summary = {
+        recipientId: state.recipientId,
+        recipientName: state.recipientName,
+        completed,
+        currentIndex: state.currentIndex,
+        completedQuestionIds: [...state.completedQuestionIds],
+        timedOutQuestionIds: [...state.timedOutQuestionIds],
+        weakTypeIds,
+        questions: state.questions.map((question) => ({
+            questionId: question.questionId,
+            questionTypeId: question.questionTypeId,
+            questionTypeName: question.questionTypeName
+        }))
+    };
+
+    sessionStorage.setItem(TEST_PROGRESS_STORAGE_KEY, JSON.stringify(summary));
+}
+
 function normalizeImagePath(imageFilePath) {
-    // DB 상대 경로와 절대 경로를 모두 브라우저에서 열 수 있게 정규화한다.
     if (!imageFilePath) {
         return "";
     }
 
-    if (imageFilePath.startsWith("http://") || imageFilePath.startsWith("https://") || imageFilePath.startsWith("/")) {
-        return imageFilePath;
+    const normalizedPath = String(imageFilePath).trim().replaceAll("\\", "/");
+    if (!normalizedPath) {
+        return "";
     }
 
-    return `/${imageFilePath.replace(/^\.?\//, "")}`;
+    if (normalizedPath.startsWith("http://") || normalizedPath.startsWith("https://")) {
+        return normalizedPath;
+    }
+
+    if (normalizedPath.startsWith("/")) {
+        return normalizedPath;
+    }
+
+    return `/cognitive-images/${normalizedPath.replace(/^\.?\//, "")}`;
 }
