@@ -1,50 +1,70 @@
-// 메인 화면의 로그인 상태와 로그아웃 동작을 관리한다.
-// 로그인 성공 후에는 쿼리 파라미터를 정리하고, 버튼 표시 상태를 갱신한다.
 const AUTH_STORAGE_KEY = "isLoggedIn";
 const KAKAO_LOGOUT_URL = "/logout";
-const loginLink = document.getElementById("loginLink");
-const logoutLink = document.getElementById("logoutLink");
-const authDivider = document.getElementById("authDivider");
 
-function syncLoginStateFromUrl() {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("login") === "success") {
-        localStorage.setItem(AUTH_STORAGE_KEY, "true");
-        window.history.replaceState({}, document.title, "/main");
-    }
-}
+document.addEventListener("DOMContentLoaded", async () => {
+    const loginLink = document.getElementById("loginLink");
+    const logoutLink = document.getElementById("logoutLink");
+    const authDivider = document.getElementById("authDivider");
+    const protectedMenuLinks = Array.from(document.querySelectorAll(".menu-item"));
 
-function updateAuthUi(isLoggedIn) {
-    loginLink.classList.toggle("hidden", isLoggedIn);
-    logoutLink.classList.toggle("hidden", !isLoggedIn);
-    authDivider.classList.add("hidden");
-}
+    let isAuthenticated = false;
 
-async function refreshAuthState() {
-    try {
-        const response = await fetch("/api/users/me", {
-            cache: "no-store"
-        });
-
-        if (response.ok) {
+    function syncLoginStateFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("login") === "success") {
             localStorage.setItem(AUTH_STORAGE_KEY, "true");
-            updateAuthUi(true);
-            return;
+            window.history.replaceState({}, document.title, "/main");
         }
-    } catch (error) {
-        console.error(error);
     }
 
-    localStorage.removeItem(AUTH_STORAGE_KEY);
+    function updateAuthUi(isLoggedIn) {
+        isAuthenticated = isLoggedIn;
+        loginLink.classList.toggle("hidden", isLoggedIn);
+        logoutLink.classList.toggle("hidden", !isLoggedIn);
+        authDivider.classList.add("hidden");
+    }
+
+    async function refreshAuthState() {
+        try {
+            const response = await fetch("/api/users/status", {
+                cache: "no-store"
+            });
+
+            if (response.ok) {
+                const payload = await response.json();
+                if (payload.authenticated) {
+                    localStorage.setItem(AUTH_STORAGE_KEY, "true");
+                    updateAuthUi(true);
+                    return;
+                }
+            }
+        } catch (error) {
+            console.error(error);
+        }
+
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+        updateAuthUi(false);
+    }
+
+    logoutLink.addEventListener("click", (event) => {
+        event.preventDefault();
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+        window.location.href = KAKAO_LOGOUT_URL;
+    });
+
+    protectedMenuLinks.forEach((link) => {
+        link.addEventListener("click", (event) => {
+            if (isAuthenticated) {
+                return;
+            }
+
+            event.preventDefault();
+            alert("로그인이 필요합니다.");
+            window.location.href = "/login";
+        });
+    });
+
+    syncLoginStateFromUrl();
     updateAuthUi(false);
-}
-
-logoutLink.addEventListener("click", (event) => {
-    event.preventDefault();
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-    window.location.href = KAKAO_LOGOUT_URL;
+    await refreshAuthState();
 });
-
-syncLoginStateFromUrl();
-updateAuthUi(false);
-refreshAuthState();

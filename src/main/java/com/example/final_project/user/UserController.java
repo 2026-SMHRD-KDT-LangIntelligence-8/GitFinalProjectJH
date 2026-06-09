@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.logout.CookieClearingLogoutHandler;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +34,15 @@ public class UserController {
         this.jdbcTemplate = jdbcTemplate;
         this.currentUserService = currentUserService;
         this.recipientRepository = recipientRepository;
+    }
+
+    @GetMapping("/status")
+    public Map<String, Object> getAuthStatus(Authentication authentication) {
+        boolean authenticated = authentication != null
+                && authentication.isAuthenticated()
+                && authentication.getPrincipal() instanceof OAuth2User;
+
+        return Map.of("authenticated", authenticated);
     }
 
     @GetMapping("/me")

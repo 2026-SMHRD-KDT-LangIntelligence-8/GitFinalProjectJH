@@ -33,40 +33,48 @@
     <div class="info-section">
       <div class="section-label-row">
         <h2 class="section-title">검사결과 조회</h2>
-        <select class="select-period-box report-control-shift">
-          <option>리포트 선택</option>
-          <option>최근 리포트</option>
-          <option>이전 리포트</option>
+        <select class="select-period-box report-control-shift" id="report-history-select">
+          <option value="">리포트 선택</option>
         </select>
       </div>
-      <div class="card-panel h-blank-medium"></div>
+      <div class="card-panel report-card-panel">
+        <div class="report-summary-header" id="report-summary-header">수급자를 선택하면 최근 검사 리포트가 표시됩니다.</div>
+        <div class="report-chart-wrap">
+          <canvas id="latest-report-chart"></canvas>
+        </div>
+        <div class="report-empty-message" id="latest-report-empty">검사 분석 결과가 아직 없습니다.</div>
+      </div>
       <div class="btn-align-right report-action-row">
-        <button type="button" class="action-btn report-control-shift report-output-btn report-share-btn"><span class="report-output-text">공유</span></button>
-        <button type="button" class="action-btn report-control-shift report-output-btn" onclick="downloadPDF()"><span class="report-output-text">출력</span></button>
+        <button type="button" class="action-btn report-control-shift report-output-btn report-share-btn report-share-btn-js"><span class="report-output-text">공유</span></button>
+        <button type="button" class="action-btn report-control-shift report-output-btn" id="report-download-btn"><span class="report-output-text">출력</span></button>
       </div>
     </div>
 
     <div class="info-section">
       <div class="section-label-row">
         <h2 class="section-title">기간별 변화 추이</h2>
-        <select class="select-period-box report-control-shift">
-          <option>기간 선택</option>
-          <option>최근 1주일</option>
-          <option>최근 1개월</option>
-          <option>최근 3개월</option>
+        <select class="select-period-box report-control-shift" id="report-trend-select">
+          <option value="7">최근 1주일</option>
+          <option value="30">최근 1개월</option>
+          <option value="90">최근 3개월</option>
         </select>
       </div>
-      <div class="card-panel h-blank-large"></div>
+      <div class="card-panel report-card-panel report-card-panel-large">
+        <div class="report-chart-wrap report-chart-wrap-large">
+          <canvas id="trend-report-chart"></canvas>
+        </div>
+        <div class="report-empty-message" id="trend-report-empty">기간 내 그래프로 표시할 검사 결과가 없습니다.</div>
+      </div>
       <div class="btn-align-right report-action-row">
-        <button type="button" class="action-btn report-control-shift report-output-btn report-share-btn"><span class="report-output-text">공유</span></button>
-        <button type="button" class="action-btn report-control-shift report-output-btn" onclick="downloadPDF()"><span class="report-output-text">출력</span></button>
+        <button type="button" class="action-btn report-control-shift report-output-btn report-share-btn report-share-btn-js"><span class="report-output-text">공유</span></button>
+        <button type="button" class="action-btn report-control-shift report-output-btn" id="trend-download-btn"><span class="report-output-text">출력</span></button>
       </div>
     </div>
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-<!-- PDF 출력 동작은 라이브러리 로드 후 별도 JS 파일에서 처리한다. -->
 <script src="/js/report.js"></script>
 
 </body>

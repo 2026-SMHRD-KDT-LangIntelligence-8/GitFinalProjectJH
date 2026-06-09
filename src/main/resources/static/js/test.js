@@ -1,5 +1,6 @@
 const TEST_DURATION_SECONDS = 70;
 const TEST_PROGRESS_STORAGE_KEY = "latestCognitiveTestProgress";
+const SpeechRecognitionConstructor = window.SpeechRecognition || window.webkitSpeechRecognition;
 
 document.addEventListener("DOMContentLoaded", async () => {
     const recipientSelect = document.getElementById("recipient-select");
@@ -18,6 +19,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const questionCriteria = document.getElementById("question-criteria");
     const timerStartButton = document.getElementById("timer-start-btn");
     const nextQuestionButton = document.getElementById("next-question-btn");
+    const voiceBadge = document.getElementById("question-voice-badge");
+    const voiceGuide = document.getElementById("question-voice-guide");
+    const voiceTranscript = document.getElementById("question-voice-transcript");
 
     const state = {
         recipientId: null,
@@ -29,8 +33,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         questionDurationSeconds: TEST_DURATION_SECONDS,
         timerStarted: false,
         completedQuestionIds: [],
-        timedOutQuestionIds: []
+        timedOutQuestionIds: [],
+        transcriptsByQuestionId: {},
+        recognition: null,
+        recognitionSupported: Boolean(SpeechRecognitionConstructor)
     };
+
+    setVoiceState("idle");
 
     try {
         await loadRecipients(recipientSelect);
@@ -58,12 +67,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             state.timerStarted = false;
             state.completedQuestionIds = [];
             state.timedOutQuestionIds = [];
+            state.transcriptsByQuestionId = {};
 
             saveTestProgress(state);
 
             introView.classList.add("hidden");
             sessionView.classList.remove("hidden");
             recipientNameChip.textContent = `${payload.recipientName} 검사`;
+            nextQuestionButton.disabled = false;
             timerStartButton.disabled = false;
 
             renderCurrentQuestion();
@@ -74,10 +85,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
 
-    timerStartButton.addEventListener("click", () => {
+    timerStartButton.addEventListener("click", async () => {
         timerStartButton.disabled = true;
         state.timerStarted = true;
         runQuestionTimer();
+
+        try {
+            await ensureMicrophoneReady();
+            startVoiceRecognition();
+        } catch (error) {
+            console.error(error);
+            setVoiceState("error", "마이크 권한을 허용해야 음성 인식을 사용할 수 있습니다.");
+        }
     });
 
     nextQuestionButton.addEventListener("click", () => {
@@ -85,6 +104,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     window.addEventListener("beforeunload", () => {
+        stopVoiceRecognition();
         if (state.questions.length > 0) {
             saveTestProgress(state);
         }
@@ -117,6 +137,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         questionCriteria.textContent = "";
         questionCriteria.classList.add("hidden");
 
+        updateVoiceTranscript(currentQuestion.questionId);
+        setVoiceState("idle");
         updateTimerText(state.remainingSeconds);
         saveTestProgress(state);
     }
@@ -143,6 +165,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         clearQuestionTimer();
+        stopVoiceRecognition();
         state.timerStarted = false;
         markQuestionCompleted(currentQuestion.questionId, timedOut);
 
@@ -189,21 +212,147 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function finishTest() {
         nextQuestionButton.disabled = true;
         timerStartButton.disabled = true;
+        stopVoiceRecognition();
         saveTestProgress(state, true);
 
-        // 검사 종료 직후 완료 API를 호출해 검사 횟수와 최근 검사일 집계용 기록을 남긴다.
         await completeTest(state.recipientId);
         sessionStorage.removeItem(TEST_PROGRESS_STORAGE_KEY);
 
         alert("인지능력 검사가 완료되었습니다.");
         window.location.href = "/test";
     }
+
+    async function ensureMicrophoneReady() {
+        if (!navigator.mediaDevices?.getUserMedia) {
+            throw new Error("microphone_not_supported");
+        }
+
+        const stream = await navigator.mediaDevices.getUserMedia({audio: true});
+        stream.getTracks().forEach((track) => track.stop());
+    }
+
+    function startVoiceRecognition() {
+        const currentQuestion = state.questions[state.currentIndex];
+        if (!currentQuestion) {
+            return;
+        }
+
+        if (!state.recognitionSupported) {
+            setVoiceState("error", "현재 브라우저는 자동 음성 인식을 지원하지 않습니다.");
+            return;
+        }
+
+        stopVoiceRecognition();
+
+        const recognition = new SpeechRecognitionConstructor();
+        recognition.lang = "ko-KR";
+        recognition.continuous = true;
+        recognition.interimResults = true;
+
+        recognition.onstart = () => {
+            setVoiceState("listening");
+        };
+
+        recognition.onresult = (event) => {
+            let transcript = "";
+            for (let index = event.resultIndex; index < event.results.length; index += 1) {
+                transcript += event.results[index][0].transcript;
+            }
+
+            const trimmedTranscript = transcript.trim();
+            if (!trimmedTranscript) {
+                return;
+            }
+
+            state.transcriptsByQuestionId[currentQuestion.questionId] = trimmedTranscript;
+            voiceTranscript.textContent = trimmedTranscript;
+            saveTestProgress(state);
+        };
+
+        recognition.onerror = (event) => {
+            if (event.error === "no-speech") {
+                setVoiceState("idle", "말씀해주시면 자동으로 음성을 다시 듣습니다.");
+                return;
+            }
+
+            setVoiceState("error", "음성 인식 중 문제가 발생했습니다. 다시 시도해주세요.");
+        };
+
+        recognition.onend = () => {
+            if (!state.timerStarted) {
+                return;
+            }
+
+            if (!state.recognition) {
+                return;
+            }
+
+            try {
+                recognition.start();
+            } catch (error) {
+                console.error(error);
+            }
+        };
+
+        state.recognition = recognition;
+
+        try {
+            recognition.start();
+        } catch (error) {
+            console.error(error);
+            setVoiceState("error", "마이크를 다시 시작하지 못했습니다.");
+        }
+    }
+
+    function stopVoiceRecognition() {
+        if (!state.recognition) {
+            return;
+        }
+
+        const recognition = state.recognition;
+        state.recognition = null;
+
+        try {
+            recognition.onend = null;
+            recognition.stop();
+        } catch (error) {
+            console.error(error);
+        }
+
+        setVoiceState("idle");
+    }
+
+    function setVoiceState(mode, customMessage) {
+        voiceBadge.classList.remove("is-listening", "is-error");
+
+        if (mode === "listening") {
+            voiceBadge.classList.add("is-listening");
+            voiceBadge.textContent = "마이크 사용 중";
+            voiceGuide.textContent = customMessage || "질문에 답하시면 음성이 자동으로 인식됩니다.";
+            return;
+        }
+
+        if (mode === "error") {
+            voiceBadge.classList.add("is-error");
+            voiceBadge.textContent = "음성 인식 안내";
+            voiceGuide.textContent = customMessage || "현재 기기에서는 음성 인식을 사용할 수 없습니다.";
+            return;
+        }
+
+        voiceBadge.textContent = "음성 대기";
+        voiceGuide.textContent = customMessage || "검사 시작을 누르면 마이크가 활성화됩니다.";
+    }
+
+    function updateVoiceTranscript(questionId) {
+        const transcript = state.transcriptsByQuestionId[questionId];
+        voiceTranscript.textContent = transcript?.trim() || "아직 인식된 음성이 없습니다.";
+    }
 });
 
 async function loadRecipients(recipientSelect) {
     const response = await fetch("/api/recipients");
     if (!response.ok) {
-        throw new Error("수급자 조회 실패");
+        throw new Error("recipient_fetch_failed");
     }
 
     const recipients = await response.json();
@@ -227,7 +376,7 @@ async function startTest(recipientId) {
     });
 
     if (!response.ok) {
-        throw new Error("검사 시작 실패");
+        throw new Error("test_start_failed");
     }
 
     return response.json();
@@ -245,7 +394,7 @@ async function completeTest(recipientId) {
     });
 
     if (!response.ok) {
-        throw new Error("검사 완료 저장 실패");
+        throw new Error("test_complete_failed");
     }
 }
 
@@ -293,6 +442,7 @@ function saveTestProgress(state, completed = false) {
         completedQuestionIds: [...state.completedQuestionIds],
         timedOutQuestionIds: [...state.timedOutQuestionIds],
         weakTypeIds,
+        transcriptsByQuestionId: {...state.transcriptsByQuestionId},
         questions: state.questions.map((question) => ({
             questionId: question.questionId,
             questionTypeId: question.questionTypeId,
