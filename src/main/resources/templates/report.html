@@ -20,30 +20,36 @@
     </a>
   </div>
 
-  <div class="header-wrapper">
+  <div class="header-wrapper report-header">
     <h2 class="page-title">리포트</h2>
+    <div class="report-search-wrap">
+      <button type="button" class="report-search-toggle" id="report-search-toggle" aria-label="수급자명 고정"></button>
+      <input type="search" class="report-recipient-search" id="report-recipient-search" placeholder="수급자명" autocomplete="off">
+      <div class="report-recipient-combo" id="report-recipient-combo"></div>
+    </div>
   </div>
 
   <div class="scroll-content">
     <div class="info-section">
       <div class="section-label-row">
         <h2 class="section-title">검사결과 조회</h2>
-        <select class="select-period-box">
+        <select class="select-period-box report-control-shift">
           <option>리포트 선택</option>
           <option>최근 리포트</option>
           <option>이전 리포트</option>
         </select>
       </div>
       <div class="card-panel h-blank-medium"></div>
-      <div class="btn-align-right">
-        <button type="button" class="action-btn" onclick="downloadPDF()">출력</button>
+      <div class="btn-align-right report-action-row">
+        <button type="button" class="action-btn report-control-shift report-output-btn report-share-btn"><span class="report-output-text">공유</span></button>
+        <button type="button" class="action-btn report-control-shift report-output-btn" onclick="downloadPDF()"><span class="report-output-text">출력</span></button>
       </div>
     </div>
 
     <div class="info-section">
       <div class="section-label-row">
         <h2 class="section-title">기간별 변화 추이</h2>
-        <select class="select-period-box">
+        <select class="select-period-box report-control-shift">
           <option>기간 선택</option>
           <option>최근 1주일</option>
           <option>최근 1개월</option>
@@ -51,8 +57,9 @@
         </select>
       </div>
       <div class="card-panel h-blank-large"></div>
-      <div class="btn-align-right">
-        <button type="button" class="action-btn" onclick="downloadPDF()">출력</button>
+      <div class="btn-align-right report-action-row">
+        <button type="button" class="action-btn report-control-shift report-output-btn report-share-btn"><span class="report-output-text">공유</span></button>
+        <button type="button" class="action-btn report-control-shift report-output-btn" onclick="downloadPDF()"><span class="report-output-text">출력</span></button>
       </div>
     </div>
   </div>
