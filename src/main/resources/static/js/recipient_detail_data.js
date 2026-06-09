@@ -21,6 +21,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.getElementById("val-phone").textContent = recipient.emergencyContact ?? "";
         document.getElementById("val-count").textContent = String(recipient.testCount ?? 0);
         document.getElementById("val-date").textContent = recipient.latestTestDate ?? "-";
+        document.getElementById("notes-textarea").value = recipient.notes ?? "";
 
         const genderSelect = document.getElementById("toggle-gender");
         const gradeSelect = document.getElementById("toggle-grade");

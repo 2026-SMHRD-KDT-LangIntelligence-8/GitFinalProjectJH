@@ -67,3 +67,23 @@ document.getElementById("val-keypad").addEventListener("blur", (event) => {
 
     event.target.value = `${y}-${m}-${d}`;
 });
+
+const notesEditButton = document.getElementById("notes-edit-button");
+const notesTextarea = document.getElementById("notes-textarea");
+
+if (notesEditButton && notesTextarea) {
+    notesEditButton.addEventListener("click", () => {
+        if (notesTextarea.readOnly) {
+            notesTextarea.readOnly = false;
+            notesTextarea.removeAttribute("tabindex");
+            notesEditButton.textContent = "저장";
+            notesTextarea.focus();
+            return;
+        }
+
+        notesTextarea.readOnly = true;
+        notesTextarea.setAttribute("tabindex", "-1");
+        notesEditButton.textContent = "수정";
+        notesTextarea.blur();
+    });
+}

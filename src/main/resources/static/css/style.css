@@ -453,6 +453,23 @@ a {
     background-color: #2e6f40; color: #ffffff; border: none; border-radius: 10px; padding: 6px 16px; font-size: 13px; font-weight: 700; cursor: pointer;
 }
 
+.notes-textarea {
+    width: 100%;
+    resize: vertical;
+    padding: 12px;
+    box-sizing: border-box;
+    font-family: inherit;
+    font-size: 13px;
+    color: #11381c;
+    line-height: 1.5;
+    outline: none;
+}
+
+.notes-textarea[readonly] {
+    cursor: default;
+    caret-color: transparent;
+}
+
 
 /* ==========================================================================
    6. 개인정보 수정 (profile_edit.html)
