@@ -74,7 +74,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             introView.classList.add("hidden");
             sessionView.classList.remove("hidden");
             recipientNameChip.textContent = `${payload.recipientName} 검사`;
-            nextQuestionButton.disabled = false;
+            nextQuestionButton.disabled = true;
             timerStartButton.disabled = false;
 
             renderCurrentQuestion();
@@ -87,6 +87,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     timerStartButton.addEventListener("click", async () => {
         timerStartButton.disabled = true;
+        nextQuestionButton.disabled = false;
         state.timerStarted = true;
         runQuestionTimer();
 
@@ -180,6 +181,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         state.currentIndex += 1;
         state.remainingSeconds = state.questionDurationSeconds;
         timerStartButton.disabled = false;
+        nextQuestionButton.disabled = true;
         renderCurrentQuestion();
     }
 

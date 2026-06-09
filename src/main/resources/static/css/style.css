@@ -704,6 +704,23 @@ a {
 /* 검사 시작 전/후 화면을 같은 페이지 안에서 전환하기 위한 래퍼다. */
 .test-intro-view { width: 100%; display: flex; flex: 1; flex-direction: column; }
 .test-session-view { width: 100%; display: flex; flex: 1; flex-direction: column; gap: 16px; }
+.test-phone-frame {
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.test-phone-frame::-webkit-scrollbar {
+    width: 5px;
+}
+
+.test-phone-frame::-webkit-scrollbar-track {
+    margin-block: 36px;
+}
+
+.test-phone-frame::-webkit-scrollbar-thumb {
+    background-color: #8fa195;
+    border-radius: 3px;
+}
 /* 현재 수급자와 진행률을 짧게 보여주는 상단 상태 영역이다. */
 .test-status-bar { display: flex; justify-content: space-between; gap: 8px; }
 .test-status-chip { flex: 1; min-height: 40px; display: flex; justify-content: center; align-items: center; background-color: #f4f6f4; border: 1px solid #d8e2db; border-radius: 12px; font-size: 13px; font-weight: 800; color: #1d4b2a; text-align: center; padding: 0 12px; box-sizing: border-box; }
@@ -717,6 +734,7 @@ a {
 .timer-start-btn { flex: 1; height: 48px; min-width: 0; padding: 0 16px; background-color: #3f9f5a; color: #ffffff; border: none; border-radius: 10px; font-size: 17px; font-weight: 800; cursor: pointer; white-space: nowrap; }
 .timer-start-btn:disabled { opacity: 0.45; cursor: default; }
 .next-question-btn { flex: 1; height: 48px; min-width: 0; padding: 0 16px; background-color: #eef6f0; color: #24633a; border: 1px solid #cfe4d5; border-radius: 10px; font-size: 17px; font-weight: 800; cursor: pointer; white-space: nowrap; }
+.next-question-btn:disabled { opacity: 0.45; cursor: default; }
 .question-meta-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .question-type-badge { display: inline-flex; align-items: center; min-height: 28px; padding: 0 12px; border-radius: 999px; background-color: #dff2e3; color: #1d6b32; font-size: 12px; font-weight: 800; }
 .question-sequence-text { font-size: 12px; font-weight: 700; color: #728a7a; }
