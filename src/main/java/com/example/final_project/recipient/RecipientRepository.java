@@ -3,8 +3,8 @@ package com.example.final_project.recipient;
 import com.example.final_project.recipient.dto.RecipientCreateRequest;
 import com.example.final_project.recipient.dto.RecipientDetailResponse;
 import com.example.final_project.recipient.dto.RecipientResponse;
-import com.example.final_project.recipient.dto.TrainingStatusResponse;
 import com.example.final_project.recipient.dto.RecipientUpdateRequest;
+import com.example.final_project.recipient.dto.TrainingStatusResponse;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -70,7 +70,7 @@ public class RecipientRepository {
     }
 
     /**
-     * 수급자 상세 화면에서 기본 정보와 검사/훈련 요약을 한 번에 내려주기 위한 조회다.
+     * 상세 화면에서 기본 정보와 검사 관련 요약을 한 번에 내려주기 위한 조회다.
      */
     public Optional<RecipientDetailResponse> findDetailByIdAndUserId(Long recipientId, String userId) {
         Optional<RecipientResponse> recipient = findByIdAndUserId(recipientId, userId);
@@ -168,6 +168,27 @@ public class RecipientRepository {
 
         return findByIdAndUserId(recipientId, userId)
                 .orElseThrow(() -> new IllegalStateException("수정된 수급자 정보를 다시 조회하지 못했습니다."));
+    }
+
+    /**
+     * 기타 특이사항 메모는 상세 화면에서 자주 바뀌므로 전용 UPDATE 문으로 분리한다.
+     */
+    public RecipientDetailResponse updateNotes(Long recipientId, String notes, String userId) {
+        String sql = """
+                UPDATE RECIPIENTS r
+                INNER JOIN USER_RECIPIENTS ur ON r.recipient_id = ur.recipient_id
+                SET r.notes = ?
+                WHERE r.recipient_id = ?
+                  AND ur.user_id = ?
+                """;
+
+        int updatedCount = jdbcTemplate.update(sql, notes, recipientId, userId);
+        if (updatedCount == 0) {
+            throw new IllegalArgumentException("해당 수급자를 찾을 수 없습니다. id=" + recipientId);
+        }
+
+        return findDetailByIdAndUserId(recipientId, userId)
+                .orElseThrow(() -> new IllegalStateException("수정된 수급자 메모를 다시 조회하지 못했습니다."));
     }
 
     public void deleteAllByUserId(String userId) {

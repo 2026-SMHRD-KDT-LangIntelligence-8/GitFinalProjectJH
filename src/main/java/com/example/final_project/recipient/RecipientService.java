@@ -2,6 +2,7 @@ package com.example.final_project.recipient;
 
 import com.example.final_project.recipient.dto.RecipientCreateRequest;
 import com.example.final_project.recipient.dto.RecipientDetailResponse;
+import com.example.final_project.recipient.dto.RecipientNotesUpdateRequest;
 import com.example.final_project.recipient.dto.RecipientResponse;
 import com.example.final_project.recipient.dto.RecipientUpdateRequest;
 import org.springframework.stereotype.Service;
@@ -18,7 +19,7 @@ public class RecipientService {
     }
 
     /**
-     * 목록 화면은 현재 로그인 사용자가 연결한 수급자 기본 정보만 내려준다.
+     * 목록 화면에는 현재 로그인 사용자가 연결한 수급자 기본 정보만 내려준다.
      */
     public List<RecipientResponse> getRecipients(String userId) {
         return recipientRepository.findAllByUserId(userId);
@@ -52,5 +53,16 @@ public class RecipientService {
      */
     public RecipientResponse updateRecipient(Long recipientId, RecipientUpdateRequest request, String userId) {
         return recipientRepository.update(recipientId, request, userId);
+    }
+
+    /**
+     * 기타 특이사항 메모는 상세 화면에서 즉시 저장할 수 있도록 별도 처리한다.
+     */
+    public RecipientDetailResponse updateRecipientNotes(
+            Long recipientId,
+            RecipientNotesUpdateRequest request,
+            String userId
+    ) {
+        return recipientRepository.updateNotes(recipientId, request.getNotes(), userId);
     }
 }
