@@ -1,5 +1,6 @@
 const TEST_DURATION_SECONDS = 70;
 const TEST_PROGRESS_STORAGE_KEY = "latestCognitiveTestProgress";
+const DEFAULT_AUDIO_FILE_NAME = "answer.webm";
 const SpeechRecognitionConstructor = window.SpeechRecognition || window.webkitSpeechRecognition;
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -24,6 +25,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const voiceTranscript = document.getElementById("question-voice-transcript");
 
     const state = {
+        performanceId: null,
         recipientId: null,
         recipientName: "",
         questions: [],
@@ -36,7 +38,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         timedOutQuestionIds: [],
         transcriptsByQuestionId: {},
         recognition: null,
-        recognitionSupported: Boolean(SpeechRecognitionConstructor)
+        recognitionSupported: Boolean(SpeechRecognitionConstructor),
+        mediaStream: null,
+        mediaRecorder: null,
+        mediaRecorderSupported: typeof MediaRecorder !== "undefined",
+        recordedChunks: []
     };
 
     setVoiceState("idle");
@@ -58,6 +64,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         try {
             const payload = await startTest(recipientSelect.value);
+            state.performanceId = payload.performanceId;
             state.recipientId = payload.recipientId;
             state.recipientName = payload.recipientName;
             state.questions = payload.questions;
@@ -92,20 +99,22 @@ document.addEventListener("DOMContentLoaded", async () => {
         runQuestionTimer();
 
         try {
-            await ensureMicrophoneReady();
+            await ensureMicrophoneReady(state);
             startVoiceRecognition();
+            startAudioRecording(state);
         } catch (error) {
             console.error(error);
             setVoiceState("error", "마이크 권한을 허용해야 음성 인식을 사용할 수 있습니다.");
         }
     });
 
-    nextQuestionButton.addEventListener("click", () => {
-        moveToNextQuestion(false);
+    nextQuestionButton.addEventListener("click", async () => {
+        await moveToNextQuestion(false);
     });
 
     window.addEventListener("beforeunload", () => {
         stopVoiceRecognition();
+        releaseMediaStream(state);
         if (state.questions.length > 0) {
             saveTestProgress(state);
         }
@@ -154,12 +163,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             if (state.remainingSeconds <= 0) {
                 clearQuestionTimer();
-                moveToNextQuestion(true);
+                moveToNextQuestion(true).catch((error) => {
+                    console.error(error);
+                });
             }
         }, 1000);
     }
 
-    function moveToNextQuestion(timedOut) {
+    async function moveToNextQuestion(timedOut) {
         const currentQuestion = state.questions[state.currentIndex];
         if (!currentQuestion) {
             return;
@@ -167,14 +178,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         clearQuestionTimer();
         stopVoiceRecognition();
+        await stopRecordingAndUpload(state, currentQuestion);
         state.timerStarted = false;
         markQuestionCompleted(currentQuestion.questionId, timedOut);
 
         if (state.currentIndex >= state.questions.length - 1) {
-            finishTest().catch((error) => {
-                console.error(error);
-                alert("검사 완료 기록 저장에 실패했습니다. 다시 시도해주세요.");
-            });
+            await finishTest();
             return;
         }
 
@@ -215,6 +224,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         nextQuestionButton.disabled = true;
         timerStartButton.disabled = true;
         stopVoiceRecognition();
+        releaseMediaStream(state);
         saveTestProgress(state, true);
 
         await completeTest(state.recipientId);
@@ -224,13 +234,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         window.location.href = "/test";
     }
 
-    async function ensureMicrophoneReady() {
+    async function ensureMicrophoneReady(currentState) {
         if (!navigator.mediaDevices?.getUserMedia) {
             throw new Error("microphone_not_supported");
         }
 
-        const stream = await navigator.mediaDevices.getUserMedia({audio: true});
-        stream.getTracks().forEach((track) => track.stop());
+        if (currentState.mediaStream) {
+            return currentState.mediaStream;
+        }
+
+        currentState.mediaStream = await navigator.mediaDevices.getUserMedia({audio: true});
+        return currentState.mediaStream;
     }
 
     function startVoiceRecognition() {
@@ -281,11 +295,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         };
 
         recognition.onend = () => {
-            if (!state.timerStarted) {
-                return;
-            }
-
-            if (!state.recognition) {
+            if (!state.timerStarted || !state.recognition) {
                 return;
             }
 
@@ -350,6 +360,77 @@ document.addEventListener("DOMContentLoaded", async () => {
         voiceTranscript.textContent = transcript?.trim() || "아직 인식된 음성이 없습니다.";
     }
 });
+
+function startAudioRecording(state) {
+    if (!state.mediaRecorderSupported || !state.mediaStream) {
+        return;
+    }
+
+    if (state.mediaRecorder && state.mediaRecorder.state !== "inactive") {
+        return;
+    }
+
+    state.recordedChunks = [];
+
+    const mediaRecorder = new MediaRecorder(state.mediaStream);
+    mediaRecorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+            state.recordedChunks.push(event.data);
+        }
+    };
+
+    state.mediaRecorder = mediaRecorder;
+    mediaRecorder.start();
+}
+
+async function stopRecordingAndUpload(state, question) {
+    if (!state.mediaRecorder || state.mediaRecorder.state === "inactive") {
+        return;
+    }
+
+    const audioBlob = await new Promise((resolve) => {
+        state.mediaRecorder.onstop = () => {
+            resolve(new Blob(state.recordedChunks, {type: state.mediaRecorder.mimeType || "audio/webm"}));
+        };
+        state.mediaRecorder.stop();
+    });
+
+    state.mediaRecorder = null;
+    state.recordedChunks = [];
+
+    if (!audioBlob || audioBlob.size === 0) {
+        return;
+    }
+
+    await uploadQuestionAudio(state.performanceId, question.questionId, audioBlob);
+}
+
+function releaseMediaStream(state) {
+    if (!state.mediaStream) {
+        return;
+    }
+
+    state.mediaStream.getTracks().forEach((track) => track.stop());
+    state.mediaStream = null;
+}
+
+async function uploadQuestionAudio(performanceId, questionId, audioBlob) {
+    const formData = new FormData();
+    formData.append("performanceId", String(performanceId));
+    formData.append("questionId", String(questionId));
+    formData.append("audioFile", audioBlob, DEFAULT_AUDIO_FILE_NAME);
+
+    const response = await fetch("/api/cognitive-tests/question-results", {
+        method: "POST",
+        body: formData
+    });
+
+    if (!response.ok) {
+        throw new Error("question_audio_upload_failed");
+    }
+
+    return response.json();
+}
 
 async function loadRecipients(recipientSelect) {
     const response = await fetch("/api/recipients");
@@ -437,6 +518,7 @@ function saveTestProgress(state, completed = false) {
         .map(([questionTypeId]) => questionTypeId);
 
     const summary = {
+        performanceId: state.performanceId,
         recipientId: state.recipientId,
         recipientName: state.recipientName,
         completed,
