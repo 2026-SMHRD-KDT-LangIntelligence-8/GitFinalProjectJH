@@ -576,6 +576,31 @@ a {
     gap: 12px;
 }
 
+.report-phone-frame {
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.report-phone-frame .scroll-content {
+    flex: 0 0 auto;
+    overflow: visible;
+    padding-right: 0;
+}
+
+.report-phone-frame::-webkit-scrollbar {
+    width: 5px;
+    background-color: rgba(46, 111, 64, 0.03);
+    border-radius: 3px;
+}
+
+.report-phone-frame::-webkit-scrollbar-thumb {
+    background-color: #8fa195;
+    border-radius: 3px;
+    border-top: 32px solid transparent;
+    border-bottom: 32px solid transparent;
+    background-clip: content-box;
+}
+
 .report-recipient-search {
     width: 123px;
     height: 34px;
