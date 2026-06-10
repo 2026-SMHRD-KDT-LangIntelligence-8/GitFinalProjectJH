@@ -26,13 +26,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     const latestReportEmpty = document.getElementById("latest-report-empty");
     const trendReportEmpty = document.getElementById("trend-report-empty");
     const reportSummaryHeader = document.getElementById("report-summary-header");
+    const trendSummaryHeader = document.getElementById("trend-summary-header");
+    const reportTypeSummary = document.getElementById("report-type-summary");
     const downloadButtons = [
         document.getElementById("report-download-btn"),
         document.getElementById("trend-download-btn")
     ].filter(Boolean);
     const shareButtons = Array.from(document.querySelectorAll(".report-share-btn-js"));
 
-    if (!searchInput || !searchToggleButton || !comboBox || !searchWrap || !historySelect || !trendSelect) {
+    if (!searchInput || !searchToggleButton || !comboBox || !searchWrap || !historySelect || !trendSelect || !trendSummaryHeader || !reportTypeSummary) {
         return;
     }
 
@@ -117,6 +119,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         destroyCharts();
         historySelect.innerHTML = '<option value="">리포트 선택</option>';
         reportSummaryHeader.textContent = message;
+        trendSummaryHeader.textContent = "최근 기간의 검사 평균 점수 변화를 표시합니다.";
+        reportTypeSummary.innerHTML = "";
+        reportTypeSummary.classList.add("hidden");
         setEmptyState(latestReportEmpty, true);
         setEmptyState(trendReportEmpty, true);
     };
@@ -288,6 +293,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             if (reports.length === 0) {
                 reportSummaryHeader.textContent = `${recipientName} 님의 검사 분석 리포트가 아직 없습니다.`;
+                trendSummaryHeader.textContent = `${recipientName} 님의 기간별 평균 점수 추이가 아직 없습니다.`;
+                reportTypeSummary.innerHTML = "";
+                reportTypeSummary.classList.add("hidden");
                 setEmptyState(latestReportEmpty, true);
                 setEmptyState(trendReportEmpty, true);
                 destroyCharts();
@@ -320,14 +328,19 @@ document.addEventListener("DOMContentLoaded", async () => {
                     latestReportChart.destroy();
                     latestReportChart = null;
                 }
+                reportTypeSummary.innerHTML = "";
+                reportTypeSummary.classList.add("hidden");
                 setEmptyState(latestReportEmpty, true);
                 return;
             }
 
             setEmptyState(latestReportEmpty, false);
             renderLatestChart(payload.questionTypeScores);
+            renderTypeSummary(payload.questionTypeScores);
         } catch (error) {
             console.error(error);
+            reportTypeSummary.innerHTML = "";
+            reportTypeSummary.classList.add("hidden");
             setEmptyState(latestReportEmpty, true);
         }
     }
@@ -345,14 +358,17 @@ document.addEventListener("DOMContentLoaded", async () => {
                     trendReportChart.destroy();
                     trendReportChart = null;
                 }
+                trendSummaryHeader.textContent = `최근 ${formatDaysLabel(days)} 동안 표시할 평균 점수 데이터가 없습니다.`;
                 setEmptyState(trendReportEmpty, true);
                 return;
             }
 
+            trendSummaryHeader.textContent = `최근 ${formatDaysLabel(days)} 동안 검사일별 평균 점수 추이입니다.`;
             setEmptyState(trendReportEmpty, false);
             renderTrendChart(payload.points);
         } catch (error) {
             console.error(error);
+            trendSummaryHeader.textContent = "기간별 변화 추이를 불러오지 못했습니다.";
             setEmptyState(trendReportEmpty, true);
         }
     }
@@ -375,7 +391,7 @@ function renderLatestChart(scores) {
             datasets: [{
                 label: "평균 점수",
                 data: scores.map((item) => item.averageScore),
-                backgroundColor: ["#14AE5C", "#277DA1", "#F77F00", "#73508F", "#F94144"],
+                backgroundColor: scores.map((item) => item.trainingNeeded ? "#F94144" : "#14AE5C"),
                 borderRadius: 12,
                 maxBarThickness: 38
             }]
@@ -386,6 +402,16 @@ function renderLatestChart(scores) {
             plugins: {
                 legend: {
                     display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label(context) {
+                            const score = context.raw;
+                            return score < 60
+                                ? `평균 점수 ${score}점 · 훈련 필요`
+                                : `평균 점수 ${score}점 · 안정`;
+                        }
+                    }
                 }
             },
             scales: {
@@ -411,39 +437,42 @@ function renderTrendChart(points) {
         trendReportChart.destroy();
     }
 
-    const labels = [...new Set(points.map((point) => point.performedDate))];
-    const questionTypes = [...new Set(points.map((point) => point.questionTypeName))];
-    const colorPalette = ["#14AE5C", "#277DA1", "#F77F00", "#73508F", "#F94144"];
-
-    const datasets = questionTypes.map((questionTypeName, index) => ({
-        label: questionTypeName,
-        data: labels.map((date) => {
-            const point = points.find((item) =>
-                item.performedDate === date && item.questionTypeName === questionTypeName
-            );
-            return point ? point.averageScore : null;
-        }),
-        borderColor: colorPalette[index % colorPalette.length],
-        backgroundColor: colorPalette[index % colorPalette.length],
-        tension: 0.3,
-        spanGaps: true
-    }));
+    const labels = points.map((point) => point.performedDate);
+    const scores = points.map((point) => point.averageScore);
 
     trendReportChart = new Chart(context, {
         type: "line",
         data: {
             labels,
-            datasets
+            datasets: [{
+                label: "검사일별 평균 점수",
+                data: scores,
+                borderColor: "#277DA1",
+                backgroundColor: "rgba(39, 125, 161, 0.18)",
+                pointBackgroundColor: scores.map((score) => score < 60 ? "#F94144" : "#14AE5C"),
+                pointBorderColor: scores.map((score) => score < 60 ? "#F94144" : "#14AE5C"),
+                pointRadius: 4,
+                pointHoverRadius: 5,
+                fill: true,
+                tension: 0.3,
+                spanGaps: true
+            }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    position: "bottom",
-                    labels: {
-                        boxWidth: 10,
-                        usePointStyle: true
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label(context) {
+                            const score = context.raw;
+                            return score < 60
+                                ? `평균 점수 ${score}점 · 훈련 필요`
+                                : `평균 점수 ${score}점 · 안정`;
+                        }
                     }
                 }
             },
@@ -458,6 +487,39 @@ function renderTrendChart(points) {
             }
         }
     });
+}
+
+function renderTypeSummary(scores) {
+    const container = document.getElementById("report-type-summary");
+    if (!container) {
+        return;
+    }
+
+    container.innerHTML = scores.map((item) => `
+        <div class="report-type-summary-item">
+            <span class="report-type-name">${escapeHtml(item.questionTypeName)}</span>
+            <div class="report-type-meta">
+                <span class="report-type-score">${item.averageScore}점</span>
+                <span class="report-type-badge ${item.trainingNeeded ? "is-training-needed" : "is-stable"}">
+                    ${item.trainingNeeded ? "훈련 필요" : "안정"}
+                </span>
+            </div>
+        </div>
+    `).join("");
+    container.classList.remove("hidden");
+}
+
+function formatDaysLabel(days) {
+    if (days === 7) {
+        return "1주일";
+    }
+    if (days === 30) {
+        return "1개월";
+    }
+    if (days === 90) {
+        return "3개월";
+    }
+    return `${days}일`;
 }
 
 function escapeHtml(value) {

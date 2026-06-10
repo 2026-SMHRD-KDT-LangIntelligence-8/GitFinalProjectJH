@@ -23,6 +23,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const voiceBadge = document.getElementById("question-voice-badge");
     const voiceGuide = document.getElementById("question-voice-guide");
     const voiceTranscript = document.getElementById("question-voice-transcript");
+    const voiceReviewToggleButton = document.getElementById("voice-review-toggle-btn");
+    const voiceReviewText = document.getElementById("voice-review-text");
 
     const state = {
         performanceId: null,
@@ -47,7 +49,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         voiceAnalyser: null,
         voiceSource: null,
         voiceDataArray: null,
-        voiceAnimationId: null
+        voiceAnimationId: null,
+        voiceReviewExpanded: false
     };
 
     setVoiceState("idle");
@@ -118,6 +121,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         await moveToNextQuestion(false);
     });
 
+    voiceReviewToggleButton.addEventListener("click", () => {
+        state.voiceReviewExpanded = !state.voiceReviewExpanded;
+        renderVoiceReview(state.questions[state.currentIndex]?.questionId);
+    });
+
     window.addEventListener("beforeunload", () => {
         stopVoiceRecognition();
         stopVoicePulse();
@@ -155,6 +163,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         questionCriteria.classList.add("hidden");
 
         updateVoiceTranscript(currentQuestion.questionId);
+        renderVoiceReview(currentQuestion.questionId);
         setVoiceState("idle");
         updateTimerText(state.remainingSeconds);
         saveTestProgress(state);
@@ -291,6 +300,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             state.transcriptsByQuestionId[currentQuestion.questionId] = trimmedTranscript;
             voiceTranscript.textContent = "";
+            renderVoiceReview(currentQuestion.questionId);
             saveTestProgress(state);
         };
 
@@ -365,10 +375,30 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     function updateVoiceTranscript(questionId) {
+        state.voiceReviewExpanded = false;
         voiceTranscript.textContent = "";
         voiceTranscript.classList.remove("is-listening");
         voiceTranscript.style.setProperty("--voice-pulse-scale", "1");
         voiceTranscript.style.setProperty("--voice-pulse-shadow", "6px");
+    }
+
+    function renderVoiceReview(questionId) {
+        const transcript = state.transcriptsByQuestionId[questionId]?.trim() || "";
+        const hasTranscript = Boolean(transcript);
+
+        voiceReviewToggleButton.disabled = !hasTranscript;
+        voiceReviewToggleButton.textContent = hasTranscript
+            ? `인식된 텍스트 확인 ${state.voiceReviewExpanded ? "접기" : "펼치기"}`
+            : "인식된 텍스트 확인 펼치기";
+
+        if (!hasTranscript || !state.voiceReviewExpanded) {
+            voiceReviewText.classList.add("hidden");
+            voiceReviewText.textContent = "";
+            return;
+        }
+
+        voiceReviewText.textContent = transcript;
+        voiceReviewText.classList.remove("hidden");
     }
 
     function startVoicePulse() {
@@ -551,39 +581,45 @@ async function completeTest(recipientId) {
 
 function saveTestProgress(state, completed = false) {
     const questionsByType = new Map();
-    const completedCounts = new Map();
-    const timedOutCounts = new Map();
+    const typeScoreBuckets = new Map();
+    const questionScoresById = {};
 
     state.questions.forEach((question) => {
         const currentCount = questionsByType.get(question.questionTypeId) || 0;
         questionsByType.set(question.questionTypeId, currentCount + 1);
+        const transcript = state.transcriptsByQuestionId[question.questionId];
+        const timedOut = state.timedOutQuestionIds.includes(question.questionId);
+        const questionScore = calculateQuestionScore(question, transcript, timedOut);
+
+        questionScoresById[question.questionId] = questionScore;
+
+        if (!typeScoreBuckets.has(question.questionTypeId)) {
+            typeScoreBuckets.set(question.questionTypeId, []);
+        }
+
+        typeScoreBuckets.get(question.questionTypeId).push(questionScore);
     });
 
-    state.questions
-        .filter((question) => state.completedQuestionIds.includes(question.questionId))
-        .forEach((question) => {
-            completedCounts.set(
-                question.questionTypeId,
-                (completedCounts.get(question.questionTypeId) || 0) + 1
-            );
-        });
+    const questionTypeScores = state.questions
+        .reduce((accumulator, question) => {
+            if (accumulator.some((item) => item.questionTypeId === question.questionTypeId)) {
+                return accumulator;
+            }
 
-    state.questions
-        .filter((question) => state.timedOutQuestionIds.includes(question.questionId))
-        .forEach((question) => {
-            timedOutCounts.set(
-                question.questionTypeId,
-                (timedOutCounts.get(question.questionTypeId) || 0) + 1
-            );
-        });
+            const scores = typeScoreBuckets.get(question.questionTypeId) || [];
+            accumulator.push({
+                questionTypeId: question.questionTypeId,
+                questionTypeName: question.questionTypeName,
+                averageScore: calculateAverageScore(scores)
+            });
+            return accumulator;
+        }, []);
 
-    const weakTypeIds = Array.from(questionsByType.entries())
-        .filter(([questionTypeId, totalCount]) => {
-            const completedCount = completedCounts.get(questionTypeId) || 0;
-            const timedOutCount = timedOutCounts.get(questionTypeId) || 0;
-            return completedCount < totalCount || timedOutCount > 0;
-        })
-        .map(([questionTypeId]) => questionTypeId);
+    const weakTypeIds = completed
+        ? questionTypeScores
+            .filter((item) => item.averageScore < 60)
+            .map((item) => item.questionTypeId)
+        : [];
 
     const summary = {
         performanceId: state.performanceId,
@@ -594,6 +630,8 @@ function saveTestProgress(state, completed = false) {
         completedQuestionIds: [...state.completedQuestionIds],
         timedOutQuestionIds: [...state.timedOutQuestionIds],
         weakTypeIds,
+        questionScoresById,
+        questionTypeScores,
         transcriptsByQuestionId: {...state.transcriptsByQuestionId},
         questions: state.questions.map((question) => ({
             questionId: question.questionId,
@@ -624,4 +662,270 @@ function normalizeImagePath(imageFilePath) {
     }
 
     return `/cognitive-images/${normalizedPath.replace(/^\.?\//, "")}`;
+}
+
+function calculateQuestionScore(question, transcript, timedOut) {
+    if (timedOut) {
+        return 0;
+    }
+
+    const normalizedTranscript = normalizeScoringText(transcript);
+    if (!normalizedTranscript) {
+        return 0;
+    }
+
+    const questionTypeName = String(question.questionTypeName || "");
+    const questionText = String(question.questionText || "");
+    const criteriaText = String(question.imageDescriptionCriteria || "");
+
+    if (isUnknownOrIrrelevantAnswer(normalizedTranscript)) {
+        return 0;
+    }
+
+    if (questionTypeName.includes("오늘 날짜")) {
+        return scoreDateQuestion(questionText, normalizedTranscript);
+    }
+
+    if (questionTypeName.includes("그림 설명")) {
+        return scorePictureDescriptionQuestion(normalizedTranscript, criteriaText);
+    }
+
+    if (questionTypeName.includes("상황 질문")) {
+        return scoreSituationQuestion(questionText, normalizedTranscript);
+    }
+
+    if (questionTypeName.includes("규칙 기반 언어추론")) {
+        return scoreReasoningQuestion(normalizedTranscript);
+    }
+
+    if (questionTypeName.includes("추억 말하기")) {
+        return scoreMemoryQuestion(questionText, normalizedTranscript);
+    }
+
+    return scoreGenericSpeechQuestion(normalizedTranscript);
+}
+
+function calculateAverageScore(scores) {
+    if (!scores.length) {
+        return 0;
+    }
+
+    const totalScore = scores.reduce((sum, currentScore) => sum + currentScore, 0);
+    return Math.round((totalScore / scores.length) * 10) / 10;
+}
+
+function normalizeScoringText(value) {
+    return String(value || "")
+        .toLowerCase()
+        .replaceAll(/[.,!?]/g, " ")
+        .replaceAll(/\s+/g, " ")
+        .trim();
+}
+
+function isUnknownOrIrrelevantAnswer(transcript) {
+    return /(모르|몰라|기억 안|잘 모르|어떻게 알아|무응답|싫어|안 할래)/.test(transcript);
+}
+
+function scoreDateQuestion(questionText, transcript) {
+    const requirements = extractDateRequirements(questionText);
+    const fulfilledCount = requirements.filter((requirement) => requirement.matcher.test(transcript)).length;
+    const relatedTemporalExpression = /(년|월|일|요일|월요일|화요일|수요일|목요일|금요일|토요일|일요일|봄|여름|가을|겨울|오전|오후|평일|주말|오늘|내일|어제|다음 달|주말)/.test(transcript);
+
+    if (fulfilledCount === 0) {
+        return relatedTemporalExpression ? 40 : 0;
+    }
+
+    if (requirements.length <= 1) {
+        return 100;
+    }
+
+    if (requirements.length === 2) {
+        if (fulfilledCount === 2) {
+            return 100;
+        }
+
+        const fulfilledBasic = requirements.some((requirement) => requirement.isBasic && requirement.matcher.test(transcript));
+        const fulfilledExtra = requirements.some((requirement) => !requirement.isBasic && requirement.matcher.test(transcript));
+        return fulfilledBasic && !fulfilledExtra ? 80 : 60;
+    }
+
+    if (fulfilledCount === requirements.length) {
+        return 100;
+    }
+
+    if (fulfilledCount >= requirements.length - 1) {
+        return 80;
+    }
+
+    return 60;
+}
+
+function extractDateRequirements(questionText) {
+    const requirements = [];
+    const normalizedQuestion = normalizeScoringText(questionText);
+
+    if (/몇 년|연도|올해/.test(normalizedQuestion)) {
+        requirements.push({key: "year", isBasic: true, matcher: /\d{4}|이천|년/});
+    }
+    if (/몇 월|이번 달|월/.test(normalizedQuestion)) {
+        requirements.push({key: "month", isBasic: true, matcher: /\d+\s*월|일월|이월|삼월|사월|오월|유월|육월|칠월|팔월|구월|시월|십월|십일월|십이월/});
+    }
+    if (/며칠|몇 일|무슨 날|일자|오늘은 며칠/.test(normalizedQuestion)) {
+        requirements.push({key: "day", isBasic: true, matcher: /\d+\s*일|하루|이일|삼일|사일|오일|육일|칠일|팔일|구일|십|이십|삼십/});
+    }
+    if (/요일/.test(normalizedQuestion)) {
+        requirements.push({key: "weekday", isBasic: true, matcher: /월요일|화요일|수요일|목요일|금요일|토요일|일요일/});
+    }
+    if (/계절/.test(normalizedQuestion)) {
+        requirements.push({key: "season", isBasic: true, matcher: /봄|여름|가을|겨울/});
+    }
+    if (/오전|오후/.test(normalizedQuestion)) {
+        requirements.push({key: "ampm", isBasic: true, matcher: /오전|오후/});
+    }
+    if (/평일|주말/.test(normalizedQuestion)) {
+        requirements.push({key: "weektype", isBasic: false, matcher: /평일|주말/});
+    }
+    if (/다음 달/.test(normalizedQuestion)) {
+        requirements.push({key: "nextMonth", isBasic: false, matcher: /다음 달|담 달|다음달/});
+    }
+    if (/내일/.test(normalizedQuestion)) {
+        requirements.push({key: "tomorrow", isBasic: false, matcher: /내일/});
+    }
+    if (/어제/.test(normalizedQuestion)) {
+        requirements.push({key: "yesterday", isBasic: false, matcher: /어제/});
+    }
+    if (/주말까지|며칠 뒤|며칠 전/.test(normalizedQuestion)) {
+        requirements.push({key: "relativeDayCount", isBasic: false, matcher: /하루|이틀|사흘|나흘|닷새|엿새|이레|\d+\s*일/});
+    }
+
+    return requirements.length
+        ? requirements
+        : [{key: "genericDate", isBasic: true, matcher: /년|월|일|요일|봄|여름|가을|겨울|오전|오후/}];
+}
+
+function scorePictureDescriptionQuestion(transcript, criteriaText) {
+    const criteriaKeywords = extractMeaningfulKeywords(criteriaText);
+    const matchedKeywordCount = criteriaKeywords.filter((keyword) => transcript.includes(keyword)).length;
+    const hasDescriptionVerb = /(있|하네|하네요|보이|달아|고르|걷|도와|읽|밀|꺼내|끓|넘치|떨어뜨|핥|쓰고)/.test(transcript);
+    const hasEvaluationOnly = /(좋|멋지|재밌|정신없|바쁘|위험|조용)/.test(transcript) && !hasDescriptionVerb;
+    const hasDesireOnly = /(싶다|싶네|싶어요)/.test(transcript) && !hasDescriptionVerb;
+
+    if (matchedKeywordCount >= 3 || (matchedKeywordCount >= 2 && hasDescriptionVerb)) {
+        return 100;
+    }
+    if (matchedKeywordCount >= 2 || (matchedKeywordCount >= 1 && hasDescriptionVerb)) {
+        return 80;
+    }
+    if (matchedKeywordCount >= 1) {
+        return 60;
+    }
+    if (hasEvaluationOnly || hasDesireOnly) {
+        return 40;
+    }
+
+    return 0;
+}
+
+function scoreSituationQuestion(questionText, transcript) {
+    const normalizedQuestion = normalizeScoringText(questionText);
+    const actionVerbMatched = /(전화|부르|알리|도와|도움|병원|119|신고|물어|찾아|가야|가겠|해야|해야지|해봐야|도망|피하)/.test(transcript);
+    const contextMatched = hasQuestionContextKeyword(normalizedQuestion, transcript);
+
+    if (contextMatched && actionVerbMatched) {
+        return 100;
+    }
+    if (actionVerbMatched) {
+        return 80;
+    }
+    if (contextMatched) {
+        return 60;
+    }
+    if (/(조심|위험|큰일|무섭)/.test(transcript)) {
+        return 40;
+    }
+
+    return 0;
+}
+
+function hasQuestionContextKeyword(normalizedQuestion, transcript) {
+    const contextGroups = [
+        ["물", "수도", "관리실"],
+        ["욕실", "미끄", "다쳤", "아프"],
+        ["길", "가게", "집", "물어"],
+        ["불", "화재", "연기"],
+        ["전화", "번호", "계좌"],
+        ["병원", "약", "응급"]
+    ];
+
+    return contextGroups.some((group) =>
+        group.some((keyword) => normalizedQuestion.includes(keyword)) &&
+        group.some((keyword) => transcript.includes(keyword))
+    );
+}
+
+function scoreReasoningQuestion(transcript) {
+    if (/(둘 다|둘다|같)/.test(transcript) && transcript.length >= 6) {
+        return 100;
+    }
+    if (/(과일|동물|짐승|탈것|도구|가구|글씨|먹는|쓰는)/.test(transcript)) {
+        return 80;
+    }
+    if (transcript.length >= 4) {
+        return 60;
+    }
+    return 40;
+}
+
+function scoreMemoryQuestion(questionText, transcript) {
+    const hasPastExperienceMarker = /(했|했어|했지|였|었|살았|다녔|먹었|좋아했|키웠|갔|놀았|기억|생각|적이 있|하곤 했)/.test(transcript);
+    const hasCurrentOnlyExpression = /(지금|요즘|좋아요|좋네요|가고 싶|먹고 싶)/.test(transcript) && !hasPastExperienceMarker;
+    const hasGenericStatement = /(좋지|중요|해야지|몸에 좋|소중|다 힘들)/.test(transcript) && !hasPastExperienceMarker;
+    const questionKeywords = extractMeaningfulKeywords(questionText);
+    const matchedTopicKeywordCount = questionKeywords.filter((keyword) => transcript.includes(keyword)).length;
+
+    if (hasPastExperienceMarker && transcript.length >= 20) {
+        return 100;
+    }
+    if (hasPastExperienceMarker) {
+        return 80;
+    }
+    if (matchedTopicKeywordCount >= 1 && hasCurrentOnlyExpression) {
+        return 60;
+    }
+    if (matchedTopicKeywordCount >= 1 && hasGenericStatement) {
+        return 40;
+    }
+    if (matchedTopicKeywordCount >= 1) {
+        return 60;
+    }
+
+    return 0;
+}
+
+function scoreGenericSpeechQuestion(transcript) {
+    if (transcript.length >= 20) {
+        return 100;
+    }
+    if (transcript.length >= 10) {
+        return 80;
+    }
+    if (transcript.length >= 4) {
+        return 60;
+    }
+    return 40;
+}
+
+function extractMeaningfulKeywords(text) {
+    const stopwords = new Set([
+        "그림", "장면", "설명", "말씀", "주세요", "그리고", "입니다", "있는", "하는", "어떤", "무슨", "지금",
+        "오늘", "대한", "때", "어릴", "학교", "친구", "기억", "남는", "보고", "인가요", "해주세요"
+    ]);
+
+    return Array.from(new Set(
+        String(text || "")
+            .replaceAll(/[.,!?()]/g, " ")
+            .split(/\s+/)
+            .map((token) => token.trim())
+            .filter((token) => token.length >= 2 && !stopwords.has(token))
+    ));
 }

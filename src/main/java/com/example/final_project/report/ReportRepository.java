@@ -66,7 +66,8 @@ public class ReportRepository {
                 sql,
                 (rs, rowNum) -> new QuestionTypeScoreResponse(
                         rs.getString("question_type_name"),
-                        rs.getDouble("average_score")
+                        rs.getDouble("average_score"),
+                        rs.getDouble("average_score") < 60
                 ),
                 performanceId,
                 recipientId,
@@ -79,25 +80,21 @@ public class ReportRepository {
 
         String sql = """
                 SELECT DATE_FORMAT(pr.performed_at, '%Y-%m-%d') AS performed_date,
-                       qt.question_type_name,
                        ROUND(AVG(ar.appropriateness_score), 1) AS average_score
                 FROM PERFORMANCE_RECORDS pr
                 INNER JOIN QUESTION_RESULTS qr ON pr.performance_id = qr.performance_id
                 INNER JOIN ANALYSIS_RESULTS ar ON qr.question_result_id = ar.question_result_id
-                INNER JOIN QUESTIONS q ON qr.question_id = q.question_id
-                INNER JOIN QUESTION_TYPES qt ON q.question_type_id = qt.question_type_id
                 WHERE pr.recipient_id = ?
                   AND pr.user_id = ?
                   AND pr.performed_at >= ?
-                GROUP BY DATE(pr.performed_at), q.question_type_id, qt.question_type_name
-                ORDER BY DATE(pr.performed_at) ASC, q.question_type_id ASC
+                GROUP BY DATE(pr.performed_at)
+                ORDER BY DATE(pr.performed_at) ASC
                 """;
 
         return jdbcTemplate.query(
                 sql,
                 (rs, rowNum) -> new TrendPointResponse(
                         rs.getString("performed_date"),
-                        rs.getString("question_type_name"),
                         rs.getDouble("average_score")
                 ),
                 recipientId,
