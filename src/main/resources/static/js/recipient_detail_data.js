@@ -19,7 +19,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.getElementById("val-keypad").value = recipient.birthDate ?? "";
         document.getElementById("val-guardian-name").textContent = recipient.guardianName ?? "";
         document.getElementById("val-phone").textContent = formatPhoneNumber(recipient.emergencyContact);
-        document.getElementById("val-count").textContent = String(recipient.testCount ?? 0);
         document.getElementById("val-date").textContent = recipient.latestTestDate ?? "-";
         document.getElementById("notes-textarea").value = recipient.notes ?? "";
 
@@ -36,20 +35,24 @@ document.addEventListener("DOMContentLoaded", async () => {
             gradeSelect.value = recipient.careGrade.replace("등급", "");
         }
 
-        renderTrainingStatuses(recipient.trainingStatuses ?? []);
+        renderTrainingStatuses(recipient.trainingStatuses ?? [], recipient);
     } catch (error) {
         console.error(error);
     }
 });
 
 // 훈련 현황 영역은 최근 분석 점수가 낮은 유형부터 우선순위 카드로 표시한다.
-function renderTrainingStatuses(trainingStatuses) {
+// 검사 기록은 있지만 ANALYSIS_RESULTS가 없는 경우를 따로 구분해 오해를 줄인다.
+function renderTrainingStatuses(trainingStatuses, recipient) {
     const container = document.getElementById("training-status-list");
+    const hasExamHistory = Number(recipient?.testCount ?? 0) > 0 || Boolean(recipient?.latestTestDate);
 
     if (trainingStatuses.length === 0) {
         container.innerHTML = `
             <div class="recipient-empty-message">
-                검사 이력이 없어 훈련 현황을 계산할 수 없습니다.
+                ${hasExamHistory
+                    ? "검사 기록은 있지만 아직 훈련 현황을 계산할 분석 결과가 없습니다."
+                    : "검사 이력이 없어 훈련 현황을 계산할 수 없습니다."}
             </div>
         `;
         return;
@@ -73,6 +76,7 @@ function escapeHtml(value) {
         .replaceAll("'", "&#39;");
 }
 
+// 상세 페이지는 전화번호를 보기 쉬운 형식으로만 바꿔서 표시한다.
 function formatPhoneNumber(value) {
     const numbersOnly = String(value ?? "").replace(/[^0-9]/g, "");
 

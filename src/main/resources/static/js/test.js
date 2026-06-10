@@ -3,6 +3,7 @@ const TEST_PROGRESS_STORAGE_KEY = "latestCognitiveTestProgress";
 const DEFAULT_AUDIO_FILE_NAME = "answer.webm";
 const SpeechRecognitionConstructor = window.SpeechRecognition || window.webkitSpeechRecognition;
 
+// 검사 페이지는 음성 인식, 음성 파일 저장, 텍스트 확인 UI를 한 스크립트에서 관리한다.
 document.addEventListener("DOMContentLoaded", async () => {
     const recipientSelect = document.getElementById("recipient-select");
     const startButton = document.getElementById("start-test-btn");
@@ -39,6 +40,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         completedQuestionIds: [],
         timedOutQuestionIds: [],
         transcriptsByQuestionId: {},
+        finalScoresByQuestionId: {},
         recognition: null,
         recognitionSupported: Boolean(SpeechRecognitionConstructor),
         mediaStream: null,
@@ -83,6 +85,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             state.completedQuestionIds = [];
             state.timedOutQuestionIds = [];
             state.transcriptsByQuestionId = {};
+            // 문항별 최종 점수는 훈련 추천과 리포트 계산에 다시 활용할 수 있게 별도로 저장한다.
+            state.finalScoresByQuestionId = {};
 
             saveTestProgress(state);
 
@@ -121,6 +125,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         await moveToNextQuestion(false);
     });
 
+    // 텍스트는 실시간으로 항상 노출하지 않고, 버튼 클릭 시에만 펼쳐서 확인할 수 있게 한다.
     voiceReviewToggleButton.addEventListener("click", () => {
         state.voiceReviewExpanded = !state.voiceReviewExpanded;
         renderVoiceReview(state.questions[state.currentIndex]?.questionId);
@@ -243,6 +248,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         stopVoiceRecognition();
         stopVoicePulse();
         releaseMediaStream(state);
+        // 검사 종료 전 마지막 진행 상태를 저장한 뒤 메인으로 이동한다.
         saveTestProgress(state, true);
 
         await completeTest(state.recipientId);
@@ -500,7 +506,8 @@ async function stopRecordingAndUpload(state, question) {
         return;
     }
 
-    await uploadQuestionAudio(state.performanceId, question.questionId, audioBlob);
+    const uploadResult = await uploadQuestionAudio(state.performanceId, question.questionId, audioBlob);
+    applyQuestionAnalysisResult(state, question.questionId, uploadResult);
 }
 
 function releaseMediaStream(state) {
@@ -587,9 +594,8 @@ function saveTestProgress(state, completed = false) {
     state.questions.forEach((question) => {
         const currentCount = questionsByType.get(question.questionTypeId) || 0;
         questionsByType.set(question.questionTypeId, currentCount + 1);
-        const transcript = state.transcriptsByQuestionId[question.questionId];
         const timedOut = state.timedOutQuestionIds.includes(question.questionId);
-        const questionScore = calculateQuestionScore(question, transcript, timedOut);
+        const questionScore = calculateQuestionScore(state, question, timedOut);
 
         questionScoresById[question.questionId] = questionScore;
 
@@ -643,6 +649,7 @@ function saveTestProgress(state, completed = false) {
     sessionStorage.setItem(TEST_PROGRESS_STORAGE_KEY, JSON.stringify(summary));
 }
 
+// 그림 문항 이미지는 DB 경로나 fallback 파일명을 모두 브라우저용 정적 경로로 맞춰 준다.
 function normalizeImagePath(imageFilePath) {
     if (!imageFilePath) {
         return "";
@@ -664,12 +671,17 @@ function normalizeImagePath(imageFilePath) {
     return `/cognitive-images/${normalizedPath.replace(/^\.?\//, "")}`;
 }
 
-function calculateQuestionScore(question, transcript, timedOut) {
+function calculateQuestionScore(state, question, timedOut) {
     if (timedOut) {
         return 0;
     }
 
-    const normalizedTranscript = normalizeScoringText(transcript);
+    const savedFinalScore = state.finalScoresByQuestionId[question.questionId];
+    if (typeof savedFinalScore === "number") {
+        return savedFinalScore;
+    }
+
+    const normalizedTranscript = normalizeScoringText(state.transcriptsByQuestionId[question.questionId]);
     if (!normalizedTranscript) {
         return 0;
     }
@@ -712,6 +724,23 @@ function calculateAverageScore(scores) {
 
     const totalScore = scores.reduce((sum, currentScore) => sum + currentScore, 0);
     return Math.round((totalScore / scores.length) * 10) / 10;
+}
+
+function applyQuestionAnalysisResult(state, questionId, analysisResult) {
+    if (!analysisResult) {
+        return;
+    }
+
+    if (typeof analysisResult.finalScore === "number") {
+        state.finalScoresByQuestionId[questionId] = analysisResult.finalScore;
+    }
+
+    const backendTranscript = String(analysisResult.sttText || "").trim();
+    if (backendTranscript) {
+        state.transcriptsByQuestionId[questionId] = backendTranscript;
+    }
+
+    saveTestProgress(state);
 }
 
 function normalizeScoringText(value) {

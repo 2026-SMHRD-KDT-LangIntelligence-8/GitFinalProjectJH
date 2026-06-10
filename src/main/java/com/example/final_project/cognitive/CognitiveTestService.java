@@ -1,5 +1,7 @@
 package com.example.final_project.cognitive;
 
+import com.example.final_project.analysis.AnalysisPipelineService;
+import com.example.final_project.analysis.dto.QuestionAnalysisResult;
 import com.example.final_project.cognitive.dto.CognitiveQuestionResponse;
 import com.example.final_project.cognitive.dto.CognitiveTestCompleteRequest;
 import com.example.final_project.cognitive.dto.CognitiveTestStartRequest;
@@ -28,6 +30,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
+// 검사와 훈련 세션 시작, 음성 파일 저장, STT 분석 연동을 한 곳에서 처리한다.
 public class CognitiveTestService {
 
     private static final String TEST_PURPOSE = "검사";
@@ -39,6 +42,7 @@ public class CognitiveTestService {
     private final CognitiveTestRepository cognitiveTestRepository;
     private final RecipientRepository recipientRepository;
     private final CurrentUserService currentUserService;
+    private final AnalysisPipelineService analysisPipelineService;
     private final List<String> fallbackImagePaths;
     private final Path voiceRootDirectory;
 
@@ -46,12 +50,14 @@ public class CognitiveTestService {
             CognitiveTestRepository cognitiveTestRepository,
             RecipientRepository recipientRepository,
             CurrentUserService currentUserService,
+            AnalysisPipelineService analysisPipelineService,
             @Value("${app.cognitive.image-dir:./cognitive-images}") String imageDirectory,
             @Value("${app.cognitive.voice-dir:./cognitive-voice}") String voiceDirectory
     ) {
         this.cognitiveTestRepository = cognitiveTestRepository;
         this.recipientRepository = recipientRepository;
         this.currentUserService = currentUserService;
+        this.analysisPipelineService = analysisPipelineService;
         this.fallbackImagePaths = loadFallbackImagePaths(imageDirectory);
         this.voiceRootDirectory = Paths.get(voiceDirectory);
     }
@@ -70,6 +76,7 @@ public class CognitiveTestService {
                 .orElseThrow(() -> new IllegalArgumentException("해당 수급자를 찾을 수 없습니다. id=" + request.recipientId()));
     }
 
+    // 업로드된 음성은 파일 저장 후 파이썬 분석 파이프라인을 호출하고 DB까지 함께 반영한다.
     public QuestionAudioUploadResponse saveQuestionAudio(Long performanceId, Long questionId, MultipartFile audioFile) {
         if (audioFile == null || audioFile.isEmpty()) {
             throw new IllegalArgumentException("저장할 음성 파일이 없습니다.");
@@ -81,15 +88,42 @@ public class CognitiveTestService {
 
         String savedRelativePath = storeAudioFile(context, audioFile);
         Long questionResultId = cognitiveTestRepository.createQuestionResult(performanceId, questionId, savedRelativePath);
+        Path absoluteAudioPath = voiceRootDirectory.resolve(savedRelativePath).normalize().toAbsolutePath();
+        QuestionAnalysisResult analysisResult = analysisPipelineService.analyzeQuestionAnswer(
+                absoluteAudioPath,
+                context.questionTypeName(),
+                context.questionText(),
+                context.imageDescriptionCriteria()
+        );
+
+        cognitiveTestRepository.updateQuestionResultTexts(
+                questionResultId,
+                analysisResult.sttText(),
+                analysisResult.preprocessedText()
+        );
+        cognitiveTestRepository.saveAnalysisResult(
+                questionResultId,
+                analysisResult.responseTime(),
+                analysisResult.repetitionRatio(),
+                analysisResult.avgSentenceLength(),
+                analysisResult.appropriatenessScore()
+        );
 
         return new QuestionAudioUploadResponse(
                 questionResultId,
                 performanceId,
                 questionId,
-                savedRelativePath
+                savedRelativePath,
+                analysisResult.sttText(),
+                analysisResult.preprocessedText(),
+                analysisResult.appropriatenessScore(),
+                analysisResult.repetitionScore(),
+                analysisResult.sentenceLengthScore(),
+                analysisResult.finalScore()
         );
     }
 
+    // 검사와 훈련은 목적 문자열만 다르고 세션 구성 흐름은 동일해서 공통 메서드로 묶는다.
     private CognitiveTestStartResponse startSession(CognitiveTestStartRequest request, String questionPurpose) {
         String userId = currentUserService.getRequiredUserId();
         RecipientResponse recipient = recipientRepository.findByIdAndUserId(request.recipientId(), userId)
@@ -118,6 +152,7 @@ public class CognitiveTestService {
         );
     }
 
+    // 음성 파일은 날짜 폴더와 수급자 폴더를 만들어 상대경로 형태로 저장한다.
     private String storeAudioFile(CognitiveTestRepository.QuestionAudioContext context, MultipartFile audioFile) {
         try {
             LocalDate performedDate = context.performedAt().toLocalDate();
@@ -190,6 +225,7 @@ public class CognitiveTestService {
         return sanitized.isBlank() ? "unknown" : sanitized;
     }
 
+    // 그림 설명하기 문항에 DB 이미지가 없으면 서버 폴더의 대체 이미지를 연결한다.
     private List<CognitiveQuestionResponse> assignFallbackImages(List<CognitiveQuestionResponse> questions) {
         if (fallbackImagePaths.isEmpty()) {
             return questions;
@@ -232,6 +268,7 @@ public class CognitiveTestService {
         return questionTypeName != null && questionTypeName.contains("그림 설명하기");
     }
 
+    // 대체 이미지는 cognitive-images 폴더 최상위의 이미지 파일만 읽는다.
     private List<String> loadFallbackImagePaths(String imageDirectory) {
         Path imageDirectoryPath = Paths.get(imageDirectory);
         if (!Files.exists(imageDirectoryPath)) {

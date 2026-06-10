@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
+// 검사와 훈련 진행 중 생성되는 수행기록, 문항 결과, 분석 결과를 DB에 저장한다.
 public class CognitiveTestRepository {
 
     private static final RowMapper<CognitiveQuestionResponse> QUESTION_ROW_MAPPER = (rs, rowNum) ->
@@ -63,6 +64,7 @@ public class CognitiveTestRepository {
         return jdbcTemplate.query(sql, QUESTION_ROW_MAPPER, questionPurpose, questionsPerType);
     }
 
+    // 검사 또는 훈련 세션이 시작될 때 PERFORMANCE_RECORDS에 1건을 먼저 만든다.
     public Long createPerformanceRecord(Long recipientId, String userId) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
 
@@ -87,6 +89,7 @@ public class CognitiveTestRepository {
         return key.longValue();
     }
 
+    // 업로드된 음성을 어떤 수급자와 문항에 연결할지 확인하기 위한 조회다.
     public QuestionAudioContext findQuestionAudioContext(Long performanceId, Long questionId, String userId) {
         String sql = """
                 SELECT pr.performance_id,
@@ -94,7 +97,9 @@ public class CognitiveTestRepository {
                        pr.performed_at,
                        r.recipient_name,
                        q.question_id,
-                       qt.question_type_name
+                       qt.question_type_name,
+                       q.question_text,
+                       q.image_description_criteria
                 FROM PERFORMANCE_RECORDS pr
                 INNER JOIN RECIPIENTS r ON pr.recipient_id = r.recipient_id
                 INNER JOIN QUESTIONS q ON q.question_id = ?
@@ -111,6 +116,8 @@ public class CognitiveTestRepository {
                         rs.getString("recipient_name"),
                         rs.getLong("question_id"),
                         rs.getString("question_type_name"),
+                        rs.getString("question_text"),
+                        rs.getString("image_description_criteria"),
                         rs.getTimestamp("performed_at").toLocalDateTime()
                 ),
                 questionId,
@@ -125,6 +132,7 @@ public class CognitiveTestRepository {
         return results.get(0);
     }
 
+    // 원본 음성 파일 저장 경로를 QUESTION_RESULTS에 먼저 기록한다.
     public Long createQuestionResult(Long performanceId, Long questionId, String voiceFilePath) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
 
@@ -150,12 +158,80 @@ public class CognitiveTestRepository {
         return key.longValue();
     }
 
+    // STT 원문과 전처리 문장을 같은 문항 결과에 덮어쓴다.
+    public void updateQuestionResultTexts(Long questionResultId, String sttText, String preprocessedText) {
+        jdbcTemplate.update(
+                """
+                UPDATE QUESTION_RESULTS
+                SET stt_text = ?,
+                    preprocessed_text = ?
+                WHERE question_result_id = ?
+                """,
+                sttText,
+                preprocessedText,
+                questionResultId
+        );
+    }
+
+    // 문항별 분석 결과는 재업로드 상황을 고려해 있으면 수정하고 없으면 새로 저장한다.
+    public void saveAnalysisResult(
+            Long questionResultId,
+            Double responseTime,
+            Double repetitionRatio,
+            Double avgSentenceLength,
+            Integer appropriatenessScore
+    ) {
+        Integer existingCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM ANALYSIS_RESULTS WHERE question_result_id = ?",
+                Integer.class,
+                questionResultId
+        );
+
+        if (existingCount != null && existingCount > 0) {
+            jdbcTemplate.update(
+                    """
+                    UPDATE ANALYSIS_RESULTS
+                    SET response_time = ?,
+                        repetition_ratio = ?,
+                        avg_sentence_length = ?,
+                        appropriateness_score = ?
+                    WHERE question_result_id = ?
+                    """,
+                    responseTime,
+                    repetitionRatio,
+                    avgSentenceLength,
+                    appropriatenessScore,
+                    questionResultId
+            );
+            return;
+        }
+
+        jdbcTemplate.update(
+                """
+                INSERT INTO ANALYSIS_RESULTS (
+                    question_result_id,
+                    response_time,
+                    repetition_ratio,
+                    avg_sentence_length,
+                    appropriateness_score
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                questionResultId,
+                responseTime,
+                repetitionRatio,
+                avgSentenceLength,
+                appropriatenessScore
+        );
+    }
+
     public record QuestionAudioContext(
             Long performanceId,
             Long recipientId,
             String recipientName,
             Long questionId,
             String questionTypeName,
+            String questionText,
+            String imageDescriptionCriteria,
             LocalDateTime performedAt
     ) {
     }
