@@ -249,7 +249,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         sessionStorage.removeItem(TEST_PROGRESS_STORAGE_KEY);
 
         alert("인지능력 검사가 완료되었습니다.");
-        window.location.href = "/test";
+        window.location.href = "/main";
     }
 
     async function ensureMicrophoneReady(currentState) {
