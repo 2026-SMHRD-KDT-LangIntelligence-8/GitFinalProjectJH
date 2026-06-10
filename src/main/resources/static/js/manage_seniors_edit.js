@@ -12,6 +12,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const backLink = document.getElementById("edit-back-link");
     const cancelButton = document.getElementById("edit-cancel-button");
     const form = document.getElementById("recipient-edit-form");
+    const emergencyContactInput = document.getElementById("edit-emergency-contact");
 
     const detailUrl = `/manage-seniors/detail?recipientId=${recipientId}`;
     backLink.href = detailUrl;
@@ -34,13 +35,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.getElementById("edit-gender").value = normalizeGenderValue(recipient.gender);
         document.getElementById("edit-care-grade").value = recipient.careGrade ?? "";
         document.getElementById("edit-guardian-name").value = recipient.guardianName ?? "";
-        document.getElementById("edit-emergency-contact").value = recipient.emergencyContact ?? "";
+        emergencyContactInput.value = formatPhoneNumber(recipient.emergencyContact);
     } catch (error) {
         console.error(error);
         alert("수급자 정보를 불러오지 못했습니다.");
         window.location.href = "/manage-seniors";
         return;
     }
+
+    emergencyContactInput.addEventListener("input", (event) => {
+        event.target.value = formatPhoneNumber(event.target.value);
+    });
 
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
@@ -50,7 +55,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             gender: document.getElementById("edit-gender").value,
             careGrade: document.getElementById("edit-care-grade").value,
             guardianName: document.getElementById("edit-guardian-name").value,
-            emergencyContact: document.getElementById("edit-emergency-contact").value
+            emergencyContact: emergencyContactInput.value.replace(/[^0-9]/g, "")
         };
 
         try {
@@ -86,4 +91,18 @@ function normalizeGenderValue(gender) {
     }
 
     return "";
+}
+
+function formatPhoneNumber(value) {
+    const numbersOnly = String(value ?? "").replace(/[^0-9]/g, "").slice(0, 11);
+
+    if (numbersOnly.length <= 3) {
+        return numbersOnly;
+    }
+
+    if (numbersOnly.length <= 7) {
+        return `${numbersOnly.slice(0, 3)}-${numbersOnly.slice(3)}`;
+    }
+
+    return `${numbersOnly.slice(0, 3)}-${numbersOnly.slice(3, 7)}-${numbersOnly.slice(7)}`;
 }

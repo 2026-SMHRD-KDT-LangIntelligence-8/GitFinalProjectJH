@@ -18,7 +18,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.getElementById("val-name").textContent = recipient.recipientName ?? "";
         document.getElementById("val-keypad").value = recipient.birthDate ?? "";
         document.getElementById("val-guardian-name").textContent = recipient.guardianName ?? "";
-        document.getElementById("val-phone").textContent = recipient.emergencyContact ?? "";
+        document.getElementById("val-phone").textContent = formatPhoneNumber(recipient.emergencyContact);
         document.getElementById("val-count").textContent = String(recipient.testCount ?? 0);
         document.getElementById("val-date").textContent = recipient.latestTestDate ?? "-";
         document.getElementById("notes-textarea").value = recipient.notes ?? "";
@@ -71,4 +71,18 @@ function escapeHtml(value) {
         .replaceAll(">", "&gt;")
         .replaceAll("\"", "&quot;")
         .replaceAll("'", "&#39;");
+}
+
+function formatPhoneNumber(value) {
+    const numbersOnly = String(value ?? "").replace(/[^0-9]/g, "");
+
+    if (numbersOnly.length === 11) {
+        return `${numbersOnly.slice(0, 3)}-${numbersOnly.slice(3, 7)}-${numbersOnly.slice(7)}`;
+    }
+
+    if (numbersOnly.length === 10) {
+        return `${numbersOnly.slice(0, 3)}-${numbersOnly.slice(3, 6)}-${numbersOnly.slice(6)}`;
+    }
+
+    return value ?? "";
 }
