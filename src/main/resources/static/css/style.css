@@ -176,6 +176,34 @@ a {
     margin-bottom: 34px;
 }
 
+.senior-detail-phone-frame,
+.senior-edit-phone-frame {
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.senior-detail-phone-frame .scroll-content,
+.senior-edit-phone-frame .scroll-content {
+    flex: 0 0 auto;
+    overflow: visible;
+    padding-right: 0;
+}
+
+.senior-detail-phone-frame::-webkit-scrollbar,
+.senior-edit-phone-frame::-webkit-scrollbar {
+    width: 5px;
+    background-color: transparent;
+}
+
+.senior-detail-phone-frame::-webkit-scrollbar-thumb,
+.senior-edit-phone-frame::-webkit-scrollbar-thumb {
+    background-color: #8fa195;
+    border-radius: 3px;
+    border-top: 72px solid transparent;
+    border-bottom: 72px solid transparent;
+    background-clip: content-box;
+}
+
 .section-label-row {
     display: flex;
     justify-content: space-between;
