@@ -145,6 +145,7 @@ public class RecipientRepository {
                 UPDATE RECIPIENTS r
                 INNER JOIN USER_RECIPIENTS ur ON r.recipient_id = ur.recipient_id
                 SET r.birth_date = ?,
+                    r.gender = ?,
                     r.care_grade = ?,
                     r.guardian_name = ?,
                     r.emergency_contact = ?
@@ -155,6 +156,7 @@ public class RecipientRepository {
         int updatedCount = jdbcTemplate.update(
                 sql,
                 Date.valueOf(request.getBirthDate()),
+                request.getGender(),
                 request.getCareGrade(),
                 request.getGuardianName(),
                 request.getEmergencyContact(),

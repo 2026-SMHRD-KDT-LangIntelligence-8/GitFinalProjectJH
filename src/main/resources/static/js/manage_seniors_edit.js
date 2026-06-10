@@ -31,6 +31,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         // 수정 페이지는 변경 가능한 항목만 input에 채우고, 이름은 식별용으로 읽기 전용 표시만 한다.
         document.getElementById("edit-recipient-name").value = recipient.recipientName ?? "";
         document.getElementById("edit-birth-date").value = recipient.birthDate ?? "";
+        document.getElementById("edit-gender").value = normalizeGenderValue(recipient.gender);
         document.getElementById("edit-care-grade").value = recipient.careGrade ?? "";
         document.getElementById("edit-guardian-name").value = recipient.guardianName ?? "";
         document.getElementById("edit-emergency-contact").value = recipient.emergencyContact ?? "";
@@ -46,6 +47,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const payload = {
             birthDate: document.getElementById("edit-birth-date").value,
+            gender: document.getElementById("edit-gender").value,
             careGrade: document.getElementById("edit-care-grade").value,
             guardianName: document.getElementById("edit-guardian-name").value,
             emergencyContact: document.getElementById("edit-emergency-contact").value
@@ -73,3 +75,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
 });
+
+function normalizeGenderValue(gender) {
+    if (gender === "남" || gender === "남성" || gender === "male") {
+        return "남";
+    }
+
+    if (gender === "여" || gender === "여성" || gender === "female") {
+        return "여";
+    }
+
+    return "";
+}

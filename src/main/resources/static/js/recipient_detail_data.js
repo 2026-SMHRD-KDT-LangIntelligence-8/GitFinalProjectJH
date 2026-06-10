@@ -26,9 +26,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         const genderSelect = document.getElementById("toggle-gender");
         const gradeSelect = document.getElementById("toggle-grade");
 
-        if (recipient.gender === "남성") {
+        if (recipient.gender === "남" || recipient.gender === "남성" || recipient.gender === "male") {
             genderSelect.value = "male";
-        } else if (recipient.gender === "여성") {
+        } else if (recipient.gender === "여" || recipient.gender === "여성" || recipient.gender === "female") {
             genderSelect.value = "female";
         }
 
