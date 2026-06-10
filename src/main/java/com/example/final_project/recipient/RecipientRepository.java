@@ -198,6 +198,10 @@ public class RecipientRepository {
                 userId
         );
 
+        for (Long recipientId : recipientIds) {
+            deletePerformanceDataByRecipientIdAndUserId(recipientId, userId);
+        }
+
         jdbcTemplate.update("DELETE FROM USER_RECIPIENTS WHERE user_id = ?", userId);
 
         List<Long> orphanRecipientIds = new ArrayList<>();
@@ -216,6 +220,43 @@ public class RecipientRepository {
         for (Long recipientId : orphanRecipientIds) {
             jdbcTemplate.update("DELETE FROM RECIPIENTS WHERE recipient_id = ?", recipientId);
         }
+    }
+
+    private void deletePerformanceDataByRecipientIdAndUserId(Long recipientId, String userId) {
+        jdbcTemplate.update(
+                """
+                DELETE ar
+                FROM ANALYSIS_RESULTS ar
+                INNER JOIN QUESTION_RESULTS qr ON ar.question_result_id = qr.question_result_id
+                INNER JOIN PERFORMANCE_RECORDS pr ON qr.performance_id = pr.performance_id
+                WHERE pr.recipient_id = ?
+                  AND pr.user_id = ?
+                """,
+                recipientId,
+                userId
+        );
+
+        jdbcTemplate.update(
+                """
+                DELETE qr
+                FROM QUESTION_RESULTS qr
+                INNER JOIN PERFORMANCE_RECORDS pr ON qr.performance_id = pr.performance_id
+                WHERE pr.recipient_id = ?
+                  AND pr.user_id = ?
+                """,
+                recipientId,
+                userId
+        );
+
+        jdbcTemplate.update(
+                """
+                DELETE FROM PERFORMANCE_RECORDS
+                WHERE recipient_id = ?
+                  AND user_id = ?
+                """,
+                recipientId,
+                userId
+        );
     }
 
     private long countPerformancesByRecipientIdAndUserId(Long recipientId, String userId) {
