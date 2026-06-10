@@ -42,7 +42,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         mediaStream: null,
         mediaRecorder: null,
         mediaRecorderSupported: typeof MediaRecorder !== "undefined",
-        recordedChunks: []
+        recordedChunks: [],
+        audioContext: null,
+        voiceAnalyser: null,
+        voiceSource: null,
+        voiceDataArray: null,
+        voiceAnimationId: null
     };
 
     setVoiceState("idle");
@@ -102,6 +107,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             await ensureMicrophoneReady(state);
             startVoiceRecognition();
             startAudioRecording(state);
+            startVoicePulse();
         } catch (error) {
             console.error(error);
             setVoiceState("error", "마이크 권한을 허용해야 음성 인식을 사용할 수 있습니다.");
@@ -114,6 +120,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     window.addEventListener("beforeunload", () => {
         stopVoiceRecognition();
+        stopVoicePulse();
         releaseMediaStream(state);
         if (state.questions.length > 0) {
             saveTestProgress(state);
@@ -178,6 +185,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         clearQuestionTimer();
         stopVoiceRecognition();
+        stopVoicePulse();
         await stopRecordingAndUpload(state, currentQuestion);
         state.timerStarted = false;
         markQuestionCompleted(currentQuestion.questionId, timedOut);
@@ -224,6 +232,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         nextQuestionButton.disabled = true;
         timerStartButton.disabled = true;
         stopVoiceRecognition();
+        stopVoicePulse();
         releaseMediaStream(state);
         saveTestProgress(state, true);
 
@@ -281,7 +290,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
 
             state.transcriptsByQuestionId[currentQuestion.questionId] = trimmedTranscript;
-            voiceTranscript.textContent = trimmedTranscript;
+            voiceTranscript.textContent = "";
             saveTestProgress(state);
         };
 
@@ -356,8 +365,67 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     function updateVoiceTranscript(questionId) {
-        const transcript = state.transcriptsByQuestionId[questionId];
-        voiceTranscript.textContent = transcript?.trim() || "아직 인식된 음성이 없습니다.";
+        voiceTranscript.textContent = "";
+        voiceTranscript.classList.remove("is-listening");
+        voiceTranscript.style.setProperty("--voice-pulse-scale", "1");
+        voiceTranscript.style.setProperty("--voice-pulse-shadow", "6px");
+    }
+
+    function startVoicePulse() {
+        const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextConstructor || !state.mediaStream || state.voiceAnimationId) {
+            return;
+        }
+
+        state.audioContext = state.audioContext || new AudioContextConstructor();
+        if (state.audioContext.state === "suspended") {
+            state.audioContext.resume().catch((error) => console.error(error));
+        }
+
+        state.voiceAnalyser = state.audioContext.createAnalyser();
+        state.voiceAnalyser.fftSize = 256;
+        state.voiceAnalyser.smoothingTimeConstant = 0.72;
+        state.voiceSource = state.audioContext.createMediaStreamSource(state.mediaStream);
+        state.voiceSource.connect(state.voiceAnalyser);
+        state.voiceDataArray = new Uint8Array(state.voiceAnalyser.fftSize);
+        voiceTranscript.classList.add("is-listening");
+
+        const updatePulse = () => {
+            state.voiceAnalyser.getByteTimeDomainData(state.voiceDataArray);
+
+            let sum = 0;
+            for (const value of state.voiceDataArray) {
+                const normalized = (value - 128) / 128;
+                sum += normalized * normalized;
+            }
+
+            const volume = Math.min(Math.sqrt(sum / state.voiceDataArray.length) * 7, 1);
+            const scale = 1 + volume * 1.7;
+            const shadow = 6 + volume * 26;
+            voiceTranscript.style.setProperty("--voice-pulse-scale", scale.toFixed(2));
+            voiceTranscript.style.setProperty("--voice-pulse-shadow", `${shadow.toFixed(0)}px`);
+            state.voiceAnimationId = window.requestAnimationFrame(updatePulse);
+        };
+
+        updatePulse();
+    }
+
+    function stopVoicePulse() {
+        if (state.voiceAnimationId) {
+            window.cancelAnimationFrame(state.voiceAnimationId);
+            state.voiceAnimationId = null;
+        }
+
+        if (state.voiceSource) {
+            state.voiceSource.disconnect();
+            state.voiceSource = null;
+        }
+
+        state.voiceAnalyser = null;
+        state.voiceDataArray = null;
+        voiceTranscript.classList.remove("is-listening");
+        voiceTranscript.style.setProperty("--voice-pulse-scale", "1");
+        voiceTranscript.style.setProperty("--voice-pulse-shadow", "6px");
     }
 });
 
