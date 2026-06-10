@@ -51,8 +51,29 @@ document.addEventListener("DOMContentLoaded", () => {
         customDomainInput.classList.toggle("hidden", !isCustomDomain);
     };
 
-    const originalProfile = loadSavedProfile();
+    let originalProfile = loadSavedProfile();
     applyProfileToInputs(originalProfile);
+
+    const loadKakaoProfileName = async () => {
+        try {
+            const response = await fetch("/api/users/me");
+            if (!response.ok) {
+                return;
+            }
+
+            const profile = await response.json();
+            const kakaoName = profile.userName ?? "";
+            nameInput.value = kakaoName;
+            originalProfile = {
+                ...originalProfile,
+                name: kakaoName
+            };
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    loadKakaoProfileName();
 
     // 이메일 도메인을 직접 입력할지 여부에 따라 추가 입력창을 보여주거나 숨긴다.
     domainSelect.addEventListener("change", () => {
@@ -105,7 +126,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // 세 항목 중 하나라도 달라졌는지 비교해서, 실제 변경이 있을 때만 저장하도록 한다.
         const hasAnyChange =
-            currentProfile.name !== originalProfile.name ||
             currentProfile.emailId !== originalProfile.emailId ||
             currentProfile.emailDomain !== originalProfile.emailDomain ||
             currentProfile.emailDomainCustom !== originalProfile.emailDomainCustom ||

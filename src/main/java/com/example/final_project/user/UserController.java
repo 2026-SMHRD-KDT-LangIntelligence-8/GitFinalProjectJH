@@ -48,9 +48,16 @@ public class UserController {
     @GetMapping("/me")
     public Map<String, Object> getCurrentUser() {
         String userId = currentUserService.getRequiredUserId();
+        String userName = jdbcTemplate.query(
+                "select user_name from USERS where user_id = ?",
+                rs -> rs.next() ? rs.getString("user_name") : "",
+                userId
+        );
+
         return Map.of(
                 "authenticated", true,
-                "userId", userId
+                "userId", userId,
+                "userName", userName
         );
     }
 
