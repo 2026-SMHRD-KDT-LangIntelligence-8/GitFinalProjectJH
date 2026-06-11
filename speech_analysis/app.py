@@ -11,24 +11,19 @@ Spring 백엔드가 문항마다 파이썬 프로세스를 새로 띄우면 Whis
 실행: run_server.bat (uvicorn app:app --port 8000 --workers 1)
 """
 
-import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 
-# 모델 로드 상태와 파이프라인 모듈 핸들을 담는다.
+# 파이프라인 모듈 핸들과 준비 상태를 담는다.
 STATE = {"ready": False, "error": None, "pipe": None, "model_name": None}
-
-# Whisper 추론은 스레드 안전하지 않으므로 호출을 직렬화한다.
-INFER_LOCK = asyncio.Lock()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 모듈 import 시점에 Whisper 모델이 1회 로드된다. 기동이 오래 걸리므로
-    # 별도 스레드에서 수행해 이벤트 루프를 막지 않는다.
+    # STT 가 OpenAI API 방식이라 무거운 로컬 모델 로드가 없어 import 가 가볍다.
     def _load():
         import speech_analysis_pipeline as pipe
         return pipe
@@ -36,10 +31,10 @@ async def lifespan(app: FastAPI):
     try:
         pipe = await run_in_threadpool(_load)
         STATE["pipe"] = pipe
-        STATE["model_name"] = getattr(pipe, "MODEL_NAME", None)
+        STATE["model_name"] = getattr(pipe, "STT_MODEL", None)
         STATE["ready"] = True
     except Exception as error:
-        # 로드 실패해도 프로세스를 죽이지 않는다. /health 가 미준비를 알린다.
+        # import 실패해도 프로세스를 죽이지 않는다. /health 가 미준비를 알린다.
         STATE["error"] = str(error)
     yield
 
@@ -99,9 +94,8 @@ async def analyze_question(req: AnalyzeRequest):
         }
 
     try:
-        # 추론은 직렬화하고, 블로킹 작업은 스레드풀로 분리한다.
-        async with INFER_LOCK:
-            return await run_in_threadpool(_work)
+        # STT 가 API(I/O) 라 동시 처리가 가능하다. 블로킹 호출은 스레드풀로 분리한다.
+        return await run_in_threadpool(_work)
     except HTTPException:
         raise
     except Exception as error:

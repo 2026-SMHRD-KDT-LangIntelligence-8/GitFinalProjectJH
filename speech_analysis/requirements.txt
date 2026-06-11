@@ -1,7 +1,6 @@
-# 음성 인식, 오디오 전처리, LLM 평가에 필요한 파이썬 패키지 목록이다.
-torch
-transformers
-accelerate
+# 음성 분석 서버 의존성.
+# STT 는 OpenAI API(gpt-4o-mini-transcribe)를 사용하므로 torch/transformers 같은
+# 무거운 로컬 모델 패키지는 제거했다. (서버 footprint/비용 절감)
 librosa
 soundfile
 numpy

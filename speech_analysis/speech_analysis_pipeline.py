@@ -16,32 +16,18 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-import torch
 import librosa
 import numpy as np
-from transformers import pipeline
 from openai import OpenAI
 from dotenv import load_dotenv
 
 # speech_analysis/.env 파일에서 OPENAI_API_KEY 등 환경변수를 로드한다.
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
-# STT 모델 로드
-
-# STT 백엔드 선택 지점. 현재는 로컬 Whisper("local")만 구현돼 있다.
-# 추후 "openai"(gpt-4o-transcribe) 분기를 transcribe_audio 에 추가할 수 있다.
-STT_BACKEND = os.getenv("STT_BACKEND", "local")
-
-MODEL_NAME = "seastar105/whisper-medium-komixv2"
-
-device = 0 if torch.cuda.is_available() else -1
-
-asr = pipeline(
-    "automatic-speech-recognition",
-    model=MODEL_NAME,
-    device=device,
-    torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-)
+# STT 모델 (OpenAI Speech-to-Text API)
+# 로컬 Whisper(torch+수 GB 모델)는 서버 비용 문제로 제거하고 API 방식으로 전환했다.
+# STT 에는 항상 OPENAI_API_KEY 가 필요하다.
+STT_MODEL = os.getenv("STT_MODEL", "gpt-4o-mini-transcribe-2025-12-15")
 
 # 음성 노이즈 제거 (ffmpeg)
 
@@ -122,30 +108,23 @@ def denoise_audio(audio_path, output_path=None, audio_filter=DENOISE_FILTER):
 
 def transcribe_audio(audio_path):
     """
-    음성 파일 경로를 받아 STT 텍스트를 반환한다.
+    음성 파일 경로를 받아 OpenAI STT API(gpt-4o-mini-transcribe)로 전사한다.
 
-    STT_BACKEND 가 "openai" 가 되면 여기서 gpt-4o-transcribe 분기를 추가한다.
-    (현재는 로컬 Whisper 만 구현)
+    로컬 Whisper 대신 API 를 사용하므로 OPENAI_API_KEY 가 반드시 필요하다.
+    webm/wav/mp3/m4a/ogg 등 OpenAI 가 지원하는 포맷을 그대로 받는다.
     """
 
-    audio_array, sampling_rate = librosa.load(
-        str(audio_path),
-        sr=16000,
-        mono=True
-    )
+    if client is None:
+        raise ValueError("OPENAI_API_KEY 환경변수가 설정되어 있지 않아 STT를 실행할 수 없습니다.")
 
-    result = asr(
-        {
-            "array": audio_array,
-            "sampling_rate": sampling_rate
-        },
-        generate_kwargs={
-            "language": "ko",
-            "task": "transcribe"
-        }
-    )
+    with open(audio_path, "rb") as audio_file:
+        result = client.audio.transcriptions.create(
+            model=STT_MODEL,
+            file=audio_file,
+            language="ko",
+        )
 
-    return result["text"].strip()
+    return (result.text or "").strip()
 
 # STT 텍스트 전처리
 
