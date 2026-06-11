@@ -6,6 +6,8 @@ import com.example.final_project.analysis.dto.ReportSummaryResult;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -23,6 +25,8 @@ import java.util.Map;
 @Service
 // 자바 백엔드와 파이썬 음성 분석 파이프라인 사이의 호출을 담당한다.
 public class AnalysisPipelineService {
+
+    private static final Logger log = LoggerFactory.getLogger(AnalysisPipelineService.class);
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final String pythonExecutable;
@@ -62,11 +66,14 @@ public class AnalysisPipelineService {
         processBuilder.redirectErrorStream(true);
 
         try {
+            // 분석 실패 시 어떤 파이썬 실행 경로와 스크립트가 문제였는지 로그에서 바로 확인할 수 있게 남긴다.
+            log.info("문항 분석 시작: audioPath={}, script={}", audioPath, questionScriptPath);
             Process process = processBuilder.start();
             String output = readAll(process);
             int exitCode = process.waitFor();
 
             if (exitCode != 0) {
+                log.error("문항 분석 실패: exitCode={}, script={}, output={}", exitCode, questionScriptPath, output);
                 throw new IllegalStateException("문항 분석 파이프라인 실행에 실패했습니다. output=" + output);
             }
 
@@ -84,8 +91,10 @@ public class AnalysisPipelineService {
             );
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
+            log.error("문항 분석 중 인터럽트 발생: script={}, audioPath={}", questionScriptPath, audioPath, exception);
             throw new IllegalStateException("문항 분석 파이프라인을 실행하지 못했습니다.", exception);
         } catch (IOException exception) {
+            log.error("문항 분석 실행 실패: python={}, script={}", pythonExecutable, questionScriptPath, exception);
             throw new IllegalStateException("문항 분석 파이프라인을 실행하지 못했습니다.", exception);
         }
     }
@@ -100,6 +109,7 @@ public class AnalysisPipelineService {
         processBuilder.redirectErrorStream(true);
 
         try {
+            log.info("리포트 요약 시작: script={}, rowCount={}", reportScriptPath, rows.size());
             Process process = processBuilder.start();
             try (Writer writer = new OutputStreamWriter(process.getOutputStream(), StandardCharsets.UTF_8)) {
                 List<Map<String, Object>> payload = rows.stream()
@@ -112,6 +122,7 @@ public class AnalysisPipelineService {
             int exitCode = process.waitFor();
 
             if (exitCode != 0) {
+                log.error("리포트 요약 실패: exitCode={}, script={}, output={}", exitCode, reportScriptPath, output);
                 throw new IllegalStateException("리포트 요약 파이프라인 실행에 실패했습니다. output=" + output);
             }
 
@@ -119,8 +130,10 @@ public class AnalysisPipelineService {
             });
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
+            log.error("리포트 요약 중 인터럽트 발생: script={}", reportScriptPath, exception);
             throw new IllegalStateException("리포트 요약 파이프라인을 실행하지 못했습니다.", exception);
         } catch (IOException exception) {
+            log.error("리포트 요약 실행 실패: python={}, script={}", pythonExecutable, reportScriptPath, exception);
             throw new IllegalStateException("리포트 요약 파이프라인을 실행하지 못했습니다.", exception);
         }
     }

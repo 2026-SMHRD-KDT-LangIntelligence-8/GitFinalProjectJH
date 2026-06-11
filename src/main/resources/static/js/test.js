@@ -52,7 +52,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         voiceSource: null,
         voiceDataArray: null,
         voiceAnimationId: null,
-        voiceReviewExpanded: false
+        voiceReviewExpanded: false,
+        questionAdvancePending: false
     };
 
     setVoiceState("idle");
@@ -125,7 +126,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         await moveToNextQuestion(false);
     });
 
-    // 텍스트는 실시간으로 항상 노출하지 않고, 버튼 클릭 시에만 펼쳐서 확인할 수 있게 한다.
+    // 실시간 STT가 비어 있어도 버튼을 눌러 현재 상태 안내를 볼 수 있게 한다.
     voiceReviewToggleButton.addEventListener("click", () => {
         state.voiceReviewExpanded = !state.voiceReviewExpanded;
         renderVoiceReview(state.questions[state.currentIndex]?.questionId);
@@ -193,14 +194,25 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     async function moveToNextQuestion(timedOut) {
         const currentQuestion = state.questions[state.currentIndex];
-        if (!currentQuestion) {
+        if (!currentQuestion || state.questionAdvancePending) {
             return;
         }
 
+        // 업로드 중 중복 클릭으로 다음 문항이 꼬이지 않게 잠깐 잠근다.
+        state.questionAdvancePending = true;
         clearQuestionTimer();
         stopVoiceRecognition();
         stopVoicePulse();
-        await stopRecordingAndUpload(state, currentQuestion);
+        nextQuestionButton.disabled = true;
+        nextQuestionButton.textContent = "분석 중...";
+
+        try {
+            await stopRecordingAndUpload(state, currentQuestion);
+        } finally {
+            state.questionAdvancePending = false;
+            nextQuestionButton.textContent = "넘어가기";
+        }
+
         state.timerStarted = false;
         markQuestionCompleted(currentQuestion.questionId, timedOut);
 
@@ -391,15 +403,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     function renderVoiceReview(questionId) {
         const transcript = state.transcriptsByQuestionId[questionId]?.trim() || "";
         const hasTranscript = Boolean(transcript);
+        const canOpenGuide = state.timerStarted || hasTranscript;
 
-        voiceReviewToggleButton.disabled = !hasTranscript;
+        voiceReviewToggleButton.disabled = !canOpenGuide;
         voiceReviewToggleButton.textContent = hasTranscript
             ? `인식된 텍스트 확인 ${state.voiceReviewExpanded ? "접기" : "펼치기"}`
-            : "인식된 텍스트 확인 펼치기";
+            : "인식된 텍스트 확인";
 
-        if (!hasTranscript || !state.voiceReviewExpanded) {
+        if (!state.voiceReviewExpanded) {
             voiceReviewText.classList.add("hidden");
             voiceReviewText.textContent = "";
+            return;
+        }
+
+        // 실시간 STT가 비어 있으면 버튼 내부에 현재 상태를 설명해 사용자가 멈춘 줄 알지 않게 한다.
+        if (!hasTranscript) {
+            voiceReviewText.textContent = "아직 실시간으로 변환된 텍스트가 없습니다. 문장형으로 또렷하게 말씀하시거나, 넘어가기 후 서버 분석 결과를 확인해주세요.";
+            voiceReviewText.classList.remove("hidden");
             return;
         }
 
@@ -737,6 +757,7 @@ function applyQuestionAnalysisResult(state, questionId, analysisResult) {
 
     const backendTranscript = String(analysisResult.sttText || "").trim();
     if (backendTranscript) {
+        // 브라우저 STT가 비어도 서버 STT 결과는 이후 점수 계산과 확인용 텍스트로 남긴다.
         state.transcriptsByQuestionId[questionId] = backendTranscript;
     }
 

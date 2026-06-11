@@ -10,6 +10,8 @@ import com.example.final_project.cognitive.dto.QuestionAudioUploadResponse;
 import com.example.final_project.recipient.RecipientRepository;
 import com.example.final_project.recipient.dto.RecipientResponse;
 import com.example.final_project.user.CurrentUserService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -32,6 +34,8 @@ import java.util.stream.Stream;
 @Service
 // 검사와 훈련 세션 시작, 음성 파일 저장, STT 분석 연동을 한 곳에서 처리한다.
 public class CognitiveTestService {
+
+    private static final Logger log = LoggerFactory.getLogger(CognitiveTestService.class);
 
     private static final String TEST_PURPOSE = "검사";
     private static final String TRAINING_PURPOSE = "훈련";
@@ -89,12 +93,18 @@ public class CognitiveTestService {
         String savedRelativePath = storeAudioFile(context, audioFile);
         Long questionResultId = cognitiveTestRepository.createQuestionResult(performanceId, questionId, savedRelativePath);
         Path absoluteAudioPath = voiceRootDirectory.resolve(savedRelativePath).normalize().toAbsolutePath();
+        // 음성 저장은 성공했는데 분석이 실패하는 경우를 Moba 로그에서 바로 구분할 수 있게 남긴다.
+        log.info("문항 음성 업로드 완료: performanceId={}, questionId={}, audioPath={}", performanceId, questionId, absoluteAudioPath);
         QuestionAnalysisResult analysisResult = analysisPipelineService.analyzeQuestionAnswer(
                 absoluteAudioPath,
                 context.questionTypeName(),
                 context.questionText(),
                 context.imageDescriptionCriteria()
         );
+        log.info("문항 분석 결과 저장 준비: questionResultId={}, sttLength={}, finalScore={}",
+                questionResultId,
+                analysisResult.sttText() == null ? 0 : analysisResult.sttText().length(),
+                analysisResult.finalScore());
 
         cognitiveTestRepository.updateQuestionResultTexts(
                 questionResultId,
