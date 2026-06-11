@@ -40,3 +40,8 @@ out/
 
 # Local server requirements file
 speech_analysis/requirements-server.txt
+
+# Local Python environment and caches
+.venv/
+__pycache__/
+*.pyc

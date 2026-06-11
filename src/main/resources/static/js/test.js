@@ -26,6 +26,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const voiceTranscript = document.getElementById("question-voice-transcript");
     const voiceReviewToggleButton = document.getElementById("voice-review-toggle-btn");
     const voiceReviewText = document.getElementById("voice-review-text");
+    const finalizingOverlay = document.getElementById("test-finalizing-overlay");
+    const finalizingDescription = document.getElementById("test-finalizing-description");
 
     const state = {
         performanceId: null,
@@ -53,7 +55,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         voiceDataArray: null,
         voiceAnimationId: null,
         voiceReviewExpanded: false,
-        questionAdvancePending: false
+        questionAdvancePending: false,
+        pendingAnalysisTasks: new Map(),
+        analysisFailureQuestionIds: [],
+        finalizing: false
     };
 
     setVoiceState("idle");
@@ -88,8 +93,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             state.transcriptsByQuestionId = {};
             // 문항별 최종 점수는 훈련 추천과 리포트 계산에 다시 활용할 수 있게 별도로 저장한다.
             state.finalScoresByQuestionId = {};
+            state.pendingAnalysisTasks = new Map();
+            state.analysisFailureQuestionIds = [];
+            state.finalizing = false;
 
             saveTestProgress(state);
+            setFinalizingState(false);
 
             introView.classList.add("hidden");
             sessionView.classList.remove("hidden");
@@ -483,6 +492,95 @@ document.addEventListener("DOMContentLoaded", async () => {
         voiceTranscript.style.setProperty("--voice-pulse-scale", "1");
         voiceTranscript.style.setProperty("--voice-pulse-shadow", "6px");
     }
+
+    function setFinalizingState(visible, message) {
+        finalizingOverlay.classList.toggle("hidden", !visible);
+        finalizingDescription.textContent = message
+            || "남은 음성 업로드와 분석을 마무리하고 있습니다. 잠시만 기다려주세요.";
+    }
+
+    async function waitForPendingAnalyses(currentState) {
+        const pendingTasks = Array.from(currentState.pendingAnalysisTasks.values());
+        if (!pendingTasks.length) {
+            return true;
+        }
+
+        setFinalizingState(
+            true,
+            `남은 ${pendingTasks.length}건의 음성 업로드와 분석을 마무리하고 있습니다.\n잠시만 기다려주세요.`
+        );
+        await Promise.allSettled(pendingTasks);
+
+        if (currentState.analysisFailureQuestionIds.length > 0) {
+            const failedCount = currentState.analysisFailureQuestionIds.length;
+            alert(`음성 업로드 또는 분석에 실패한 문항이 ${failedCount}건 있습니다. 다시 종료를 시도해주세요.`);
+            return false;
+        }
+
+        return true;
+    }
+
+    async function moveToNextQuestion(timedOut) {
+        const currentQuestion = state.questions[state.currentIndex];
+        if (!currentQuestion || state.questionAdvancePending) {
+            return;
+        }
+
+        // 문항 이동은 바로 진행하고 음성 업로드/분석은 뒤에서 계속 처리한다.
+        state.questionAdvancePending = true;
+        clearQuestionTimer();
+        stopVoiceRecognition();
+        stopVoicePulse();
+        nextQuestionButton.disabled = true;
+        nextQuestionButton.textContent = "분석 요청 중...";
+        queueQuestionAnalysis(state, currentQuestion);
+        state.questionAdvancePending = false;
+        nextQuestionButton.textContent = "넘어가기";
+
+        state.timerStarted = false;
+        markQuestionCompleted(currentQuestion.questionId, timedOut);
+
+        if (state.currentIndex >= state.questions.length - 1) {
+            await finishTest();
+            return;
+        }
+
+        state.currentIndex += 1;
+        state.remainingSeconds = state.questionDurationSeconds;
+        timerStartButton.disabled = false;
+        nextQuestionButton.disabled = true;
+        renderCurrentQuestion();
+    }
+
+    async function finishTest() {
+        if (state.finalizing) {
+            return;
+        }
+
+        state.finalizing = true;
+        nextQuestionButton.disabled = true;
+        timerStartButton.disabled = true;
+        stopVoiceRecognition();
+        stopVoicePulse();
+        releaseMediaStream(state);
+        setFinalizingState(true);
+
+        const analysisCompleted = await waitForPendingAnalyses(state);
+        if (!analysisCompleted) {
+            state.finalizing = false;
+            setFinalizingState(false);
+            nextQuestionButton.disabled = false;
+            nextQuestionButton.textContent = "검사 종료 다시 시도";
+            return;
+        }
+
+        saveTestProgress(state, true);
+        await completeTest(state.recipientId);
+        sessionStorage.removeItem(TEST_PROGRESS_STORAGE_KEY);
+
+        alert("인지능력 검사가 완료되었습니다.");
+        window.location.href = "/main";
+    }
 });
 
 function startAudioRecording(state) {
@@ -507,6 +605,21 @@ function startAudioRecording(state) {
     mediaRecorder.start();
 }
 
+function queueQuestionAnalysis(state, question) {
+    const analysisTask = stopRecordingAndUpload(state, question)
+        .catch((error) => {
+            console.error(error);
+            if (!state.analysisFailureQuestionIds.includes(question.questionId)) {
+                state.analysisFailureQuestionIds.push(question.questionId);
+            }
+        })
+        .finally(() => {
+            state.pendingAnalysisTasks.delete(question.questionId);
+        });
+
+    state.pendingAnalysisTasks.set(question.questionId, analysisTask);
+}
+
 async function stopRecordingAndUpload(state, question) {
     if (!state.mediaRecorder || state.mediaRecorder.state === "inactive") {
         return;
@@ -527,6 +640,8 @@ async function stopRecordingAndUpload(state, question) {
     }
 
     const uploadResult = await uploadQuestionAudio(state.performanceId, question.questionId, audioBlob);
+    state.analysisFailureQuestionIds = state.analysisFailureQuestionIds
+        .filter((questionId) => questionId !== question.questionId);
     applyQuestionAnalysisResult(state, question.questionId, uploadResult);
 }
 
