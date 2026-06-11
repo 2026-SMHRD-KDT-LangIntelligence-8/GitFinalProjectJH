@@ -6,3 +6,7 @@ librosa
 soundfile
 numpy
 openai
+imageio-ffmpeg
+python-dotenv
+fastapi
+uvicorn[standard]
