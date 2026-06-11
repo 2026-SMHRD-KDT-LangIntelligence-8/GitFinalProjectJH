@@ -37,3 +37,14 @@ out/
 .vscode/
 
 .gradle-user-home/
+
+### 환경변수 (API 키 등 비밀값) ###
+.env
+**/.env
+
+### Python / 음성분석 스크래치 산출물 ###
+__pycache__/
+*.pyc
+speech_analysis/_questions_for_test.tsv
+speech_analysis/_tester_results.json
+speech_analysis/*_noise.wav
