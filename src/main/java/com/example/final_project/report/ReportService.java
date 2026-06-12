@@ -40,6 +40,21 @@ public class ReportService {
         return reportRepository.findAvailableReports(recipientId, userId);
     }
 
+    public List<QuestionTypeScoreResponse> getLatestQuestionTypeScores(Long recipientId, String userId) {
+        ensureRecipientAccess(recipientId, userId);
+        List<PerformanceReportSummaryResponse> availableReports = reportRepository.findAvailableReports(recipientId, userId);
+        if (availableReports.isEmpty()) {
+            return List.of();
+        }
+
+        Long latestPerformanceId = availableReports.get(0).performanceId();
+        ReportSummaryResult summaryResult = analysisPipelineService.calculateReportSummary(
+                reportRepository.findAnalysisRowsByPerformanceId(latestPerformanceId, recipientId, userId)
+        );
+
+        return toQuestionTypeScores(summaryResult.questionTypeSummaries());
+    }
+
     // 한 번의 검사 결과는 분석 행 전체를 넘겨 파이썬 요약 결과로 다시 계산한다.
     public PerformanceReportResponse getPerformanceReport(Long recipientId, Long performanceId, String userId) {
         RecipientResponse recipient = ensureRecipientAccess(recipientId, userId);
@@ -98,6 +113,7 @@ public class ReportService {
                 .stream()
                 .sorted(Comparator.comparing(Map.Entry::getKey))
                 .map(entry -> new QuestionTypeScoreResponse(
+                        null,
                         entry.getKey(),
                         entry.getValue().avgFinalScore() == null ? 0 : entry.getValue().avgFinalScore(),
                         entry.getValue().avgFinalScore() != null && entry.getValue().avgFinalScore() < 60

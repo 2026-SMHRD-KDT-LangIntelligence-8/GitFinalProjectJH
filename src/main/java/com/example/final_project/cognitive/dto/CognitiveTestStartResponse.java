@@ -9,6 +9,7 @@ public record CognitiveTestStartResponse(
         int questionsPerType,
         int totalQuestions,
         int questionDurationSeconds,
+        List<String> weakQuestionTypeNames,
         List<CognitiveQuestionResponse> questions
 ) {
 }

@@ -1,4 +1,4 @@
-const TEST_DURATION_SECONDS = 70;
+﻿const TEST_DURATION_SECONDS = 70;
 const TEST_PROGRESS_STORAGE_KEY = "latestCognitiveTestProgress";
 const DEFAULT_AUDIO_FILE_NAME = "answer.webm";
 const SpeechRecognitionConstructor = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -23,7 +23,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const voiceBadge = document.getElementById("question-voice-badge");
     const voiceGuide = document.getElementById("question-voice-guide");
     const voiceTranscript = document.getElementById("question-voice-transcript");
-    const voiceReviewToggleButton = document.getElementById("voice-review-toggle-btn");
     const voiceReviewText = document.getElementById("voice-review-text");
     const finalizingOverlay = document.getElementById("test-finalizing-overlay");
     const finalizingDescription = document.getElementById("test-finalizing-description");
@@ -53,7 +52,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         voiceSource: null,
         voiceDataArray: null,
         voiceAnimationId: null,
-        voiceReviewExpanded: false,
         questionAdvancePending: false,
         pendingAnalysisTasks: new Map(),
         analysisFailureQuestionIds: [],
@@ -131,12 +129,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             console.error(error);
             setVoiceState("error", "마이크 권한을 허용해야 음성 인식을 사용할 수 있습니다.");
         }
-    });
-
-    // 실시간 STT가 비어 있어도 현재 상태 안내를 볼 수 있게 한다.
-    voiceReviewToggleButton.addEventListener("click", () => {
-        state.voiceReviewExpanded = !state.voiceReviewExpanded;
-        renderVoiceReview(state.questions[state.currentIndex]?.questionId);
     });
 
     window.addEventListener("beforeunload", () => {
@@ -396,7 +388,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     function updateVoiceTranscript(questionId) {
-        state.voiceReviewExpanded = false;
         voiceTranscript.textContent = "";
         voiceTranscript.classList.remove("is-listening");
         voiceTranscript.style.setProperty("--voice-pulse-scale", "1");
@@ -405,28 +396,34 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     function renderVoiceReview(questionId) {
         const transcript = state.transcriptsByQuestionId[questionId]?.trim() || "";
-        const hasTranscript = Boolean(transcript);
-        const canOpenGuide = state.timerStarted || hasTranscript;
+        const analysisFailed = state.analysisFailureQuestionIds.includes(questionId);
+        const questionCompleted = state.completedQuestionIds.includes(questionId);
 
-        voiceReviewToggleButton.disabled = !canOpenGuide;
-        voiceReviewToggleButton.textContent = hasTranscript
-            ? `인식된 텍스트 확인 ${state.voiceReviewExpanded ? "접기" : "펼치기"}`
-            : "인식된 텍스트 확인";
-
-        if (!state.voiceReviewExpanded) {
-            voiceReviewText.classList.add("hidden");
-            voiceReviewText.textContent = "";
-            return;
-        }
-
-        // 실시간 STT가 비어 있으면 버튼 내부에 현재 상태를 설명해 사용자가 멈춘 줄 알지 않게 한다.
-        if (!hasTranscript) {
-            voiceReviewText.textContent = "아직 실시간으로 변환된 텍스트가 없습니다. 문장형으로 또렷하게 말씀해주세요.";
+        if (analysisFailed) {
+            voiceReviewText.textContent = "음성 업로드 또는 텍스트 변환에 실패했습니다. 다시 검사해 주세요.";
             voiceReviewText.classList.remove("hidden");
             return;
         }
 
-        voiceReviewText.textContent = transcript;
+        if (transcript) {
+            voiceReviewText.textContent = transcript;
+            voiceReviewText.classList.remove("hidden");
+            return;
+        }
+
+        if (state.timerStarted) {
+            voiceReviewText.textContent = "음성을 듣는 중입니다. 답변이 끝나고 문항이 넘어가면 최종 인식 텍스트가 여기에 표시됩니다.";
+            voiceReviewText.classList.remove("hidden");
+            return;
+        }
+
+        if (questionCompleted) {
+            voiceReviewText.textContent = "음성 업로드는 완료되었고, 최종 인식 텍스트를 정리 중입니다. 잠시만 기다려 주세요.";
+            voiceReviewText.classList.remove("hidden");
+            return;
+        }
+
+        voiceReviewText.textContent = "검사를 시작하면 이 영역에 DB 저장 기준 최종 인식 텍스트가 표시됩니다.";
         voiceReviewText.classList.remove("hidden");
     }
 

@@ -498,6 +498,116 @@ a {
     caret-color: transparent;
 }
 
+.training-status-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 120px;
+    max-height: 240px;
+    overflow: hidden;
+    padding: 0;
+}
+
+.training-status-scroll {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.training-status-scroll::-webkit-scrollbar {
+    width: 5px;
+}
+
+.training-status-scroll::-webkit-scrollbar-thumb {
+    background-color: #8fa195;
+    border-radius: 999px;
+}
+
+.training-status-panel .recipient-row {
+    min-height: 72px;
+    padding: 10px 12px;
+    align-items: stretch;
+}
+
+.training-status-panel .recipient-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    white-space: normal;
+    word-break: keep-all;
+    line-height: 1.35;
+}
+
+.recipient-history-panel {
+    min-height: 160px;
+    max-height: 320px;
+    padding: 14px 12px;
+    overflow: hidden;
+}
+
+.recipient-history-scroll {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 290px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.recipient-history-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px solid #dfe8e1;
+    background-color: #ffffff;
+}
+
+.recipient-history-main {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.recipient-history-date {
+    font-size: 13px;
+    font-weight: 800;
+    color: #1f3f2d;
+}
+
+.recipient-history-meta {
+    font-size: 11px;
+    font-weight: 600;
+    color: #6d8275;
+    line-height: 1.4;
+    word-break: keep-all;
+}
+
+.recipient-history-score {
+    flex-shrink: 0;
+    font-size: 13px;
+    font-weight: 800;
+    color: #2a6650;
+}
+
+.recipient-trend-panel {
+    min-height: 300px;
+    padding: 18px 16px;
+}
+
+.training-status-empty {
+    padding: 14px;
+    box-sizing: border-box;
+    text-align: center;
+    line-height: 1.6;
+}
+
 
 /* ==========================================================================
    6. 개인정보 수정 (profile_edit.html)
@@ -651,10 +761,31 @@ a {
 .report-search-wrap {
     position: relative;
     margin-left: 80px;
+    flex-shrink: 0;
 }
 
 .report-search-wrap.is-locked .report-recipient-search {
     text-align: right;
+}
+
+.report-phone-frame .section-label-row {
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.report-phone-frame .section-title {
+    flex: 1;
+    min-width: 0;
+    line-height: 1.2;
+}
+
+.report-phone-frame .select-period-box {
+    flex: 0 0 168px;
+    width: 168px;
+    min-width: 168px;
+    max-width: 168px;
+    font-size: 11px;
+    padding: 4px 18px 4px 8px;
 }
 
 .report-search-toggle {
@@ -750,6 +881,7 @@ a {
 .report-type-badge { display: inline-flex; align-items: center; min-height: 24px; padding: 0 10px; border-radius: 999px; font-size: 11px; font-weight: 800; }
 .report-type-badge.is-stable { background-color: #dff2e3; color: #1d6b32; }
 .report-type-badge.is-training-needed { background-color: #fde9e8; color: #b33b32; }
+.report-training-link { display: inline-flex; align-items: center; min-height: 24px; padding: 0 10px; border-radius: 999px; background-color: #1e5e3a; color: #ffffff; font-size: 11px; font-weight: 800; text-decoration: none; }
 .report-empty-message { display: none; align-items: center; justify-content: center; min-height: 130px; font-size: 13px; font-weight: 600; color: #728a7a; text-align: center; line-height: 1.6; }
 .report-empty-message.is-visible { display: flex; }
 
@@ -804,6 +936,7 @@ a {
 .question-criteria { margin: 0; padding: 12px 14px; background-color: #ffffff; border: 1px solid #dfe8e1; border-radius: 14px; font-size: 13px; line-height: 1.6; color: #436052; white-space: pre-line; }
 .question-image-wrap { width: 100%; border-radius: 18px; overflow: hidden; background-color: #eef4ef; border: 1px solid #d7e2d9; }
 .question-image { display: block; width: 100%; max-height: 240px; object-fit: contain; background-color: #ffffff; }
+.question-image-status { margin: 0; padding: 12px 14px; font-size: 12px; font-weight: 600; line-height: 1.6; color: #728a7a; white-space: pre-line; border-top: 1px dashed #d7e2d9; background-color: #f8faf8; }
 .question-voice-panel { display: flex; flex-direction: column; gap: 10px; padding: 14px; background-color: #ffffff; border: 1px solid #dfe8e1; border-radius: 16px; }
 .question-voice-header { display: flex; flex-direction: column; gap: 6px; }
 .question-voice-badge { display: inline-flex; align-items: center; align-self: flex-start; min-height: 28px; padding: 0 12px; border-radius: 999px; background-color: #eef4ef; color: #55776d; font-size: 12px; font-weight: 800; }
@@ -814,8 +947,9 @@ a {
 .question-voice-transcript::before { content: ""; width: 20px; height: 20px; border-radius: 50%; background-color: #3f9f5a; opacity: 0.58; transform: scale(var(--voice-pulse-scale)); box-shadow: 0 0 0 var(--voice-pulse-shadow) rgba(63, 159, 90, 0.16); transition: transform 80ms linear, box-shadow 80ms linear, opacity 160ms ease; }
 .question-voice-transcript.is-listening::before { opacity: 0.78; }
 .question-voice-review { display: flex; flex-direction: column; gap: 10px; }
-.voice-review-toggle-btn { align-self: flex-start; min-height: 34px; padding: 0 14px; border: 1px solid #cfe4d5; border-radius: 999px; background-color: #eef6f0; color: #24633a; font-size: 12px; font-weight: 800; cursor: pointer; }
-.voice-review-toggle-btn:disabled { opacity: 0.5; cursor: default; }
+.voice-review-header { display: flex; flex-direction: column; gap: 4px; }
+.voice-review-title { font-size: 14px; font-weight: 800; color: #11381c; }
+.voice-review-caption { font-size: 11px; font-weight: 700; color: #728a7a; }
 .voice-review-text { padding: 12px 14px; background-color: #f8faf8; border: 1px dashed #c8d4cb; border-radius: 14px; font-size: 13px; line-height: 1.6; color: #11381c; white-space: pre-line; word-break: keep-all; }
 .test-finalizing-overlay { position: absolute; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; padding: 24px; background-color: rgba(255, 255, 255, 0.88); backdrop-filter: blur(2px); }
 .test-finalizing-card { width: 100%; max-width: 280px; padding: 22px 20px; border: 1px solid #d9e6dd; border-radius: 20px; background-color: #ffffff; box-shadow: 0 16px 32px rgba(26, 83, 69, 0.08); text-align: center; }

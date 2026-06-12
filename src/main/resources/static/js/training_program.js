@@ -1,43 +1,75 @@
 const TRAINING_SESSION_STORAGE_KEY = "trainingStartPayload";
-const TEST_PROGRESS_STORAGE_KEY = "latestCognitiveTestProgress";
 const TRAINING_AUDIO_FILE_NAME = "training-answer.webm";
 
-document.addEventListener("DOMContentLoaded", () => {
-    const payloadText = sessionStorage.getItem(TRAINING_SESSION_STORAGE_KEY);
-    const testProgressText = sessionStorage.getItem(TEST_PROGRESS_STORAGE_KEY);
+document.addEventListener("DOMContentLoaded", async () => {
+    const params = new URLSearchParams(window.location.search);
+    const queryRecipientId = params.get("recipientId");
+    const selectedQuestionTypeName = params.get("questionTypeName");
     const trainingList = document.getElementById("training-list");
     const trainingRecipient = document.getElementById("training-recipient");
 
-    if (!payloadText) {
+    let payload = await resolveTrainingPayload(queryRecipientId);
+
+    if (!payload) {
         trainingList.innerHTML = "<p class=\"question-purpose\">훈련 데이터를 먼저 불러와 주세요.</p>";
         return;
     }
 
-    const payload = JSON.parse(payloadText);
-    const testProgress = testProgressText ? JSON.parse(testProgressText) : null;
     trainingRecipient.textContent = `${payload.recipientName} 수급자`;
 
-    if (!testProgress || testProgress.recipientId !== payload.recipientId) {
-        trainingList.innerHTML = "<p class=\"question-purpose\">같은 수급자의 검사 기록이 없어 훈련 항목을 고를 수 없습니다.</p>";
-        return;
-    }
-
-    const weakTypeIdSet = new Set(testProgress.weakTypeIds || []);
+    const weakTypeNameSet = new Set((payload.weakQuestionTypeNames || []).filter(Boolean));
     const weakPrograms = new Map();
 
     payload.questions.forEach((question) => {
-        if (weakTypeIdSet.has(question.questionTypeId) && !weakPrograms.has(question.questionTypeId)) {
-            weakPrograms.set(question.questionTypeId, question);
+        const matchedWeakType = weakTypeNameSet.size === 0 || weakTypeNameSet.has(question.questionTypeName);
+        const matchedSelectedType = !selectedQuestionTypeName || question.questionTypeName === selectedQuestionTypeName;
+
+        if (matchedWeakType && matchedSelectedType && !weakPrograms.has(question.questionTypeName)) {
+            weakPrograms.set(question.questionTypeName, question);
         }
     });
 
     if (weakPrograms.size === 0) {
-        trainingList.innerHTML = "<p class=\"question-purpose\">검사에서 추가 훈련이 필요한 항목이 없습니다.</p>";
+        trainingList.innerHTML = selectedQuestionTypeName
+            ? `<p class="question-purpose">${escapeHtml(selectedQuestionTypeName)} 유형은 현재 추가 훈련 대상이 아닙니다.</p>`
+            : "<p class=\"question-purpose\">검사에서 추가 훈련이 필요한 항목이 없습니다.</p>";
         return;
     }
 
     renderTrainingProgramList(trainingList, payload, weakPrograms);
 });
+
+async function resolveTrainingPayload(queryRecipientId) {
+    const payloadText = sessionStorage.getItem(TRAINING_SESSION_STORAGE_KEY);
+    if (payloadText) {
+        const storedPayload = JSON.parse(payloadText);
+        if (!queryRecipientId || String(storedPayload.recipientId) === String(queryRecipientId)) {
+            return storedPayload;
+        }
+    }
+
+    if (!queryRecipientId) {
+        return null;
+    }
+
+    const response = await fetch("/api/cognitive-tests/training/start", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            recipientId: Number(queryRecipientId)
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error("training_start_failed");
+    }
+
+    const payload = await response.json();
+    sessionStorage.setItem(TRAINING_SESSION_STORAGE_KEY, JSON.stringify(payload));
+    return payload;
+}
 
 function renderTrainingProgramList(trainingList, payload, weakPrograms) {
     trainingList.innerHTML = "";
@@ -56,15 +88,15 @@ function renderTrainingProgramList(trainingList, payload, weakPrograms) {
 
         item.addEventListener("click", async (event) => {
             event.preventDefault();
-            await renderTrainingQuestionSession(trainingList, payload, weakPrograms, question.questionTypeId);
+            await renderTrainingQuestionSession(trainingList, payload, weakPrograms, question.questionTypeName);
         });
 
         trainingList.appendChild(item);
     });
 }
 
-async function renderTrainingQuestionSession(trainingList, payload, weakPrograms, selectedTypeId) {
-    const selectedQuestions = payload.questions.filter((question) => question.questionTypeId === selectedTypeId);
+async function renderTrainingQuestionSession(trainingList, payload, weakPrograms, selectedTypeName) {
+    const selectedQuestions = payload.questions.filter((question) => question.questionTypeName === selectedTypeName);
     if (selectedQuestions.length === 0) {
         trainingList.innerHTML = "<p class=\"question-purpose\">선택한 훈련 문항을 찾지 못했습니다.</p>";
         return;
@@ -261,15 +293,15 @@ function setTrainingVoiceState(mode, voiceBadge, voiceGuide, customMessage) {
 
     if (mode === "listening") {
         voiceBadge.classList.add("is-listening");
-        voiceBadge.textContent = "녹음 중";
-        voiceGuide.textContent = customMessage || "현재 문항의 답변 음성이 저장됩니다.";
+        voiceBadge.textContent = "마이크 사용 중";
+        voiceGuide.textContent = customMessage || "질문에 답하시면 훈련 음성이 저장됩니다.";
         return;
     }
 
     if (mode === "error") {
         voiceBadge.classList.add("is-error");
-        voiceBadge.textContent = "음성 저장 안내";
-        voiceGuide.textContent = customMessage || "현재 기기에서는 음성 저장을 사용할 수 없습니다.";
+        voiceBadge.textContent = "훈련 음성 안내";
+        voiceGuide.textContent = customMessage || "현재 기기에서는 훈련 음성 저장을 사용할 수 없습니다.";
         return;
     }
 
@@ -277,29 +309,21 @@ function setTrainingVoiceState(mode, voiceBadge, voiceGuide, customMessage) {
     voiceGuide.textContent = customMessage || "훈련 시작을 누르면 문항별 음성이 저장됩니다.";
 }
 
-function normalizeImagePath(imageFilePath) {
-    if (!imageFilePath) {
+function normalizeImagePath(imagePath) {
+    const normalized = String(imagePath || "").trim();
+    if (!normalized) {
         return "";
     }
 
-    const normalizedPath = String(imageFilePath).trim().replaceAll("\\", "/");
-    if (!normalizedPath) {
-        return "";
+    if (normalized.startsWith("http://") || normalized.startsWith("https://") || normalized.startsWith("/")) {
+        return normalized;
     }
 
-    if (normalizedPath.startsWith("http://") || normalizedPath.startsWith("https://")) {
-        return normalizedPath;
-    }
-
-    if (normalizedPath.startsWith("/")) {
-        return normalizedPath;
-    }
-
-    return `/cognitive-images/${normalizedPath.replace(/^\.?\//, "")}`;
+    return `/${normalized.replace(/^\.?\//, "")}`;
 }
 
 function escapeHtml(value) {
-    return String(value)
+    return String(value ?? "")
         .replaceAll("&", "&amp;")
         .replaceAll("<", "&lt;")
         .replaceAll(">", "&gt;")

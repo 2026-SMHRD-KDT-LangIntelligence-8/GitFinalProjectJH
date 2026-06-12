@@ -9,8 +9,10 @@ import lombok.Getter;
 @Getter
 @Builder
 public class TrainingStatusResponse {
+    private Long questionTypeId;
     private String questionTypeName;
     private Integer averageAppropriatenessScore;
     private Integer analyzedQuestionCount;
     private String statusLabel;
+    private boolean trainingNeeded;
 }

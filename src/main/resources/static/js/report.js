@@ -1,6 +1,24 @@
 let latestReportChart = null;
 let trendReportChart = null;
 
+function buildPendingStatusMessage(recipientName, latestTestDate) {
+    const latestLabel = latestTestDate ? `${latestTestDate} 검사 기록 확인 완료` : "검사 기록 확인 완료";
+    return [
+        `1단계 ${latestLabel}`,
+        "2단계 음성 텍스트 변환과 문항 분석을 진행 중입니다.",
+        "3단계 검사 분석 리포트와 기간별 변화 그래프를 생성하는 중입니다.",
+        "예상 대기 시간은 약 1~3분입니다."
+    ].join("\n");
+}
+
+async function fetchRecipientDetail(recipientId) {
+    const response = await fetch(`/api/recipients/${recipientId}/detail`);
+    if (!response.ok) {
+        throw new Error("recipient_detail_failed");
+    }
+    return response.json();
+}
+
 function downloadPDF() {
     const element = document.getElementById("pdf-area");
     const recipientName = document.getElementById("report-recipient-search")?.value?.trim() || "리포트";
@@ -97,6 +115,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     const closeCombo = () => {
         comboBox.classList.remove("is-open");
         comboBox.innerHTML = "";
+    };
+
+    const unlockSearchInput = () => {
+        isLocked = false;
+        selectedRecipient = null;
+        searchInput.readOnly = false;
+        searchWrap.classList.remove("is-locked");
+        searchInput.removeAttribute("data-recipient-id");
+        resetReportUi("?섍툒?먮? ?좏깮?섎㈃ 理쒓렐 寃??由ы룷?멸? ?쒖떆?⑸땲??");
+        renderCombo();
     };
 
     const setEmptyState = (element, visible) => {
@@ -209,6 +237,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         renderCombo();
     });
     searchInput.addEventListener("focus", renderCombo);
+    searchInput.addEventListener("click", () => {
+        if (!isLocked) {
+            return;
+        }
+
+        unlockSearchInput();
+        searchInput.focus();
+    });
     searchInput.addEventListener("keydown", async (event) => {
         if (event.key !== "Enter") {
             return;
@@ -223,11 +259,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     searchToggleButton.addEventListener("click", async () => {
         if (isLocked) {
-            isLocked = false;
-            selectedRecipient = null;
-            searchInput.readOnly = false;
-            searchWrap.classList.remove("is-locked");
-            searchInput.removeAttribute("data-recipient-id");
+            unlockSearchInput();
             searchInput.focus();
             resetReportUi("수급자를 선택하면 최근 검사 리포트가 표시됩니다.");
             renderCombo();
@@ -276,6 +308,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     async function loadReportsForRecipient(recipientId, recipientName) {
         try {
+            const recipientDetail = await fetchRecipientDetail(recipientId).catch(() => null);
             const response = await fetch(`/api/reports/recipients/${recipientId}/performances`);
             if (!response.ok) {
                 throw new Error("report_list_failed");
@@ -292,8 +325,19 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
 
             if (reports.length === 0) {
-                reportSummaryHeader.textContent = `${recipientName} 님의 검사 분석 리포트가 아직 없습니다.`;
-                trendSummaryHeader.textContent = `${recipientName} 님의 기간별 평균 점수 추이가 아직 없습니다.`;
+                const hasExamHistory = Number(recipientDetail?.testCount ?? 0) > 0 || Boolean(recipientDetail?.latestTestDate);
+                if (hasExamHistory) {
+                    const pendingMessage = buildPendingStatusMessage(recipientName, recipientDetail?.latestTestDate);
+                    reportSummaryHeader.textContent = `${recipientName} 님의 검사 기록은 확인되었고, 분석 결과를 정리 중입니다.`;
+                    trendSummaryHeader.textContent = `${recipientName} 님의 훈련 현황과 기간별 변화도 분석 완료 후 함께 표시됩니다.`;
+                    latestReportEmpty.textContent = pendingMessage;
+                    trendReportEmpty.textContent = pendingMessage;
+                } else {
+                    reportSummaryHeader.textContent = `${recipientName} 님의 검사 분석 리포트가 아직 없습니다.`;
+                    trendSummaryHeader.textContent = `${recipientName} 님의 기간별 평균 점수 추이가 아직 없습니다.`;
+                    latestReportEmpty.textContent = "검사 분석 결과가 아직 없습니다.";
+                    trendReportEmpty.textContent = "기간 내 그래프로 표시할 검사 결과가 없습니다.";
+                }
                 reportTypeSummary.innerHTML = "";
                 reportTypeSummary.classList.add("hidden");
                 setEmptyState(latestReportEmpty, true);
@@ -336,7 +380,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             setEmptyState(latestReportEmpty, false);
             renderLatestChart(payload.questionTypeScores);
-            renderTypeSummary(payload.questionTypeScores);
+            renderTypeSummaryWithTrainingLink(payload.questionTypeScores, recipientId);
         } catch (error) {
             console.error(error);
             reportTypeSummary.innerHTML = "";
@@ -503,6 +547,29 @@ function renderTypeSummary(scores) {
                 <span class="report-type-badge ${item.trainingNeeded ? "is-training-needed" : "is-stable"}">
                     ${item.trainingNeeded ? "훈련 필요" : "안정"}
                 </span>
+            </div>
+        </div>
+    `).join("");
+    container.classList.remove("hidden");
+}
+
+function renderTypeSummaryWithTrainingLink(scores, recipientId) {
+    const container = document.getElementById("report-type-summary");
+    if (!container) {
+        return;
+    }
+
+    container.innerHTML = scores.map((item) => `
+        <div class="report-type-summary-item">
+            <span class="report-type-name">${escapeHtml(item.questionTypeName)}</span>
+            <div class="report-type-meta">
+                <span class="report-type-score">${item.averageScore}점</span>
+                <span class="report-type-badge ${item.trainingNeeded ? "is-training-needed" : "is-stable"}">
+                    ${item.trainingNeeded ? "훈련 필요" : "안정"}
+                </span>
+                ${item.trainingNeeded
+                    ? `<a class="report-training-link" href="/training-program?recipientId=${recipientId}&questionTypeName=${encodeURIComponent(item.questionTypeName)}">훈련하기</a>`
+                    : ""}
             </div>
         </div>
     `).join("");

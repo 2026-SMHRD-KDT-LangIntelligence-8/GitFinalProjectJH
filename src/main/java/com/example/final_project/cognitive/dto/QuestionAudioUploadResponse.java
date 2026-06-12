@@ -6,6 +6,8 @@ public record QuestionAudioUploadResponse(
         Long performanceId,
         Long questionId,
         String voiceFilePath,
+        String analysisStatus,
+        String analysisMessage,
         String sttText,
         String preprocessedText,
         Integer appropriatenessScore,

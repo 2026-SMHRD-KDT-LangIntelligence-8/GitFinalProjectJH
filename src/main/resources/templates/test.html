@@ -22,7 +22,6 @@
         <h1 class="main-title">인지능력 검사</h1>
     </div>
 
-    <!-- 검사 시작 전에는 수급자 선택 영역만 보여준다. -->
     <div class="test-intro-view" id="test-intro-view">
         <div class="graphic-container">
             <svg class="center-illustration" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
@@ -45,7 +44,6 @@
         </div>
     </div>
 
-    <!-- 검사 시작 후에는 같은 페이지 안에서 문제 카드와 타이머만 갱신한다. -->
     <div class="test-session-view hidden" id="test-session-view">
         <div class="test-status-bar">
             <div class="test-status-chip" id="recipient-name-chip">수급자</div>
@@ -64,11 +62,11 @@
             </div>
 
             <p class="question-text" id="question-text"></p>
-
             <p class="question-purpose hidden" id="question-purpose"></p>
 
             <div class="question-image-wrap hidden" id="question-image-wrap">
                 <img class="question-image" id="question-image" alt="검사 문항 이미지">
+                <p class="question-image-status hidden" id="question-image-status"></p>
             </div>
 
             <p class="question-criteria hidden" id="question-criteria"></p>
@@ -80,10 +78,11 @@
                 </div>
                 <div class="question-voice-transcript" id="question-voice-transcript"></div>
                 <div class="question-voice-review">
-                    <button type="button" class="voice-review-toggle-btn" id="voice-review-toggle-btn" disabled>
-                        인식된 텍스트 확인 펼치기
-                    </button>
-                    <div class="voice-review-text hidden" id="voice-review-text"></div>
+                    <div class="voice-review-header">
+                        <strong class="voice-review-title">최종 확인</strong>
+                        <span class="voice-review-caption">DB 저장 기준 인식 텍스트</span>
+                    </div>
+                    <div class="voice-review-text" id="voice-review-text"></div>
                 </div>
             </div>
         </div>
@@ -92,6 +91,7 @@
             <button type="button" class="timer-start-btn" id="timer-start-btn">검사 시작</button>
         </div>
     </div>
+
     <div class="test-finalizing-overlay hidden" id="test-finalizing-overlay" aria-live="polite">
         <div class="test-finalizing-card">
             <strong class="test-finalizing-title">검사 종료 처리 중입니다.</strong>

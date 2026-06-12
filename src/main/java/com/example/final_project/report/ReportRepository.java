@@ -52,7 +52,8 @@ public class ReportRepository {
     // 기존 평균 점수 조회는 호환성을 위해 남겨두고, 화면 표시용 단순 점수 계산에 사용한다.
     public List<QuestionTypeScoreResponse> findScoresByPerformanceId(Long performanceId, Long recipientId, String userId) {
         String sql = """
-                SELECT qt.question_type_name,
+                SELECT q.question_type_id,
+                       qt.question_type_name,
                        ROUND(AVG(ar.appropriateness_score), 1) AS average_score
                 FROM PERFORMANCE_RECORDS pr
                 INNER JOIN QUESTION_RESULTS qr ON pr.performance_id = qr.performance_id
@@ -69,6 +70,7 @@ public class ReportRepository {
         return jdbcTemplate.query(
                 sql,
                 (rs, rowNum) -> new QuestionTypeScoreResponse(
+                        rs.getLong("question_type_id"),
                         rs.getString("question_type_name"),
                         rs.getDouble("average_score"),
                         rs.getDouble("average_score") < 60

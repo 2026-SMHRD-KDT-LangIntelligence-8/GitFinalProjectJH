@@ -1,6 +1,5 @@
 package com.example.final_project.cognitive;
 
-import com.example.final_project.analysis.AnalysisPipelineService;
 import com.example.final_project.analysis.dto.QuestionAnalysisResult;
 import com.example.final_project.cognitive.dto.CognitiveQuestionResponse;
 import com.example.final_project.cognitive.dto.CognitiveTestCompleteRequest;
@@ -9,6 +8,7 @@ import com.example.final_project.cognitive.dto.CognitiveTestStartResponse;
 import com.example.final_project.cognitive.dto.QuestionAudioUploadResponse;
 import com.example.final_project.recipient.RecipientRepository;
 import com.example.final_project.recipient.dto.RecipientResponse;
+import com.example.final_project.report.ReportService;
 import com.example.final_project.user.CurrentUserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,12 +27,12 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
-// 검사와 훈련 세션 시작, 음성 파일 저장, STT 분석 연동을 한 곳에서 처리한다.
 public class CognitiveTestService {
 
     private static final Logger log = LoggerFactory.getLogger(CognitiveTestService.class);
@@ -45,23 +45,26 @@ public class CognitiveTestService {
 
     private final CognitiveTestRepository cognitiveTestRepository;
     private final RecipientRepository recipientRepository;
+    private final ReportService reportService;
     private final CurrentUserService currentUserService;
-    private final AnalysisPipelineService analysisPipelineService;
+    private final QuestionAnalysisAsyncService questionAnalysisAsyncService;
     private final List<String> fallbackImagePaths;
     private final Path voiceRootDirectory;
 
     public CognitiveTestService(
             CognitiveTestRepository cognitiveTestRepository,
             RecipientRepository recipientRepository,
+            ReportService reportService,
             CurrentUserService currentUserService,
-            AnalysisPipelineService analysisPipelineService,
+            QuestionAnalysisAsyncService questionAnalysisAsyncService,
             @Value("${app.cognitive.image-dir:./cognitive-images}") String imageDirectory,
             @Value("${app.cognitive.voice-dir:./cognitive-voice}") String voiceDirectory
     ) {
         this.cognitiveTestRepository = cognitiveTestRepository;
         this.recipientRepository = recipientRepository;
+        this.reportService = reportService;
         this.currentUserService = currentUserService;
-        this.analysisPipelineService = analysisPipelineService;
+        this.questionAnalysisAsyncService = questionAnalysisAsyncService;
         this.fallbackImagePaths = loadFallbackImagePaths(imageDirectory);
         this.voiceRootDirectory = Paths.get(voiceDirectory);
     }
@@ -80,7 +83,6 @@ public class CognitiveTestService {
                 .orElseThrow(() -> new IllegalArgumentException("해당 수급자를 찾을 수 없습니다. id=" + request.recipientId()));
     }
 
-    // 업로드된 음성은 파일 저장 후 파이썬 분석 파이프라인을 호출하고 DB까지 함께 반영한다.
     public QuestionAudioUploadResponse saveQuestionAudio(Long performanceId, Long questionId, MultipartFile audioFile) {
         if (audioFile == null || audioFile.isEmpty()) {
             throw new IllegalArgumentException("저장할 음성 파일이 없습니다.");
@@ -93,30 +95,15 @@ public class CognitiveTestService {
         String savedRelativePath = storeAudioFile(context, audioFile);
         Long questionResultId = cognitiveTestRepository.createQuestionResult(performanceId, questionId, savedRelativePath);
         Path absoluteAudioPath = voiceRootDirectory.resolve(savedRelativePath).normalize().toAbsolutePath();
-        // 음성 저장은 성공했는데 분석이 실패하는 경우를 Moba 로그에서 바로 구분할 수 있게 남긴다.
+
         log.info("문항 음성 업로드 완료: performanceId={}, questionId={}, audioPath={}", performanceId, questionId, absoluteAudioPath);
-        QuestionAnalysisResult analysisResult = analysisPipelineService.analyzeQuestionAnswer(
+
+        questionAnalysisAsyncService.queueAnalysis(
+                questionResultId,
                 absoluteAudioPath,
                 context.questionTypeName(),
                 context.questionText(),
                 context.imageDescriptionCriteria()
-        );
-        log.info("문항 분석 결과 저장 준비: questionResultId={}, sttLength={}, finalScore={}",
-                questionResultId,
-                analysisResult.sttText() == null ? 0 : analysisResult.sttText().length(),
-                analysisResult.finalScore());
-
-        cognitiveTestRepository.updateQuestionResultTexts(
-                questionResultId,
-                analysisResult.sttText(),
-                analysisResult.preprocessedText()
-        );
-        cognitiveTestRepository.saveAnalysisResult(
-                questionResultId,
-                analysisResult.responseTime(),
-                analysisResult.repetitionRatio(),
-                analysisResult.avgSentenceLength(),
-                analysisResult.appropriatenessScore()
         );
 
         return new QuestionAudioUploadResponse(
@@ -124,16 +111,44 @@ public class CognitiveTestService {
                 performanceId,
                 questionId,
                 savedRelativePath,
-                analysisResult.sttText(),
-                analysisResult.preprocessedText(),
-                analysisResult.appropriatenessScore(),
-                analysisResult.repetitionScore(),
-                analysisResult.sentenceLengthScore(),
-                analysisResult.finalScore()
+                "QUEUED",
+                "음성 파일 저장이 완료되었습니다. 텍스트 변환과 분석은 백그라운드에서 계속 진행됩니다.",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
         );
     }
 
-    // 검사와 훈련은 목적 문자열만 다르고 세션 구성 흐름은 동일해서 공통 메서드로 묶는다.
+    public QuestionAudioUploadResponse getQuestionAudioResult(Long questionResultId) {
+        String userId = currentUserService.getRequiredUserId();
+        CognitiveTestRepository.QuestionResultSnapshot snapshot =
+                cognitiveTestRepository.findQuestionResultSnapshot(questionResultId, userId);
+        QuestionAnalysisAsyncService.AnalysisSnapshot analysisSnapshot =
+                questionAnalysisAsyncService.getSnapshot(questionResultId);
+
+        QuestionAnalysisResult inMemoryResult = analysisSnapshot == null ? null : analysisSnapshot.result();
+        String analysisStatus = resolveAnalysisStatus(snapshot, analysisSnapshot);
+        String analysisMessage = resolveAnalysisMessage(analysisStatus, analysisSnapshot);
+
+        return new QuestionAudioUploadResponse(
+                snapshot.questionResultId(),
+                snapshot.performanceId(),
+                snapshot.questionId(),
+                snapshot.voiceFilePath(),
+                analysisStatus,
+                analysisMessage,
+                firstNonBlank(inMemoryResult == null ? null : inMemoryResult.sttText(), snapshot.sttText()),
+                firstNonBlank(inMemoryResult == null ? null : inMemoryResult.preprocessedText(), snapshot.preprocessedText()),
+                inMemoryResult == null ? snapshot.appropriatenessScore() : inMemoryResult.appropriatenessScore(),
+                inMemoryResult == null ? null : inMemoryResult.repetitionScore(),
+                inMemoryResult == null ? null : inMemoryResult.sentenceLengthScore(),
+                inMemoryResult == null ? null : inMemoryResult.finalScore()
+        );
+    }
+
     private CognitiveTestStartResponse startSession(CognitiveTestStartRequest request, String questionPurpose) {
         String userId = currentUserService.getRequiredUserId();
         RecipientResponse recipient = recipientRepository.findByIdAndUserId(request.recipientId(), userId)
@@ -151,6 +166,13 @@ public class CognitiveTestService {
             );
         }
 
+        List<String> weakQuestionTypeNames = TRAINING_PURPOSE.equals(questionPurpose)
+                ? reportService.getLatestQuestionTypeScores(recipient.getRecipientId(), userId).stream()
+                .filter(com.example.final_project.report.dto.QuestionTypeScoreResponse::trainingNeeded)
+                .map(com.example.final_project.report.dto.QuestionTypeScoreResponse::questionTypeName)
+                .toList()
+                : List.of();
+
         return new CognitiveTestStartResponse(
                 performanceId,
                 recipient.getRecipientId(),
@@ -158,11 +180,11 @@ public class CognitiveTestService {
                 QUESTIONS_PER_TYPE,
                 expectedQuestionCount,
                 70,
+                weakQuestionTypeNames,
                 questions
         );
     }
 
-    // 음성 파일은 날짜 폴더와 수급자 폴더를 만들어 상대경로 형태로 저장한다.
     private String storeAudioFile(CognitiveTestRepository.QuestionAudioContext context, MultipartFile audioFile) {
         try {
             LocalDate performedDate = context.performedAt().toLocalDate();
@@ -235,7 +257,6 @@ public class CognitiveTestService {
         return sanitized.isBlank() ? "unknown" : sanitized;
     }
 
-    // 그림 설명하기 문항에 DB 이미지가 없으면 서버 폴더의 대체 이미지를 연결한다.
     private List<CognitiveQuestionResponse> assignFallbackImages(List<CognitiveQuestionResponse> questions) {
         if (fallbackImagePaths.isEmpty()) {
             return questions;
@@ -278,7 +299,6 @@ public class CognitiveTestService {
         return questionTypeName != null && questionTypeName.contains("그림 설명하기");
     }
 
-    // 대체 이미지는 cognitive-images 폴더 최상위의 이미지 파일만 읽는다.
     private List<String> loadFallbackImagePaths(String imageDirectory) {
         Path imageDirectoryPath = Paths.get(imageDirectory);
         if (!Files.exists(imageDirectoryPath)) {
@@ -302,5 +322,39 @@ public class CognitiveTestService {
         } catch (IOException exception) {
             return List.of();
         }
+    }
+
+    private String resolveAnalysisStatus(
+            CognitiveTestRepository.QuestionResultSnapshot snapshot,
+            QuestionAnalysisAsyncService.AnalysisSnapshot analysisSnapshot
+    ) {
+        if (analysisSnapshot != null) {
+            return analysisSnapshot.status();
+        }
+        if (!isBlank(snapshot.sttText()) || snapshot.appropriatenessScore() != null) {
+            return "COMPLETED";
+        }
+        return "PENDING";
+    }
+
+    private String resolveAnalysisMessage(String analysisStatus, QuestionAnalysisAsyncService.AnalysisSnapshot analysisSnapshot) {
+        if (analysisSnapshot != null && !isBlank(analysisSnapshot.message())) {
+            return analysisSnapshot.message();
+        }
+
+        return switch (analysisStatus) {
+            case "COMPLETED" -> "음성 분석이 완료되었습니다.";
+            case "FAILED" -> "음성 분석에 실패했습니다. 잠시 후 다시 확인해주세요.";
+            case "RUNNING" -> "음성을 텍스트로 변환하고 있습니다.";
+            default -> "음성 저장은 완료되었고 분석은 대기 중입니다.";
+        };
+    }
+
+    private String firstNonBlank(String primary, String fallback) {
+        return !isBlank(primary) ? primary : fallback;
+    }
+
+    private boolean isBlank(String value) {
+        return Objects.toString(value, "").trim().isEmpty();
     }
 }

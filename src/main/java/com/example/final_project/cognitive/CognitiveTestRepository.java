@@ -163,12 +163,10 @@ public class CognitiveTestRepository {
         jdbcTemplate.update(
                 """
                 UPDATE QUESTION_RESULTS
-                SET stt_text = ?,
-                    preprocessed_text = ?
+                SET stt_text = ?
                 WHERE question_result_id = ?
                 """,
                 sttText,
-                preprocessedText,
                 questionResultId
         );
     }
@@ -194,7 +192,8 @@ public class CognitiveTestRepository {
                     SET response_time = ?,
                         repetition_ratio = ?,
                         avg_sentence_length = ?,
-                        appropriateness_score = ?
+                        appropriateness_score = ?,
+                        analyzed_at = NOW()
                     WHERE question_result_id = ?
                     """,
                     responseTime,
@@ -213,8 +212,9 @@ public class CognitiveTestRepository {
                     response_time,
                     repetition_ratio,
                     avg_sentence_length,
-                    appropriateness_score
-                ) VALUES (?, ?, ?, ?, ?)
+                    appropriateness_score,
+                    analyzed_at
+                ) VALUES (?, ?, ?, ?, ?, NOW())
                 """,
                 questionResultId,
                 responseTime,
@@ -222,6 +222,44 @@ public class CognitiveTestRepository {
                 avgSentenceLength,
                 appropriatenessScore
         );
+    }
+
+    public QuestionResultSnapshot findQuestionResultSnapshot(Long questionResultId, String userId) {
+        String sql = """
+                SELECT qr.question_result_id,
+                       qr.performance_id,
+                       qr.question_id,
+                       qr.voice_file_path,
+                       qr.stt_text,
+                       NULL AS preprocessed_text,
+                       ar.appropriateness_score
+                FROM QUESTION_RESULTS qr
+                INNER JOIN PERFORMANCE_RECORDS pr ON pr.performance_id = qr.performance_id
+                LEFT JOIN ANALYSIS_RESULTS ar ON ar.question_result_id = qr.question_result_id
+                WHERE qr.question_result_id = ?
+                  AND pr.user_id = ?
+                """;
+
+        List<QuestionResultSnapshot> results = jdbcTemplate.query(
+                sql,
+                (rs, rowNum) -> new QuestionResultSnapshot(
+                        rs.getLong("question_result_id"),
+                        rs.getLong("performance_id"),
+                        rs.getLong("question_id"),
+                        rs.getString("voice_file_path"),
+                        rs.getString("stt_text"),
+                        rs.getString("preprocessed_text"),
+                        (Integer) rs.getObject("appropriateness_score")
+                ),
+                questionResultId,
+                userId
+        );
+
+        if (results.isEmpty()) {
+            throw new IllegalArgumentException("문항 결과를 찾을 수 없습니다. questionResultId=" + questionResultId);
+        }
+
+        return results.get(0);
     }
 
     public record QuestionAudioContext(
@@ -233,6 +271,17 @@ public class CognitiveTestRepository {
             String questionText,
             String imageDescriptionCriteria,
             LocalDateTime performedAt
+    ) {
+    }
+
+    public record QuestionResultSnapshot(
+            Long questionResultId,
+            Long performanceId,
+            Long questionId,
+            String voiceFilePath,
+            String sttText,
+            String preprocessedText,
+            Integer appropriatenessScore
     ) {
     }
 }

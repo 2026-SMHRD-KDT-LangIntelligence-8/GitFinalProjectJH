@@ -6,6 +6,8 @@ import com.example.final_project.cognitive.dto.CognitiveTestStartResponse;
 import com.example.final_project.cognitive.dto.QuestionAudioUploadResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -45,5 +47,10 @@ public class CognitiveTestController {
             @RequestParam("audioFile") MultipartFile audioFile
     ) {
         return cognitiveTestService.saveQuestionAudio(performanceId, questionId, audioFile);
+    }
+
+    @GetMapping("/question-results/{questionResultId}")
+    public QuestionAudioUploadResponse getQuestionAudioResult(@PathVariable Long questionResultId) {
+        return cognitiveTestService.getQuestionAudioResult(questionResultId);
     }
 }
