@@ -20,7 +20,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const questionImage = document.getElementById("question-image");
     const questionCriteria = document.getElementById("question-criteria");
     const timerStartButton = document.getElementById("timer-start-btn");
-    const nextQuestionButton = document.getElementById("next-question-btn");
     const voiceBadge = document.getElementById("question-voice-badge");
     const voiceGuide = document.getElementById("question-voice-guide");
     const voiceTranscript = document.getElementById("question-voice-transcript");
@@ -103,7 +102,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             introView.classList.add("hidden");
             sessionView.classList.remove("hidden");
             recipientNameChip.textContent = `${payload.recipientName} 검사`;
-            nextQuestionButton.disabled = true;
             timerStartButton.disabled = false;
 
             renderCurrentQuestion();
@@ -115,8 +113,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     timerStartButton.addEventListener("click", async () => {
-        timerStartButton.disabled = true;
-        nextQuestionButton.disabled = false;
+        if (state.timerStarted) {
+            await moveToNextQuestion(false);
+            return;
+        }
+
+        timerStartButton.textContent = "넘어가기";
         state.timerStarted = true;
         runQuestionTimer();
 
@@ -131,11 +133,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
 
-    nextQuestionButton.addEventListener("click", async () => {
-        await moveToNextQuestion(false);
-    });
-
-    // 실시간 STT가 비어 있어도 버튼을 눌러 현재 상태 안내를 볼 수 있게 한다.
+    // 실시간 STT가 비어 있어도 현재 상태 안내를 볼 수 있게 한다.
     voiceReviewToggleButton.addEventListener("click", () => {
         state.voiceReviewExpanded = !state.voiceReviewExpanded;
         renderVoiceReview(state.questions[state.currentIndex]?.questionId);
@@ -212,14 +210,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         clearQuestionTimer();
         stopVoiceRecognition();
         stopVoicePulse();
-        nextQuestionButton.disabled = true;
-        nextQuestionButton.textContent = "분석 중...";
 
         try {
             await stopRecordingAndUpload(state, currentQuestion);
         } finally {
             state.questionAdvancePending = false;
-            nextQuestionButton.textContent = "넘어가기";
         }
 
         state.timerStarted = false;
@@ -232,8 +227,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         state.currentIndex += 1;
         state.remainingSeconds = state.questionDurationSeconds;
+        timerStartButton.textContent = "검사 시작";
         timerStartButton.disabled = false;
-        nextQuestionButton.disabled = true;
         renderCurrentQuestion();
     }
 
@@ -264,7 +259,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function finishTest() {
-        nextQuestionButton.disabled = true;
         timerStartButton.disabled = true;
         stopVoiceRecognition();
         stopVoicePulse();
@@ -427,7 +421,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         // 실시간 STT가 비어 있으면 버튼 내부에 현재 상태를 설명해 사용자가 멈춘 줄 알지 않게 한다.
         if (!hasTranscript) {
-            voiceReviewText.textContent = "아직 실시간으로 변환된 텍스트가 없습니다. 문장형으로 또렷하게 말씀하시거나, 넘어가기 후 서버 분석 결과를 확인해주세요.";
+            voiceReviewText.textContent = "아직 실시간으로 변환된 텍스트가 없습니다. 문장형으로 또렷하게 말씀해주세요.";
             voiceReviewText.classList.remove("hidden");
             return;
         }
@@ -531,11 +525,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         clearQuestionTimer();
         stopVoiceRecognition();
         stopVoicePulse();
-        nextQuestionButton.disabled = true;
-        nextQuestionButton.textContent = "분석 요청 중...";
         queueQuestionAnalysis(state, currentQuestion);
         state.questionAdvancePending = false;
-        nextQuestionButton.textContent = "넘어가기";
 
         state.timerStarted = false;
         markQuestionCompleted(currentQuestion.questionId, timedOut);
@@ -547,8 +538,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         state.currentIndex += 1;
         state.remainingSeconds = state.questionDurationSeconds;
+        timerStartButton.textContent = "검사 시작";
         timerStartButton.disabled = false;
-        nextQuestionButton.disabled = true;
         renderCurrentQuestion();
     }
 
@@ -558,7 +549,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         state.finalizing = true;
-        nextQuestionButton.disabled = true;
         timerStartButton.disabled = true;
         stopVoiceRecognition();
         stopVoicePulse();
@@ -569,8 +559,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (!analysisCompleted) {
             state.finalizing = false;
             setFinalizingState(false);
-            nextQuestionButton.disabled = false;
-            nextQuestionButton.textContent = "검사 종료 다시 시도";
             return;
         }
 

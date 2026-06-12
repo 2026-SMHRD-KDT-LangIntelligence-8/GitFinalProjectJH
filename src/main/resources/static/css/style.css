@@ -796,8 +796,6 @@ a {
 .test-session-actions { width: 100%; display: flex; justify-content: center; align-items: center; gap: 10px; }
 .timer-start-btn { flex: 1; height: 48px; min-width: 0; padding: 0 16px; background-color: #3f9f5a; color: #ffffff; border: none; border-radius: 10px; font-size: 17px; font-weight: 800; cursor: pointer; white-space: nowrap; }
 .timer-start-btn:disabled { opacity: 0.45; cursor: default; }
-.next-question-btn { flex: 1; height: 48px; min-width: 0; padding: 0 16px; background-color: #eef6f0; color: #24633a; border: 1px solid #cfe4d5; border-radius: 10px; font-size: 17px; font-weight: 800; cursor: pointer; white-space: nowrap; }
-.next-question-btn:disabled { opacity: 0.45; cursor: default; }
 .question-meta-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .question-type-badge { display: inline-flex; align-items: center; min-height: 28px; padding: 0 12px; border-radius: 999px; background-color: #dff2e3; color: #1d6b32; font-size: 12px; font-weight: 800; }
 .question-sequence-text { font-size: 12px; font-weight: 700; color: #728a7a; }
