@@ -24,6 +24,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const voiceGuide = document.getElementById("question-voice-guide");
     const voiceTranscript = document.getElementById("question-voice-transcript");
     const voiceReviewText = document.getElementById("voice-review-text");
+    const reviewView = document.getElementById("test-review-view");
+    const reviewList = document.getElementById("test-review-list");
+    const reviewFinishButton = document.getElementById("review-finish-btn");
     const finalizingOverlay = document.getElementById("test-finalizing-overlay");
     const finalizingDescription = document.getElementById("test-finalizing-description");
 
@@ -39,7 +42,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         timerStarted: false,
         completedQuestionIds: [],
         timedOutQuestionIds: [],
+        questionResultIdsByQuestionId: {},
         transcriptsByQuestionId: {},
+        dbTranscriptsByQuestionId: {},
         finalScoresByQuestionId: {},
         recognition: null,
         recognitionSupported: Boolean(SpeechRecognitionConstructor),
@@ -87,7 +92,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             state.timerStarted = false;
             state.completedQuestionIds = [];
             state.timedOutQuestionIds = [];
+            state.questionResultIdsByQuestionId = {};
             state.transcriptsByQuestionId = {};
+            state.dbTranscriptsByQuestionId = {};
             // 문항별 최종 점수는 훈련 추천과 리포트 계산에 다시 활용할 수 있게 별도로 저장한다.
             state.finalScoresByQuestionId = {};
             state.pendingAnalysisTasks = new Map();
@@ -138,6 +145,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (state.questions.length > 0) {
             saveTestProgress(state);
         }
+    });
+
+    reviewFinishButton?.addEventListener("click", () => {
+        window.location.href = "/main";
     });
 
     function renderCurrentQuestion() {
@@ -248,21 +259,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         const minutes = String(Math.floor(safeSeconds / 60)).padStart(2, "0");
         const seconds = String(safeSeconds % 60).padStart(2, "0");
         questionTimer.textContent = `${minutes}:${seconds}`;
-    }
-
-    async function finishTest() {
-        timerStartButton.disabled = true;
-        stopVoiceRecognition();
-        stopVoicePulse();
-        releaseMediaStream(state);
-        // 검사 종료 전 마지막 진행 상태를 저장한 뒤 메인으로 이동한다.
-        saveTestProgress(state, true);
-
-        await completeTest(state.recipientId);
-        sessionStorage.removeItem(TEST_PROGRESS_STORAGE_KEY);
-
-        alert("인지능력 검사가 완료되었습니다.");
-        window.location.href = "/main";
     }
 
     async function ensureMicrophoneReady(currentState) {
@@ -395,7 +391,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     function renderVoiceReview(questionId) {
-        const transcript = state.transcriptsByQuestionId[questionId]?.trim() || "";
+        const transcript = state.dbTranscriptsByQuestionId[questionId]?.trim() || "";
         const analysisFailed = state.analysisFailureQuestionIds.includes(questionId);
         const questionCompleted = state.completedQuestionIds.includes(questionId);
 
@@ -425,6 +421,25 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         voiceReviewText.textContent = "검사를 시작하면 이 영역에 DB 저장 기준 최종 인식 텍스트가 표시됩니다.";
         voiceReviewText.classList.remove("hidden");
+    }
+
+    function renderFinalReview() {
+        reviewList.innerHTML = state.questions.map((question, index) => {
+            const dbTranscript = String(state.dbTranscriptsByQuestionId[question.questionId] || "").trim();
+            const analysisFailed = state.analysisFailureQuestionIds.includes(question.questionId);
+            const transcriptMarkup = analysisFailed
+                ? '<div class="test-review-pending">텍스트 변환에 실패했습니다. 다시 검사해 주세요.</div>'
+                : dbTranscript
+                    ? `<div class="test-review-transcript">${escapeHtml(dbTranscript)}</div>`
+                    : '<div class="test-review-pending">DB의 최종 인식 텍스트를 아직 불러오지 못했습니다.</div>';
+
+            return `
+                <div class="test-review-item">
+                    <div class="test-review-question">${index + 1}. ${escapeHtml(question.questionTypeName)} - ${escapeHtml(question.questionText)}</div>
+                    ${transcriptMarkup}
+                </div>
+            `;
+        }).join("");
     }
 
     function startVoicePulse() {
@@ -562,9 +577,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         saveTestProgress(state, true);
         await completeTest(state.recipientId);
         sessionStorage.removeItem(TEST_PROGRESS_STORAGE_KEY);
-
-        alert("인지능력 검사가 완료되었습니다.");
-        window.location.href = "/main";
+        setFinalizingState(false);
+        introView.classList.add("hidden");
+        sessionView.classList.add("hidden");
+        reviewView.classList.remove("hidden");
+        renderFinalReview();
     }
 });
 
@@ -627,7 +644,15 @@ async function stopRecordingAndUpload(state, question) {
     const uploadResult = await uploadQuestionAudio(state.performanceId, question.questionId, audioBlob);
     state.analysisFailureQuestionIds = state.analysisFailureQuestionIds
         .filter((questionId) => questionId !== question.questionId);
+    if (uploadResult?.questionResultId) {
+        state.questionResultIdsByQuestionId[question.questionId] = uploadResult.questionResultId;
+    }
     applyQuestionAnalysisResult(state, question.questionId, uploadResult);
+
+    if (uploadResult?.questionResultId) {
+        const finalResult = await waitForQuestionAudioResult(uploadResult.questionResultId);
+        applyQuestionAnalysisResult(state, question.questionId, finalResult);
+    }
 }
 
 function releaseMediaStream(state) {
@@ -652,6 +677,30 @@ async function uploadQuestionAudio(performanceId, questionId, audioBlob) {
 
     if (!response.ok) {
         throw new Error("question_audio_upload_failed");
+    }
+
+    return response.json();
+}
+
+async function waitForQuestionAudioResult(questionResultId) {
+    const maxAttempts = 20;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        const result = await fetchQuestionAudioResult(questionResultId);
+        if (result.analysisStatus === "COMPLETED" || result.analysisStatus === "FAILED") {
+            return result;
+        }
+
+        await delay(1500);
+    }
+
+    return fetchQuestionAudioResult(questionResultId);
+}
+
+async function fetchQuestionAudioResult(questionResultId) {
+    const response = await fetch(`/api/cognitive-tests/question-results/${questionResultId}`);
+    if (!response.ok) {
+        throw new Error("question_audio_result_fetch_failed");
     }
 
     return response.json();
@@ -791,6 +840,19 @@ function normalizeImagePath(imageFilePath) {
     return `/cognitive-images/${normalizedPath.replace(/^\.?\//, "")}`;
 }
 
+function delay(ms) {
+    return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll("\"", "&quot;")
+        .replaceAll("'", "&#39;");
+}
+
 function calculateQuestionScore(state, question, timedOut) {
     if (timedOut) {
         return 0;
@@ -859,6 +921,9 @@ function applyQuestionAnalysisResult(state, questionId, analysisResult) {
     if (backendTranscript) {
         // 브라우저 STT가 비어도 서버 STT 결과는 이후 점수 계산과 확인용 텍스트로 남긴다.
         state.transcriptsByQuestionId[questionId] = backendTranscript;
+        if (analysisResult.analysisStatus === "COMPLETED") {
+            state.dbTranscriptsByQuestionId[questionId] = backendTranscript;
+        }
     }
 
     saveTestProgress(state);
