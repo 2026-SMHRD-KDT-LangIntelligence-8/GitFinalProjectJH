@@ -973,7 +973,7 @@ a {
    ========================================================================== */
 .training-list { width: 100%; display: flex; flex-direction: column; gap: 10px; flex: 1; justify-content: center; }
 .training-item {
-    width: 100%; height: 56px; display: flex; align-items: center; text-decoration: none; border-radius: 14px; padding: 0 16px; box-sizing: border-box; background-color: #f6f8f6; border: 1px solid #c8d4cb;
+    width: 100%; height: 76px; display: flex; align-items: center; text-decoration: none; border-radius: 14px; padding: 0 16px; box-sizing: border-box; background-color: #f6f8f6; border: 1px solid #c8d4cb;
 }
-.training-text { font-size: 16px; font-weight: 800; color: #11381c; }
+.training-text { font-size: 22px; font-weight: 800; color: #11381c; }
 .arrow-icon { margin-left: auto; color: #728a7a; display: flex; align-items: center; }

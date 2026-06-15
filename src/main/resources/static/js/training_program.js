@@ -8,6 +8,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const selectedQuestionTypeName = params.get("questionTypeName");
     const trainingList = document.getElementById("training-list");
     const trainingRecipient = document.getElementById("training-recipient");
+    const backButton = document.querySelector(".back-btn");
+    let activeSessionBackHandler = null;
 
     let payload = await resolveTrainingPayload(queryRecipientId);
 
@@ -37,7 +39,25 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
     }
 
-    renderTrainingProgramList(trainingList, payload, weakPrograms);
+    const renderTrainingListView = () => {
+        activeSessionBackHandler = null;
+        renderTrainingProgramList(trainingList, payload, weakPrograms, (backHandler) => {
+            activeSessionBackHandler = backHandler;
+        }, renderTrainingListView);
+    };
+
+    backButton?.addEventListener("click", async (event) => {
+        if (!activeSessionBackHandler) {
+            return;
+        }
+
+        event.preventDefault();
+        const backHandler = activeSessionBackHandler;
+        activeSessionBackHandler = null;
+        await backHandler();
+    });
+
+    renderTrainingListView();
 });
 
 async function resolveTrainingPayload(queryRecipientId) {
@@ -72,7 +92,7 @@ async function resolveTrainingPayload(queryRecipientId) {
     return payload;
 }
 
-function renderTrainingProgramList(trainingList, payload, weakPrograms) {
+function renderTrainingProgramList(trainingList, payload, weakPrograms, onSessionStart, onSessionEnd) {
     trainingList.innerHTML = "";
 
     weakPrograms.forEach((question) => {
@@ -89,14 +109,21 @@ function renderTrainingProgramList(trainingList, payload, weakPrograms) {
 
         item.addEventListener("click", async (event) => {
             event.preventDefault();
-            await renderTrainingQuestionSession(trainingList, payload, weakPrograms, question.questionTypeName);
+            const sessionBackHandler = await renderTrainingQuestionSession(
+                trainingList,
+                payload,
+                weakPrograms,
+                question.questionTypeName,
+                onSessionEnd
+            );
+            onSessionStart?.(sessionBackHandler);
         });
 
         trainingList.appendChild(item);
     });
 }
 
-async function renderTrainingQuestionSession(trainingList, payload, weakPrograms, selectedTypeName) {
+async function renderTrainingQuestionSession(trainingList, payload, weakPrograms, selectedTypeName, onSessionEnd) {
     const selectedQuestions = payload.questions.filter((question) => question.questionTypeName === selectedTypeName);
     if (selectedQuestions.length === 0) {
         trainingList.innerHTML = "<p class=\"question-purpose\">선택한 훈련 문항을 찾지 못했습니다.</p>";
@@ -202,7 +229,7 @@ async function renderTrainingQuestionSession(trainingList, payload, weakPrograms
 
         if (currentIndex >= selectedQuestions.length - 1) {
             releaseTrainingMediaStream(recordingState);
-            renderTrainingProgramList(trainingList, payload, weakPrograms);
+            onSessionEnd?.();
             return;
         }
 
@@ -263,6 +290,23 @@ async function renderTrainingQuestionSession(trainingList, payload, weakPrograms
 
         updateTrainingTimerText();
     }
+
+    return async () => {
+        const currentQuestion = selectedQuestions[currentIndex];
+        clearTrainingQuestionTimer();
+
+        if (currentQuestion) {
+            try {
+                await stopTrainingRecordingAndUpload(recordingState, payload.performanceId, currentQuestion);
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        recordingState.recordingStarted = false;
+        releaseTrainingMediaStream(recordingState);
+        onSessionEnd?.();
+    };
 }
 
 async function ensureTrainingMicrophoneReady(recordingState) {
