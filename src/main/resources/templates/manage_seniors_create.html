@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>수급자 등록</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<div class="phone-frame">
+    <div class="top-nav-bar detail-top-nav-bar">
+        <!-- 등록 페이지에서도 목록 화면으로 돌아갈 수 있도록 관리 목록 경로를 사용한다. -->
+        <a href="/manage-seniors" class="back-btn detail-back-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24">
+                <path d="M15 19l-7-7 7-7" />
+            </svg>
+            뒤로가기
+        </a>
+        <h1 class="page-title detail-page-title">수급자 등록</h1>
+        <div class="detail-nav-spacer" aria-hidden="true"></div>
+    </div>
+
+    <div class="scroll-content">
+        <div class="info-section">
+            <div class="section-label-row">
+                <h2 class="section-title">등록 정보</h2>
+                <span class="section-badge-info">Create</span>
+            </div>
+
+            <!-- 등록 폼은 수정 페이지와 같은 레이아웃을 재사용해 입력 항목만 별도로 구성한다. -->
+            <form id="recipient-create-form" class="edit-form-container">
+                <div class="form-row">
+                    <span class="form-label">수급자명</span>
+                    <div class="form-input-wrapper">
+                        <input
+                                type="text"
+                                id="create-recipient-name"
+                                class="form-input"
+                                required
+                                maxlength="20"
+                                placeholder="수급자명을 입력하세요"
+                        >
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <span class="form-label">생년월일</span>
+                    <div class="form-input-wrapper">
+                        <input type="date" id="create-birth-date" class="form-input" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <span class="form-label">성별</span>
+                    <div class="form-input-wrapper">
+                        <select id="create-gender" class="form-input" required>
+                            <option value="">성별 선택</option>
+                            <option value="남">남</option>
+                            <option value="여">여</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <span class="form-label">요양등급</span>
+                    <div class="form-input-wrapper">
+                        <select id="create-care-grade" class="form-input" required>
+                            <option value="">등급 선택</option>
+                            <option value="1등급">1등급</option>
+                            <option value="2등급">2등급</option>
+                            <option value="3등급">3등급</option>
+                            <option value="4등급">4등급</option>
+                            <option value="5등급">5등급</option>
+                            <option value="인지지원등급">인지지원등급</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <span class="form-label">보호자명</span>
+                    <div class="form-input-wrapper">
+                        <input type="text" id="create-guardian-name" class="form-input">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <span class="form-label">비상연락망</span>
+                    <div class="form-input-wrapper">
+                        <!-- 숫자 입력을 기본으로 유도하고, 하이픈 포함 최대 길이를 제한한다. -->
+                        <input
+                                type="text"
+                                id="create-emergency-contact"
+                                class="form-input"
+                                inputmode="numeric"
+                                maxlength="13"
+                                placeholder="010-1234-5678"
+                                required
+                        >
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <span class="form-label">메모</span>
+                    <div class="form-input-wrapper">
+                        <input type="text" id="create-notes" class="form-input">
+                    </div>
+                </div>
+
+                <div class="action-button-group edit-page-actions">
+                    <button type="submit" class="primary-btn">저장</button>
+                    <button type="button" id="create-cancel-button" class="secondary-btn">취소</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 수급자 등록 페이지에서 입력값 수집과 저장을 담당하는 스크립트 -->
+<script src="/js/manage_seniors_create.js"></script>
+
+</body>
+</html>

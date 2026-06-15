@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequest, OAuth2User> {
 
+    // 스프링 기본 OAuth2 사용자 조회 결과를 받아온 뒤, 우리 서비스용 사용자 저장 로직을 덧붙인다.
     private final DefaultOAuth2UserService delegate = new DefaultOAuth2UserService();
     private final JdbcTemplate jdbcTemplate;
 
@@ -25,9 +26,10 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
     @Override
     @Transactional
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
+        // 먼저 카카오에서 내려준 사용자 정보를 기본 구현체로 조회한다.
         OAuth2User oauth2User = delegate.loadUser(userRequest);
 
-        // 카카오 로그인 사용자만 DB 저장 처리
+        // 수급자 소유권 매핑은 카카오 고유 ID를 기준으로 하므로 카카오 로그인 사용자만 저장한다.
         if ("kakao".equals(userRequest.getClientRegistration().getRegistrationId())) {
             saveKakaoUser(oauth2User);
         }
@@ -37,11 +39,12 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
 
     @SuppressWarnings("unchecked")
     private void saveKakaoUser(OAuth2User oauth2User) {
+        // 카카오 응답 구조가 중첩 Map 형태라 필요한 영역만 단계적으로 꺼낸다.
         Map<String, Object> attributes = oauth2User.getAttributes();
         Map<String, Object> kakaoAccount = (Map<String, Object>) attributes.get("kakao_account");
         Map<String, Object> profile = kakaoAccount == null ? null : (Map<String, Object>) kakaoAccount.get("profile");
 
-        // 카카오에서 제공하는 고유 ID와 닉네임 추출
+        // OAuth 응답에서 카카오 고유 ID와 닉네임을 추출한다.
         String kakaoId = String.valueOf(attributes.get("id"));
         String nickname = profile == null ? null : String.valueOf(profile.get("nickname"));
 
@@ -53,14 +56,15 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
             throw new OAuth2AuthenticationException(new OAuth2Error("kakao_nickname_not_found"), "Kakao nickname not found");
         }
 
-        // USERS 테이블에 같은 카카오 ID가 있는지 확인
+        // USERS.user_id에는 카카오 고유 ID를 저장한다.
+        // USER_RECIPIENTS.user_id도 같은 값을 사용하여 사용자와 수급자를 연결한다.
         Integer count = jdbcTemplate.queryForObject(
                 "select count(*) from USERS where user_id = ?",
                 Integer.class,
                 kakaoId
         );
 
-        // 기존 회원이면 닉네임만 업데이트, 없으면 새로 저장
+        // 카카오 ID는 유지하고, 재로그인 시에는 화면 표시용 닉네임만 갱신한다.
         if (count != null && count > 0) {
             jdbcTemplate.update(
                     "update USERS set user_name = ? where user_id = ?",

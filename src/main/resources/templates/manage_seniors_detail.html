@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>수급자 상세 관리</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<div class="phone-frame senior-detail-phone-frame">
+    <div class="top-nav-bar detail-top-nav-bar">
+        <a href="/manage-seniors" class="back-btn detail-back-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24">
+                <path d="M15 19l-7-7 7-7" />
+            </svg>
+            뒤로가기
+        </a>
+        <h1 class="page-title detail-page-title">수급자 관리</h1>
+        <div class="detail-nav-spacer" aria-hidden="true"></div>
+    </div>
+
+    <div class="scroll-content">
+        <div class="info-section">
+            <div class="section-label-row">
+                <h2 class="section-title">기초 정보</h2>
+                <span class="section-badge-info">Profile</span>
+            </div>
+
+            <div class="info-form-layout">
+                <div class="form-item-row">
+                    <span class="form-lbl">수급자명</span>
+                    <span class="form-val" id="val-name"></span>
+                </div>
+
+                <div class="form-item-row">
+                    <span class="form-lbl">생년월일</span>
+                    <input type="text" class="date-input-field" id="val-keypad" placeholder="예: 1940-09-30" maxlength="10" readonly>
+                </div>
+
+                <div class="form-item-row">
+                    <span class="form-lbl">성별</span>
+                    <select class="toggle-select" id="toggle-gender" disabled>
+                        <option value="">선택</option>
+                        <option value="male">남성</option>
+                        <option value="female">여성</option>
+                    </select>
+                </div>
+
+                <div class="form-item-row">
+                    <span class="form-lbl">장기요양등급</span>
+                    <select class="toggle-select" id="toggle-grade" disabled>
+                        <option value="">등급 선택</option>
+                        <option value="1">1등급</option>
+                        <option value="2">2등급</option>
+                        <option value="3">3등급</option>
+                        <option value="4">4등급</option>
+                        <option value="5">5등급</option>
+                        <option value="6">인지지원등급</option>
+                    </select>
+                </div>
+
+                <div class="form-item-row">
+                    <span class="form-lbl">보호자명</span>
+                    <span class="form-val" id="val-guardian-name"></span>
+                </div>
+
+                <div class="form-item-row">
+                    <span class="form-lbl">비상연락망</span>
+                    <span class="form-val" id="val-phone"></span>
+                </div>
+
+                <div class="form-item-row">
+                    <span class="form-lbl">최근 검사일</span>
+                    <span class="form-val" id="val-date"></span>
+                </div>
+            </div>
+
+            <div class="btn-align-right">
+                <button type="button" class="edit-action-btn" id="detail-edit-button">수정</button>
+            </div>
+        </div>
+
+        <div class="info-section">
+            <div class="section-label-row">
+                <h2 class="section-title">훈련 현황 조회</h2>
+                <span class="section-badge-info">Status</span>
+            </div>
+            <div class="card-panel h-blank-medium training-status-panel" id="training-status-list"></div>
+        </div>
+
+        <div class="info-section">
+            <div class="section-label-row">
+                <h2 class="section-title">이전 리포트 보기</h2>
+                <span class="section-badge-info">History</span>
+            </div>
+            <div class="card-panel recipient-history-panel" id="previous-report-list">
+                <div class="recipient-empty-message">최근 리포트 목록을 불러오는 중입니다.</div>
+            </div>
+        </div>
+
+        <div class="info-section">
+            <div class="section-label-row">
+                <h2 class="section-title">기간별 변화</h2>
+                <select class="select-period-box" id="detail-trend-select">
+                    <option value="7">최근 1주일</option>
+                    <option value="30">최근 1개월</option>
+                    <option value="90">최근 3개월</option>
+                </select>
+            </div>
+            <div class="card-panel recipient-trend-panel">
+                <div class="report-summary-header" id="detail-trend-summary">기간별 평균 점수 변화를 불러오는 중입니다.</div>
+                <div class="report-chart-wrap report-chart-wrap-large">
+                    <canvas id="detail-trend-chart"></canvas>
+                </div>
+                <div class="report-empty-message" id="detail-trend-empty">기간별 변화 데이터가 아직 없습니다.</div>
+            </div>
+        </div>
+
+        <div class="info-section">
+            <div class="section-label-row">
+                <h2 class="section-title">기타 특이사항</h2>
+                <span class="section-badge-info">Memo</span>
+            </div>
+            <textarea id="notes-textarea" class="card-panel h-blank-medium notes-textarea" readonly tabindex="-1"></textarea>
+
+            <div class="btn-align-right">
+                <button type="button" class="edit-action-btn" id="notes-edit-button">수정</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/js/manage_seniors_detail.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/js/recipient_detail_data.js"></script>
+<script src="/js/manage_seniors_detail_navigation.js"></script>
+
+</body>
+</html>

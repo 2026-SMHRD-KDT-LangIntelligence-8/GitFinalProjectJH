@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>수급자 정보 수정</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<div class="phone-frame senior-edit-phone-frame">
+    <div class="top-nav-bar detail-top-nav-bar">
+        <!-- 수정 페이지에서는 다시 상세 화면으로 돌아갈 수 있도록 같은 recipientId를 유지한다. -->
+        <a href="#" id="edit-back-link" class="back-btn detail-back-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24">
+                <path d="M15 19l-7-7 7-7" />
+            </svg>
+            뒤로가기
+        </a>
+        <h1 class="page-title detail-page-title edit-page-title">수급자 정보 수정</h1>
+        <div class="detail-nav-spacer" aria-hidden="true"></div>
+    </div>
+
+    <div class="scroll-content">
+        <div class="info-section">
+            <div class="section-label-row">
+                <h2 class="section-title">수정 항목</h2>
+                <span class="section-badge-info">Edit</span>
+            </div>
+
+            <!-- 수정 대상만 별도 폼으로 분리해서 기존 상세 화면과 역할을 나눈다. -->
+            <form id="recipient-edit-form" class="edit-form-container">
+                <div class="form-row">
+                    <span class="form-label">수급자명</span>
+                    <div class="form-input-wrapper">
+                        <input type="text" id="edit-recipient-name" class="form-input" readonly>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <span class="form-label">생년월일</span>
+                    <div class="form-input-wrapper">
+                        <input type="date" id="edit-birth-date" class="form-input" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <span class="form-label">성별</span>
+                    <div class="form-input-wrapper">
+                        <select id="edit-gender" class="form-input" required>
+                            <option value="">성별 선택</option>
+                            <option value="남">남성</option>
+                            <option value="여">여성</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <span class="form-label">요양등급</span>
+                    <div class="form-input-wrapper">
+                        <select id="edit-care-grade" class="form-input" required>
+                            <option value="">등급 선택</option>
+                            <option value="1등급">1등급</option>
+                            <option value="2등급">2등급</option>
+                            <option value="3등급">3등급</option>
+                            <option value="4등급">4등급</option>
+                            <option value="5등급">5등급</option>
+                            <option value="인지지원등급">인지지원등급</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <span class="form-label">보호자명</span>
+                    <div class="form-input-wrapper">
+                        <input type="text" id="edit-guardian-name" class="form-input" placeholder="보호자 이름을 입력하세요">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <span class="form-label">비상연락망</span>
+                    <div class="form-input-wrapper">
+                        <input type="text" id="edit-emergency-contact" class="form-input" placeholder="연락처를 입력하세요">
+                    </div>
+                </div>
+
+                <div class="action-button-group edit-page-actions">
+                    <button type="submit" class="primary-btn">저장</button>
+                    <button type="button" id="edit-cancel-button" class="secondary-btn">취소</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 수정 페이지 데이터 로딩과 저장 전용 스크립트 -->
+<script src="/js/manage_seniors_edit.js"></script>
+
+</body>
+</html>

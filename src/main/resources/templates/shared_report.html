@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>공유 리포트</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<div class="phone-frame" id="shared-report-area">
+    <div class="top-nav-bar">
+        <a href="/login" class="back-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24">
+                <path d="M15 19l-7-7 7-7" />
+            </svg>
+            돌아가기
+        </a>
+    </div>
+
+    <div class="header-wrapper">
+        <h2 class="page-title">공유 리포트</h2>
+        <p class="section-badge-info" id="shared-report-date">링크를 확인하는 중입니다.</p>
+    </div>
+
+    <div class="scroll-content">
+        <div class="info-section">
+            <div class="section-label-row">
+                <h2 class="section-title" id="shared-report-title">검사 결과</h2>
+            </div>
+            <div class="card-panel report-card-panel">
+                <div class="report-summary-header" id="shared-report-summary">공유된 리포트를 불러오고 있습니다.</div>
+                <div class="report-chart-wrap">
+                    <canvas id="shared-report-chart"></canvas>
+                </div>
+                <div class="report-empty-message" id="shared-report-empty">표시할 검사 점수가 없습니다.</div>
+            </div>
+            <div class="btn-align-right report-action-row">
+                <button type="button" class="action-btn report-control-shift report-output-btn" id="shared-report-download-btn">
+                    <span class="report-output-text">출력</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="/js/shared_report.js"></script>
+
+</body>
+</html>

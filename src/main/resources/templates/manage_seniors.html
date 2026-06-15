@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>수급자 관리</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<div class="phone-frame">
+    <div class="top-nav-bar">
+        <!-- 메인으로 돌아갈 때도 정적 파일명이 아니라 Controller 경로를 사용한다. -->
+        <a href="/main" class="back-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24">
+                <path d="M15 19l-7-7 7-7" />
+            </svg>
+            뒤로가기
+        </a>
+    </div>
+
+    <div class="header-wrapper">
+        <h2 class="page-title">수급자 관리</h2>
+    </div>
+
+    <div class="search-container">
+        <!-- JS에서 이름 검색을 연결할 수 있도록 id를 분리한다. -->
+        <input
+                type="text"
+                id="recipient-search-input"
+                class="search-input"
+                placeholder="수급자 이름을 입력하세요"
+        >
+        <button type="button" id="recipient-search-button" class="search-btn">검색</button>
+    </div>
+
+    <div class="table-header-labels">
+        <div class="header-item w-name">수급자명</div>
+        <div class="header-item w-birth">생년월일</div>
+        <div class="header-item w-gender">성별</div>
+        <div class="header-item w-grade">장기요양등급</div>
+    </div>
+
+    <!-- 목록은 서버 렌더링 대신 JS가 /api/recipients 호출 결과를 채워 넣는다. -->
+    <div class="content-blank-box" id="recipient-list-container"></div>
+
+    <!-- 수급자 추가 버튼은 등록 전용 페이지로 이동시킨다. -->
+    <a href="/manage-seniors/create" class="floating-add-btn"></a>
+</div>
+
+<!-- 수급자 관리 목록 전용 스크립트 -->
+<script src="/js/manage_seniors.js"></script>
+
+</body>
+</html>
