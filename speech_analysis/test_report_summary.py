@@ -1,6 +1,5 @@
 from speech_analysis_pipeline import calculate_report_summary
 
-# 여러 문항 분석 행을 넣어 리포트 요약값 계산 로직을 단독 검증하는 테스트 스크립트다.
 analysis_rows = [
     {
         "question_type_name": "오늘 날짜 말하기",

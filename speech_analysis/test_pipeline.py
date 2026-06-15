@@ -1,6 +1,5 @@
 from speech_analysis_pipeline import analyze_question_answer
 
-# 단건 음성 분석 파이프라인이 로컬에서 정상 동작하는지 빠르게 확인하는 테스트 스크립트다.
 audio_path = "Take4-1_누구 좀 불러야제잉_2026-06-08.wav"
 
 result = analyze_question_answer(

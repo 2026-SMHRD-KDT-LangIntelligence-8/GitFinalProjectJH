@@ -90,7 +90,8 @@ public class ReportService {
                     ReportSummaryResult summaryResult = analysisPipelineService.calculateReportSummary(entry.getValue());
                     return new TrendPointResponse(
                             entry.getKey(),
-                            summaryResult.avgFinalScore() == null ? 0 : summaryResult.avgFinalScore()
+                            summaryResult.avgFinalScore() == null ? 0 : summaryResult.avgFinalScore(),
+                            toQuestionTypeScores(summaryResult.questionTypeSummaries())
                     );
                 })
                 .toList();

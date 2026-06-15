@@ -136,7 +136,8 @@ public class ReportRepository {
                 sql,
                 (rs, rowNum) -> new TrendPointResponse(
                         rs.getString("performed_date"),
-                        rs.getDouble("average_score")
+                        rs.getDouble("average_score"),
+                        List.of()
                 ),
                 recipientId,
                 userId,

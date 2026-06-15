@@ -34,6 +34,250 @@ function downloadPDF() {
     html2pdf().set(opt).from(element).save();
 }
 
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll("\"", "&quot;")
+        .replaceAll("'", "&#39;");
+}
+
+function normalizeText(value) {
+    return String(value ?? "")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+function normalizeQuestionTypeName(value) {
+    return String(value ?? "")
+        .replace(/\s+/g, "")
+        .trim();
+}
+
+function formatScore(score) {
+    const numericScore = Number(score ?? 0);
+    return Number.isInteger(numericScore) ? `${numericScore}` : numericScore.toFixed(1);
+}
+
+function formatDaysLabel(days) {
+    if (days === 7) {
+        return "1주일";
+    }
+    if (days === 30) {
+        return "1개월";
+    }
+    if (days === 90) {
+        return "3개월";
+    }
+    return `${days}일`;
+}
+
+function getFilterLabel(button) {
+    return normalizeText(button?.dataset?.reportFilter || button?.textContent || "");
+}
+
+function isAllFilter(filterLabel) {
+    const normalized = normalizeQuestionTypeName(filterLabel).toLowerCase();
+    return normalized === "all" || normalized === "전체";
+}
+
+function getAllReportFilterButton(buttons) {
+    return buttons.find((button) => isAllFilter(getFilterLabel(button))) || buttons[0] || null;
+}
+
+function getSelectedReportFilter(buttons) {
+    const activeButton = buttons.find((button) => button.classList.contains("is-active")) || getAllReportFilterButton(buttons);
+    return getFilterLabel(activeButton);
+}
+
+function setActiveReportFilter(buttons, activeButton) {
+    if (!activeButton) {
+        return;
+    }
+
+    buttons.forEach((button) => {
+        const isActive = button === activeButton;
+        button.classList.toggle("is-active", isActive);
+        button.setAttribute("aria-pressed", String(isActive));
+    });
+}
+
+function filterQuestionTypeScores(scores, filterLabel) {
+    if (isAllFilter(filterLabel)) {
+        return scores;
+    }
+
+    const targetName = normalizeQuestionTypeName(filterLabel);
+    return scores.filter((item) => normalizeQuestionTypeName(item.questionTypeName) === targetName);
+}
+
+function extractTrendScore(point, filterLabel) {
+    if (isAllFilter(filterLabel)) {
+        return Number(point.averageScore ?? 0);
+    }
+
+    const targetName = normalizeQuestionTypeName(filterLabel);
+    const matchedItem = (point.questionTypeScores || []).find(
+        (item) => normalizeQuestionTypeName(item.questionTypeName) === targetName
+    );
+
+    if (!matchedItem) {
+        return null;
+    }
+
+    return Number(matchedItem.averageScore ?? 0);
+}
+
+function buildTrendSeries(points, filterLabel) {
+    return {
+        labels: points.map((point) => point.performedDate),
+        scores: points.map((point) => extractTrendScore(point, filterLabel))
+    };
+}
+
+function renderLatestChart(scores, filterLabel = "전체") {
+    const context = document.getElementById("latest-report-chart");
+    if (!context) {
+        return;
+    }
+
+    if (latestReportChart) {
+        latestReportChart.destroy();
+    }
+
+    const filteredScores = filterQuestionTypeScores(scores, filterLabel);
+
+    latestReportChart = new Chart(context, {
+        type: "bar",
+        data: {
+            labels: filteredScores.map((item) => item.questionTypeName),
+            datasets: [{
+                label: "평균 점수",
+                data: filteredScores.map((item) => item.averageScore),
+                backgroundColor: filteredScores.map((item) => item.trainingNeeded ? "#F94144" : "#14AE5C"),
+                borderRadius: 12,
+                maxBarThickness: 38
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label(context) {
+                            const score = Number(context.raw ?? 0);
+                            return score < 60
+                                ? `평균 점수 ${formatScore(score)}점 / 훈련 필요`
+                                : `평균 점수 ${formatScore(score)}점 / 안정`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    min: 0,
+                    max: 100,
+                    ticks: {
+                        stepSize: 20
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderTrendChart(points, filterLabel = "전체") {
+    const context = document.getElementById("trend-report-chart");
+    if (!context) {
+        return;
+    }
+
+    if (trendReportChart) {
+        trendReportChart.destroy();
+    }
+
+    const series = buildTrendSeries(points, filterLabel);
+
+    trendReportChart = new Chart(context, {
+        type: "line",
+        data: {
+            labels: series.labels,
+            datasets: [{
+                label: isAllFilter(filterLabel) ? "검사일별 평균 점수" : `${filterLabel} 점수`,
+                data: series.scores,
+                borderColor: "#277DA1",
+                backgroundColor: "rgba(39, 125, 161, 0.18)",
+                pointBackgroundColor: series.scores.map((score) => score !== null && score < 60 ? "#F94144" : "#14AE5C"),
+                pointBorderColor: series.scores.map((score) => score !== null && score < 60 ? "#F94144" : "#14AE5C"),
+                pointRadius: 4,
+                pointHoverRadius: 5,
+                fill: true,
+                tension: 0.3,
+                spanGaps: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label(context) {
+                            const score = context.raw;
+                            if (score === null || score === undefined) {
+                                return "해당 문항 타입 점수 없음";
+                            }
+
+                            return Number(score) < 60
+                                ? `평균 점수 ${formatScore(score)}점 / 훈련 필요`
+                                : `평균 점수 ${formatScore(score)}점 / 안정`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    min: 0,
+                    max: 100,
+                    ticks: {
+                        stepSize: 20
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderTypeSummary(scores, filterLabel = "전체") {
+    const container = document.getElementById("report-type-summary");
+    if (!container) {
+        return;
+    }
+
+    const filteredScores = filterQuestionTypeScores(scores, filterLabel);
+    container.innerHTML = filteredScores.map((item) => `
+        <div class="report-type-summary-item">
+            <span class="report-type-name">${escapeHtml(item.questionTypeName)}</span>
+            <div class="report-type-meta">
+                <span class="report-type-score">${formatScore(item.averageScore)}점</span>
+                <span class="report-type-badge ${item.trainingNeeded ? "is-training-needed" : "is-stable"}">
+                    ${item.trainingNeeded ? "훈련 필요" : "안정"}
+                </span>
+            </div>
+        </div>
+    `).join("");
+
+    container.classList.toggle("hidden", filteredScores.length === 0);
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
     const searchInput = document.getElementById("report-recipient-search");
     const searchToggleButton = document.getElementById("report-search-toggle");
@@ -63,6 +307,171 @@ document.addEventListener("DOMContentLoaded", async () => {
     let selectedRecipient = null;
     let latestQuestionTypeScores = [];
     let trendReportPoints = [];
+
+    const setEmptyState = (element, visible) => {
+        element.classList.toggle("is-visible", visible);
+    };
+
+    const destroyCharts = () => {
+        if (latestReportChart) {
+            latestReportChart.destroy();
+            latestReportChart = null;
+        }
+
+        if (trendReportChart) {
+            trendReportChart.destroy();
+            trendReportChart = null;
+        }
+    };
+
+    const closeCombo = () => {
+        comboBox.classList.remove("is-open");
+        comboBox.innerHTML = "";
+    };
+
+    const applyLatestReportFilter = () => {
+        if (!latestQuestionTypeScores.length) {
+            reportTypeSummary.innerHTML = "";
+            reportTypeSummary.classList.add("hidden");
+            setEmptyState(latestReportEmpty, true);
+            if (latestReportChart) {
+                latestReportChart.destroy();
+                latestReportChart = null;
+            }
+            return;
+        }
+
+        const selectedFilter = getSelectedReportFilter(latestReportFilterButtons);
+        const filteredScores = filterQuestionTypeScores(latestQuestionTypeScores, selectedFilter);
+
+        if (!filteredScores.length) {
+            reportTypeSummary.innerHTML = "";
+            reportTypeSummary.classList.add("hidden");
+            latestReportEmpty.textContent = "선택한 문항 타입의 점수가 없습니다.";
+            setEmptyState(latestReportEmpty, true);
+            if (latestReportChart) {
+                latestReportChart.destroy();
+                latestReportChart = null;
+            }
+            return;
+        }
+
+        setEmptyState(latestReportEmpty, false);
+        renderLatestChart(latestQuestionTypeScores, selectedFilter);
+        renderTypeSummary(latestQuestionTypeScores, selectedFilter);
+    };
+
+    const applyTrendReportFilter = () => {
+        if (!trendReportPoints.length) {
+            setEmptyState(trendReportEmpty, true);
+            if (trendReportChart) {
+                trendReportChart.destroy();
+                trendReportChart = null;
+            }
+            return;
+        }
+
+        const selectedFilter = getSelectedReportFilter(trendReportFilterButtons);
+        const series = buildTrendSeries(trendReportPoints, selectedFilter);
+        const hasRenderableScore = series.scores.some((score) => score !== null && score !== undefined);
+
+        if (!hasRenderableScore) {
+            trendReportEmpty.textContent = "선택한 문항 타입의 기간별 점수가 없습니다.";
+            setEmptyState(trendReportEmpty, true);
+            if (trendReportChart) {
+                trendReportChart.destroy();
+                trendReportChart = null;
+            }
+            return;
+        }
+
+        setEmptyState(trendReportEmpty, false);
+        renderTrendChart(trendReportPoints, selectedFilter);
+    };
+
+    const resetReportUi = (message) => {
+        destroyCharts();
+        historySelect.innerHTML = '<option value="">리포트 선택</option>';
+        reportSummaryHeader.textContent = message;
+        trendSummaryHeader.textContent = "최근 기간의 검사일별 평균 점수 변화를 표시합니다.";
+        reportTypeSummary.innerHTML = "";
+        reportTypeSummary.classList.add("hidden");
+        latestQuestionTypeScores = [];
+        trendReportPoints = [];
+        latestReportEmpty.textContent = "검사 분석 결과가 아직 없습니다.";
+        trendReportEmpty.textContent = "기간별 그래프로 표시할 검사 결과가 없습니다.";
+        setActiveReportFilter(latestReportFilterButtons, getAllReportFilterButton(latestReportFilterButtons));
+        setActiveReportFilter(trendReportFilterButtons, getAllReportFilterButton(trendReportFilterButtons));
+        setEmptyState(latestReportEmpty, true);
+        setEmptyState(trendReportEmpty, true);
+    };
+
+    const renderCombo = () => {
+        if (isLocked) {
+            closeCombo();
+            return;
+        }
+
+        const keyword = searchInput.value.trim();
+        if (!keyword) {
+            closeCombo();
+            return;
+        }
+
+        const matchedRecipients = recipients.filter((recipient) => (recipient.recipientName ?? "").includes(keyword));
+        if (!matchedRecipients.length) {
+            closeCombo();
+            return;
+        }
+
+        comboBox.innerHTML = matchedRecipients.map((recipient) => `
+            <button type="button" class="report-recipient-option" data-id="${recipient.recipientId}">
+                ${escapeHtml(recipient.recipientName)}
+            </button>
+        `).join("");
+        comboBox.classList.add("is-open");
+    };
+
+    const resolveSelectedRecipient = () => {
+        const typedName = searchInput.value.trim();
+        if (!typedName) {
+            return null;
+        }
+
+        if (selectedRecipient && selectedRecipient.recipientName === typedName) {
+            return selectedRecipient;
+        }
+
+        return recipients.find((recipient) => recipient.recipientName === typedName) ?? null;
+    };
+
+    const unlockSearchInput = () => {
+        isLocked = false;
+        selectedRecipient = null;
+        searchInput.readOnly = false;
+        searchWrap.classList.remove("is-locked");
+        searchInput.removeAttribute("data-recipient-id");
+        resetReportUi("수급자를 선택하면 최근 검사 리포트가 표시됩니다.");
+        renderCombo();
+    };
+
+    const lockSearchInput = async () => {
+        const recipient = resolveSelectedRecipient();
+        if (!recipient) {
+            alert("목록에서 수급자를 선택해주세요.");
+            searchInput.focus();
+            return;
+        }
+
+        selectedRecipient = recipient;
+        searchInput.value = recipient.recipientName;
+        isLocked = true;
+        searchInput.readOnly = true;
+        searchWrap.classList.add("is-locked");
+        closeCombo();
+
+        await loadReportsForRecipient(recipient.recipientId, recipient.recipientName);
+    };
 
     downloadButtons.forEach((button) => {
         button.addEventListener("click", downloadPDF);
@@ -119,134 +528,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     latestReportFilterButtons.forEach((button) => {
         button.addEventListener("click", () => {
             setActiveReportFilter(latestReportFilterButtons, button);
-
-            if (button.dataset.reportFilter === "all" && latestQuestionTypeScores.length > 0) {
-                renderLatestChart(latestQuestionTypeScores);
-                renderTypeSummary(latestQuestionTypeScores);
-            }
+            applyLatestReportFilter();
         });
     });
 
     trendReportFilterButtons.forEach((button) => {
         button.addEventListener("click", () => {
             setActiveReportFilter(trendReportFilterButtons, button);
-
-            if (button.dataset.reportFilter === "all" && trendReportPoints.length > 0) {
-                renderTrendChart(trendReportPoints);
-            }
+            applyTrendReportFilter();
         });
     });
-
-    const closeCombo = () => {
-        comboBox.classList.remove("is-open");
-        comboBox.innerHTML = "";
-    };
-
-    const unlockSearchInput = () => {
-        isLocked = false;
-        selectedRecipient = null;
-        searchInput.readOnly = false;
-        searchWrap.classList.remove("is-locked");
-        searchInput.removeAttribute("data-recipient-id");
-        resetReportUi("?섍툒?먮? ?좏깮?섎㈃ 理쒓렐 寃??由ы룷?멸? ?쒖떆?⑸땲??");
-        renderCombo();
-    };
-
-    const setEmptyState = (element, visible) => {
-        element.classList.toggle("is-visible", visible);
-    };
-
-    const destroyCharts = () => {
-        if (latestReportChart) {
-            latestReportChart.destroy();
-            latestReportChart = null;
-        }
-
-        if (trendReportChart) {
-            trendReportChart.destroy();
-            trendReportChart = null;
-        }
-    };
-
-    const resetReportUi = (message) => {
-        destroyCharts();
-        historySelect.innerHTML = '<option value="">리포트 선택</option>';
-        reportSummaryHeader.textContent = message;
-        trendSummaryHeader.textContent = "최근 기간의 검사 평균 점수 변화를 표시합니다.";
-        reportTypeSummary.innerHTML = "";
-        reportTypeSummary.classList.add("hidden");
-        latestQuestionTypeScores = [];
-        trendReportPoints = [];
-        setActiveReportFilter(latestReportFilterButtons, getAllReportFilterButton(latestReportFilterButtons));
-        setActiveReportFilter(trendReportFilterButtons, getAllReportFilterButton(trendReportFilterButtons));
-        setEmptyState(latestReportEmpty, true);
-        setEmptyState(trendReportEmpty, true);
-    };
-
-    const renderCombo = () => {
-        if (isLocked) {
-            closeCombo();
-            return;
-        }
-
-        const keyword = searchInput.value.trim();
-        if (!keyword) {
-            closeCombo();
-            return;
-        }
-
-        const matchedRecipients = recipients.filter((recipient) =>
-            (recipient.recipientName ?? "").includes(keyword)
-        );
-
-        if (matchedRecipients.length === 0) {
-            closeCombo();
-            return;
-        }
-
-        comboBox.innerHTML = matchedRecipients.map((recipient) => `
-            <button
-                type="button"
-                class="report-recipient-option"
-                data-id="${recipient.recipientId}"
-            >
-                ${escapeHtml(recipient.recipientName)}
-            </button>
-        `).join("");
-
-        comboBox.classList.add("is-open");
-    };
-
-    const resolveSelectedRecipient = () => {
-        const typedName = searchInput.value.trim();
-        if (!typedName) {
-            return null;
-        }
-
-        if (selectedRecipient && selectedRecipient.recipientName === typedName) {
-            return selectedRecipient;
-        }
-
-        return recipients.find((recipient) => recipient.recipientName === typedName) ?? null;
-    };
-
-    const lockSearchInput = async () => {
-        const recipient = resolveSelectedRecipient();
-        if (!recipient) {
-            alert("목록에서 수급자를 선택해주세요.");
-            searchInput.focus();
-            return;
-        }
-
-        selectedRecipient = recipient;
-        searchInput.value = recipient.recipientName;
-        isLocked = true;
-        searchInput.readOnly = true;
-        searchWrap.classList.add("is-locked");
-        closeCombo();
-
-        await loadReportsForRecipient(recipient.recipientId, recipient.recipientName);
-    };
 
     try {
         const response = await fetch("/api/recipients");
@@ -265,7 +556,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         selectedRecipient = null;
         renderCombo();
     });
+
     searchInput.addEventListener("focus", renderCombo);
+
     searchInput.addEventListener("click", () => {
         if (!isLocked) {
             return;
@@ -274,13 +567,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         unlockSearchInput();
         searchInput.focus();
     });
+
     searchInput.addEventListener("keydown", async (event) => {
         if (event.key !== "Enter") {
             return;
         }
 
         event.preventDefault();
-
         if (!isLocked) {
             await lockSearchInput();
         }
@@ -290,8 +583,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (isLocked) {
             unlockSearchInput();
             searchInput.focus();
-            resetReportUi("수급자를 선택하면 최근 검사 리포트가 표시됩니다.");
-            renderCombo();
             return;
         }
 
@@ -353,7 +644,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 historySelect.appendChild(option);
             });
 
-            if (reports.length === 0) {
+            if (!reports.length) {
                 const hasExamHistory = Number(recipientDetail?.testCount ?? 0) > 0 || Boolean(recipientDetail?.latestTestDate);
                 if (hasExamHistory) {
                     const pendingMessage = buildPendingStatusMessage(recipientName, recipientDetail?.latestTestDate);
@@ -365,8 +656,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                     reportSummaryHeader.textContent = `${recipientName} 님의 검사 분석 리포트가 아직 없습니다.`;
                     trendSummaryHeader.textContent = `${recipientName} 님의 기간별 평균 점수 추이가 아직 없습니다.`;
                     latestReportEmpty.textContent = "검사 분석 결과가 아직 없습니다.";
-                    trendReportEmpty.textContent = "기간 내 그래프로 표시할 검사 결과가 없습니다.";
+                    trendReportEmpty.textContent = "기간별 그래프로 표시할 검사 결과가 없습니다.";
                 }
+
                 reportTypeSummary.innerHTML = "";
                 reportTypeSummary.classList.add("hidden");
                 setEmptyState(latestReportEmpty, true);
@@ -397,47 +689,28 @@ document.addEventListener("DOMContentLoaded", async () => {
                 : `${payload.recipientName} 님의 검사 결과입니다.`;
 
             if (!payload.questionTypeScores?.length) {
+                latestQuestionTypeScores = [];
+                reportTypeSummary.innerHTML = "";
+                reportTypeSummary.classList.add("hidden");
+                setActiveReportFilter(latestReportFilterButtons, getAllReportFilterButton(latestReportFilterButtons));
+                setEmptyState(latestReportEmpty, true);
                 if (latestReportChart) {
                     latestReportChart.destroy();
                     latestReportChart = null;
                 }
-                reportTypeSummary.innerHTML = "";
-                reportTypeSummary.classList.add("hidden");
-                latestQuestionTypeScores = [];
-                setActiveReportFilter(latestReportFilterButtons, getAllReportFilterButton(latestReportFilterButtons));
-                setEmptyState(latestReportEmpty, true);
                 return;
             }
 
             latestQuestionTypeScores = payload.questionTypeScores;
-            setActiveReportFilter(latestReportFilterButtons, getAllReportFilterButton(latestReportFilterButtons));
-            setEmptyState(latestReportEmpty, false);
-            renderLatestChart(latestQuestionTypeScores);
-            renderTypeSummary(latestQuestionTypeScores);
+            applyLatestReportFilter();
         } catch (error) {
             console.error(error);
+            latestQuestionTypeScores = [];
             reportTypeSummary.innerHTML = "";
             reportTypeSummary.classList.add("hidden");
-            latestQuestionTypeScores = [];
             setActiveReportFilter(latestReportFilterButtons, getAllReportFilterButton(latestReportFilterButtons));
             setEmptyState(latestReportEmpty, true);
         }
-    }
-
-    function getAllReportFilterButton(buttons) {
-        return buttons.find((button) => button.dataset.reportFilter === "all") || buttons[0];
-    }
-
-    function setActiveReportFilter(buttons, activeButton) {
-        if (!activeButton) {
-            return;
-        }
-
-        buttons.forEach((button) => {
-            const isActive = button === activeButton;
-            button.classList.toggle("is-active", isActive);
-            button.setAttribute("aria-pressed", String(isActive));
-        });
     }
 
     async function loadTrendReport(recipientId, days) {
@@ -449,22 +722,20 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             const payload = await response.json();
             if (!payload.points?.length) {
-                if (trendReportChart) {
-                    trendReportChart.destroy();
-                    trendReportChart = null;
-                }
                 trendSummaryHeader.textContent = `최근 ${formatDaysLabel(days)} 동안 표시할 평균 점수 데이터가 없습니다.`;
                 trendReportPoints = [];
                 setActiveReportFilter(trendReportFilterButtons, getAllReportFilterButton(trendReportFilterButtons));
                 setEmptyState(trendReportEmpty, true);
+                if (trendReportChart) {
+                    trendReportChart.destroy();
+                    trendReportChart = null;
+                }
                 return;
             }
 
             trendReportPoints = payload.points;
-            setActiveReportFilter(trendReportFilterButtons, getAllReportFilterButton(trendReportFilterButtons));
             trendSummaryHeader.textContent = `최근 ${formatDaysLabel(days)} 동안 검사일별 평균 점수 추이입니다.`;
-            setEmptyState(trendReportEmpty, false);
-            renderTrendChart(trendReportPoints);
+            applyTrendReportFilter();
         } catch (error) {
             console.error(error);
             trendReportPoints = [];
@@ -474,160 +745,3 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 });
-
-function renderLatestChart(scores) {
-    const context = document.getElementById("latest-report-chart");
-    if (!context) {
-        return;
-    }
-
-    if (latestReportChart) {
-        latestReportChart.destroy();
-    }
-
-    latestReportChart = new Chart(context, {
-        type: "bar",
-        data: {
-            labels: scores.map((item) => item.questionTypeName),
-            datasets: [{
-                label: "평균 점수",
-                data: scores.map((item) => item.averageScore),
-                backgroundColor: scores.map((item) => item.trainingNeeded ? "#F94144" : "#14AE5C"),
-                borderRadius: 12,
-                maxBarThickness: 38
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    callbacks: {
-                        label(context) {
-                            const score = context.raw;
-                            return score < 60
-                                ? `평균 점수 ${score}점 · 훈련 필요`
-                                : `평균 점수 ${score}점 · 안정`;
-                        }
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    min: 0,
-                    max: 100,
-                    ticks: {
-                        stepSize: 20
-                    }
-                }
-            }
-        }
-    });
-}
-
-function renderTrendChart(points) {
-    const context = document.getElementById("trend-report-chart");
-    if (!context) {
-        return;
-    }
-
-    if (trendReportChart) {
-        trendReportChart.destroy();
-    }
-
-    const labels = points.map((point) => point.performedDate);
-    const scores = points.map((point) => point.averageScore);
-
-    trendReportChart = new Chart(context, {
-        type: "line",
-        data: {
-            labels,
-            datasets: [{
-                label: "검사일별 평균 점수",
-                data: scores,
-                borderColor: "#277DA1",
-                backgroundColor: "rgba(39, 125, 161, 0.18)",
-                pointBackgroundColor: scores.map((score) => score < 60 ? "#F94144" : "#14AE5C"),
-                pointBorderColor: scores.map((score) => score < 60 ? "#F94144" : "#14AE5C"),
-                pointRadius: 4,
-                pointHoverRadius: 5,
-                fill: true,
-                tension: 0.3,
-                spanGaps: true
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    callbacks: {
-                        label(context) {
-                            const score = context.raw;
-                            return score < 60
-                                ? `평균 점수 ${score}점 · 훈련 필요`
-                                : `평균 점수 ${score}점 · 안정`;
-                        }
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    min: 0,
-                    max: 100,
-                    ticks: {
-                        stepSize: 20
-                    }
-                }
-            }
-        }
-    });
-}
-
-function renderTypeSummary(scores) {
-    const container = document.getElementById("report-type-summary");
-    if (!container) {
-        return;
-    }
-
-    container.innerHTML = scores.map((item) => `
-        <div class="report-type-summary-item">
-            <span class="report-type-name">${escapeHtml(item.questionTypeName)}</span>
-            <div class="report-type-meta">
-                <span class="report-type-score">${item.averageScore}점</span>
-                <span class="report-type-badge ${item.trainingNeeded ? "is-training-needed" : "is-stable"}">
-                    ${item.trainingNeeded ? "훈련 필요" : "안정"}
-                </span>
-            </div>
-        </div>
-    `).join("");
-    container.classList.remove("hidden");
-}
-
-function formatDaysLabel(days) {
-    if (days === 7) {
-        return "1주일";
-    }
-    if (days === 30) {
-        return "1개월";
-    }
-    if (days === 90) {
-        return "3개월";
-    }
-    return `${days}일`;
-}
-
-function escapeHtml(value) {
-    return String(value ?? "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll("\"", "&quot;")
-        .replaceAll("'", "&#39;");
-}

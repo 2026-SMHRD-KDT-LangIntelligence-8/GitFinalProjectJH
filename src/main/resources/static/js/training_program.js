@@ -112,7 +112,6 @@ function renderTrainingProgramList(trainingList, payload, weakPrograms, onSessio
             const sessionBackHandler = await renderTrainingQuestionSession(
                 trainingList,
                 payload,
-                weakPrograms,
                 question.questionTypeName,
                 onSessionEnd
             );
@@ -123,7 +122,7 @@ function renderTrainingProgramList(trainingList, payload, weakPrograms, onSessio
     });
 }
 
-async function renderTrainingQuestionSession(trainingList, payload, weakPrograms, selectedTypeName, onSessionEnd) {
+async function renderTrainingQuestionSession(trainingList, payload, selectedTypeName, onSessionEnd) {
     const selectedQuestions = payload.questions.filter((question) => question.questionTypeName === selectedTypeName);
     if (selectedQuestions.length === 0) {
         trainingList.innerHTML = "<p class=\"question-purpose\">선택한 훈련 문항을 찾지 못했습니다.</p>";
@@ -136,6 +135,11 @@ async function renderTrainingQuestionSession(trainingList, payload, weakPrograms
         mediaRecorder: null,
         recordedChunks: [],
         recordingStarted: false,
+        audioContext: null,
+        voiceAnalyser: null,
+        voiceSource: null,
+        voiceDataArray: null,
+        voiceAnimationId: null,
         timerId: null,
         remainingSeconds: TRAINING_DURATION_SECONDS,
         questionAdvancePending: false
@@ -158,8 +162,9 @@ async function renderTrainingQuestionSession(trainingList, payload, weakPrograms
             <div class="question-voice-panel">
                 <div class="question-voice-header">
                     <span class="question-voice-badge" id="training-voice-badge">음성 대기</span>
-                    <span class="question-voice-guide" id="training-voice-guide">훈련 시작을 누르면 문항별 음성이 저장됩니다.</span>
+                    <span class="question-voice-guide" id="training-voice-guide">훈련 시작을 누르면 문항별 음성이 자동으로 저장됩니다.</span>
                 </div>
+                <div class="question-voice-transcript" id="training-voice-transcript"></div>
             </div>
         </div>
         <div class="test-session-actions">
@@ -176,6 +181,7 @@ async function renderTrainingQuestionSession(trainingList, payload, weakPrograms
     const startButton = document.getElementById("training-start-button");
     const voiceBadge = document.getElementById("training-voice-badge");
     const voiceGuide = document.getElementById("training-voice-guide");
+    const voiceTranscript = document.getElementById("training-voice-transcript");
 
     startButton.addEventListener("click", async () => {
         if (recordingState.recordingStarted) {
@@ -191,6 +197,7 @@ async function renderTrainingQuestionSession(trainingList, payload, weakPrograms
         try {
             await ensureTrainingMicrophoneReady(recordingState);
             startTrainingRecording(recordingState);
+            startTrainingVoicePulse(recordingState, voiceTranscript);
             startButton.disabled = false;
             setTrainingVoiceState("listening", voiceBadge, voiceGuide);
         } catch (error) {
@@ -201,6 +208,7 @@ async function renderTrainingQuestionSession(trainingList, payload, weakPrograms
             updateTrainingTimerText();
             startButton.disabled = false;
             startButton.textContent = "훈련 시작";
+            resetTrainingVoicePulse(voiceTranscript);
             setTrainingVoiceState("error", voiceBadge, voiceGuide, "마이크 권한을 허용해야 훈련 음성을 저장할 수 있습니다.");
         }
     });
@@ -218,7 +226,7 @@ async function renderTrainingQuestionSession(trainingList, payload, weakPrograms
         clearTrainingQuestionTimer();
 
         try {
-            await stopTrainingRecordingAndUpload(recordingState, payload.performanceId, currentQuestion);
+            await stopTrainingRecordingAndUpload(recordingState, payload.performanceId, currentQuestion, voiceTranscript);
         } catch (error) {
             console.error(error);
         } finally {
@@ -228,7 +236,7 @@ async function renderTrainingQuestionSession(trainingList, payload, weakPrograms
         recordingState.recordingStarted = false;
 
         if (currentIndex >= selectedQuestions.length - 1) {
-            releaseTrainingMediaStream(recordingState);
+            releaseTrainingMediaStream(recordingState, voiceTranscript);
             onSessionEnd?.();
             return;
         }
@@ -238,6 +246,7 @@ async function renderTrainingQuestionSession(trainingList, payload, weakPrograms
         startButton.textContent = "훈련 시작";
         startButton.disabled = false;
         setTrainingVoiceState("idle", voiceBadge, voiceGuide, timedOut ? "시간이 종료되어 다음 문항으로 이동했습니다." : undefined);
+        resetTrainingVoicePulse(voiceTranscript);
         renderTrainingQuestion();
     }
 
@@ -289,6 +298,7 @@ async function renderTrainingQuestionSession(trainingList, payload, weakPrograms
         }
 
         updateTrainingTimerText();
+        resetTrainingVoicePulse(voiceTranscript);
     }
 
     return async () => {
@@ -297,14 +307,14 @@ async function renderTrainingQuestionSession(trainingList, payload, weakPrograms
 
         if (currentQuestion) {
             try {
-                await stopTrainingRecordingAndUpload(recordingState, payload.performanceId, currentQuestion);
+                await stopTrainingRecordingAndUpload(recordingState, payload.performanceId, currentQuestion, voiceTranscript);
             } catch (error) {
                 console.error(error);
             }
         }
 
         recordingState.recordingStarted = false;
-        releaseTrainingMediaStream(recordingState);
+        releaseTrainingMediaStream(recordingState, voiceTranscript);
         onSessionEnd?.();
     };
 }
@@ -340,8 +350,74 @@ function startTrainingRecording(recordingState) {
     mediaRecorder.start();
 }
 
-async function stopTrainingRecordingAndUpload(recordingState, performanceId, question) {
+function startTrainingVoicePulse(recordingState, voiceTranscript) {
+    const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextConstructor || !recordingState.mediaStream || recordingState.voiceAnimationId || !voiceTranscript) {
+        return;
+    }
+
+    recordingState.audioContext = recordingState.audioContext || new AudioContextConstructor();
+    if (recordingState.audioContext.state === "suspended") {
+        recordingState.audioContext.resume().catch((error) => console.error(error));
+    }
+
+    recordingState.voiceAnalyser = recordingState.audioContext.createAnalyser();
+    recordingState.voiceAnalyser.fftSize = 256;
+    recordingState.voiceAnalyser.smoothingTimeConstant = 0.72;
+    recordingState.voiceSource = recordingState.audioContext.createMediaStreamSource(recordingState.mediaStream);
+    recordingState.voiceSource.connect(recordingState.voiceAnalyser);
+    recordingState.voiceDataArray = new Uint8Array(recordingState.voiceAnalyser.fftSize);
+    voiceTranscript.classList.add("is-listening");
+
+    const updatePulse = () => {
+        recordingState.voiceAnalyser.getByteTimeDomainData(recordingState.voiceDataArray);
+
+        let sum = 0;
+        for (const value of recordingState.voiceDataArray) {
+            const normalized = (value - 128) / 128;
+            sum += normalized * normalized;
+        }
+
+        const volume = Math.min(Math.sqrt(sum / recordingState.voiceDataArray.length) * 7, 1);
+        const scale = 1 + volume * 1.7;
+        const shadow = 6 + volume * 26;
+        voiceTranscript.style.setProperty("--voice-pulse-scale", scale.toFixed(2));
+        voiceTranscript.style.setProperty("--voice-pulse-shadow", `${shadow.toFixed(0)}px`);
+        recordingState.voiceAnimationId = window.requestAnimationFrame(updatePulse);
+    };
+
+    updatePulse();
+}
+
+function stopTrainingVoicePulse(recordingState, voiceTranscript) {
+    if (recordingState.voiceAnimationId) {
+        window.cancelAnimationFrame(recordingState.voiceAnimationId);
+        recordingState.voiceAnimationId = null;
+    }
+
+    if (recordingState.voiceSource) {
+        recordingState.voiceSource.disconnect();
+        recordingState.voiceSource = null;
+    }
+
+    recordingState.voiceAnalyser = null;
+    recordingState.voiceDataArray = null;
+    resetTrainingVoicePulse(voiceTranscript);
+}
+
+function resetTrainingVoicePulse(voiceTranscript) {
+    if (!voiceTranscript) {
+        return;
+    }
+
+    voiceTranscript.classList.remove("is-listening");
+    voiceTranscript.style.setProperty("--voice-pulse-scale", "1");
+    voiceTranscript.style.setProperty("--voice-pulse-shadow", "6px");
+}
+
+async function stopTrainingRecordingAndUpload(recordingState, performanceId, question, voiceTranscript) {
     if (!recordingState.mediaRecorder || recordingState.mediaRecorder.state === "inactive") {
+        stopTrainingVoicePulse(recordingState, voiceTranscript);
         return;
     }
 
@@ -356,6 +432,7 @@ async function stopTrainingRecordingAndUpload(recordingState, performanceId, que
 
     recordingState.mediaRecorder = null;
     recordingState.recordedChunks = [];
+    stopTrainingVoicePulse(recordingState, voiceTranscript);
 
     if (!audioBlob || audioBlob.size === 0) {
         return;
@@ -364,7 +441,9 @@ async function stopTrainingRecordingAndUpload(recordingState, performanceId, que
     await uploadTrainingQuestionAudio(performanceId, question.questionId, audioBlob);
 }
 
-function releaseTrainingMediaStream(recordingState) {
+function releaseTrainingMediaStream(recordingState, voiceTranscript) {
+    stopTrainingVoicePulse(recordingState, voiceTranscript);
+
     if (!recordingState.mediaStream) {
         return;
     }
@@ -397,7 +476,7 @@ function setTrainingVoiceState(mode, voiceBadge, voiceGuide, customMessage) {
     if (mode === "listening") {
         voiceBadge.classList.add("is-listening");
         voiceBadge.textContent = "마이크 사용 중";
-        voiceGuide.textContent = customMessage || "질문에 답하시면 훈련 음성이 저장됩니다.";
+        voiceGuide.textContent = customMessage || "질문에 답하시면 훈련 음성이 자동으로 저장됩니다.";
         return;
     }
 
@@ -409,7 +488,7 @@ function setTrainingVoiceState(mode, voiceBadge, voiceGuide, customMessage) {
     }
 
     voiceBadge.textContent = "음성 대기";
-    voiceGuide.textContent = customMessage || "훈련 시작을 누르면 문항별 음성이 저장됩니다.";
+    voiceGuide.textContent = customMessage || "훈련 시작을 누르면 문항별 음성이 자동으로 저장됩니다.";
 }
 
 function normalizeImagePath(imagePath) {

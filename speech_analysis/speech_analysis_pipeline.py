@@ -7,13 +7,8 @@ Original file is located at
     https://colab.research.google.com/drive/1Xg6hUee8Xg61B6E4zJmrly6vdF1lyZ-w
 """
 
-# 이 파일은 문항 단건 분석과 리포트 요약 계산의 공통 로직을 모아 둔 핵심 파이프라인이다.
-
 import os
 import re
-import shutil
-import subprocess
-import tempfile
 from pathlib import Path
 
 import torch
@@ -21,16 +16,8 @@ import librosa
 import numpy as np
 from transformers import pipeline
 from openai import OpenAI
-from dotenv import load_dotenv
-
-# speech_analysis/.env 파일에서 OPENAI_API_KEY 등 환경변수를 로드한다.
-load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 # STT 모델 로드
-
-# STT 백엔드 선택 지점. 현재는 로컬 Whisper("local")만 구현돼 있다.
-# 추후 "openai"(gpt-4o-transcribe) 분기를 transcribe_audio 에 추가할 수 있다.
-STT_BACKEND = os.getenv("STT_BACKEND", "local")
 
 MODEL_NAME = "seastar105/whisper-medium-komixv2"
 
@@ -43,89 +30,13 @@ asr = pipeline(
     torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
 )
 
-# 음성 노이즈 제거 (ffmpeg)
-
-# ffmpeg 노이즈 제거 필터 체인.
-# - highpass: 저주파 잡음(에어컨/웅웅거림) 제거
-# - afftdn: FFT 기반 잡음 감소
-# - lowpass: 고주파 잡음(히스/치찰음) 정리
-DENOISE_FILTER = "highpass=f=90,afftdn=nf=-25,lowpass=f=7500"
-
-# 노이즈 제거 기본 사용 여부. ffmpeg이 없으면 자동으로 원본을 사용한다.
-ENABLE_DENOISE = True
-
-
-def resolve_ffmpeg():
-    """
-    사용할 ffmpeg 실행파일 경로를 찾는다.
-
-    1) 시스템 PATH에 설치된 ffmpeg
-    2) imageio-ffmpeg 패키지에 동봉된 ffmpeg (pip install imageio-ffmpeg)
-    모두 없으면 None을 반환한다.
-    """
-
-    ffmpeg_bin = shutil.which("ffmpeg")
-    if ffmpeg_bin:
-        return ffmpeg_bin
-
-    try:
-        import imageio_ffmpeg
-        return imageio_ffmpeg.get_ffmpeg_exe()
-    except Exception:
-        return None
-
-
-def denoise_audio(audio_path, output_path=None, audio_filter=DENOISE_FILTER):
-    """
-    ffmpeg으로 음성에서 배경 잡음을 줄여 16kHz 모노 wav로 저장한 뒤 그 경로를 반환한다.
-
-    webm 등 librosa가 직접 못 읽는 포맷도 ffmpeg이 wav로 변환해 주므로 입력 포맷 변환도 겸한다.
-    ffmpeg을 찾을 수 없거나 처리에 실패하면 원본 경로를 그대로 반환한다.
-    output_path가 None이면 임시 파일을 생성한다(호출 측에서 정리 필요).
-    """
-
-    ffmpeg_bin = resolve_ffmpeg()
-    if ffmpeg_bin is None:
-        print("ffmpeg을 찾을 수 없어 노이즈 제거를 건너뜁니다. 원본 음성을 사용합니다.")
-        return str(audio_path)
-
-    if output_path is None:
-        tmp = tempfile.NamedTemporaryFile(suffix="_denoised.wav", delete=False)
-        tmp.close()
-        output_path = tmp.name
-
-    command = [
-        ffmpeg_bin,
-        "-y",                  # 출력 파일 덮어쓰기
-        "-i", str(audio_path),
-        "-af", audio_filter,
-        "-ar", "16000",        # STT 입력에 맞춰 16kHz
-        "-ac", "1",            # 모노
-        "-c:a", "pcm_s16le",   # 표준 PCM wav
-        str(output_path),
-    ]
-
-    try:
-        subprocess.run(
-            command,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-            check=True,
-        )
-    except (subprocess.CalledProcessError, OSError) as error:
-        print(f"노이즈 제거 실패로 원본 음성을 사용합니다: {error}")
-        return str(audio_path)
-
-    return str(output_path)
+print("device:", device)
 
 # STT 실행
 
 def transcribe_audio(audio_path):
     """
     음성 파일 경로를 받아 STT 텍스트를 반환한다.
-
-    STT_BACKEND 가 "openai" 가 되면 여기서 gpt-4o-transcribe 분기를 추가한다.
-    (현재는 로컬 Whisper 만 구현)
     """
 
     audio_array, sampling_rate = librosa.load(
@@ -987,8 +898,7 @@ def analyze_question_answer(
     question_type_name,
     question_text,
     image_description=None,
-    use_llm_scoring=True,
-    apply_denoise=ENABLE_DENOISE
+    use_llm_scoring=True
 ):
     """
     음성 답변 파일 하나를 분석하여 DB 저장 및 리포트 생성에 필요한 값을 반환한다.
@@ -998,32 +908,16 @@ def analyze_question_answer(
     question_text: 사용자에게 제시된 문항 텍스트
     image_description: 그림 설명하기 문항의 이미지 설명 기준. 다른 유형은 None.
     use_llm_scoring: 화행 적절성 LLM 채점을 실행할지 여부
-    apply_denoise: ffmpeg 노이즈 제거 후 정제 음성으로 분석할지 여부
     """
 
-    # 0. (선택) ffmpeg 노이즈 제거. STT와 반응 시간 계산을 같은 정제 음성으로 수행한다.
-    #    webm 등 librosa가 못 읽는 포맷도 여기서 wav로 변환된다.
-    analysis_audio_path = str(audio_path)
-    denoised_temp_path = None
-    if apply_denoise:
-        cleaned_path = denoise_audio(audio_path)
-        if cleaned_path != str(audio_path):
-            analysis_audio_path = cleaned_path
-            denoised_temp_path = cleaned_path
+    # 1. 음성 파일 → STT 텍스트
+    stt_text = transcribe_audio(audio_path)
 
-    try:
-        # 1. 음성 파일 → STT 텍스트
-        stt_text = transcribe_audio(analysis_audio_path)
+    # 2. STT 텍스트 최소 전처리
+    preprocessed_text = preprocess_stt_text(stt_text)
 
-        # 2. STT 텍스트 최소 전처리
-        preprocessed_text = preprocess_stt_text(stt_text)
-
-        # 3. 음성 파일 기반 반응 시간 계산
-        response_time = calculate_response_time_from_audio(analysis_audio_path)
-    finally:
-        # 임시로 만든 정제 음성 파일은 분석이 끝나면 정리한다.
-        if denoised_temp_path and os.path.exists(denoised_temp_path):
-            os.remove(denoised_temp_path)
+    # 3. 음성 파일 기반 반응 시간 계산
+    response_time = calculate_response_time_from_audio(audio_path)
 
     # 4. 반복어 비율 계산
     repetition_result = analyze_repetition(preprocessed_text)
