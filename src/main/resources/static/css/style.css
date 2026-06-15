@@ -869,19 +869,22 @@ a {
     transform: translate(-4px, 1px);
 }
 .report-card-panel { min-height: 240px; padding: 18px 16px; }
+.report-filter-buttons { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
+.report-filter-btn { min-height: 36px; padding: 0 8px; border: 1px solid #d7e2d9; border-radius: 10px; background-color: #ffffff; color: #1d4b2a; font-size: 12px; font-weight: 800; cursor: pointer; word-break: keep-all; }
+.report-filter-btn:hover { background-color: #eff8f1; border-color: #b7cfbf; }
+.report-filter-btn.is-active { background-color: #1e5e3a; border-color: #1e5e3a; color: #ffffff; }
 .report-card-panel-large { min-height: 300px; }
 .report-summary-header { font-size: 13px; font-weight: 700; color: #436052; margin-bottom: 12px; }
 .report-chart-wrap { position: relative; width: 100%; height: 165px; }
 .report-chart-wrap-large { height: 220px; }
 .report-type-summary { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
-.report-type-summary-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background-color: #ffffff; border: 1px solid #dfe8e1; }
-.report-type-name { font-size: 13px; font-weight: 800; color: #11381c; }
-.report-type-meta { display: flex; align-items: center; gap: 8px; }
+.report-type-summary-item { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; background-color: #ffffff; border: 1px solid #dfe8e1; }
+.report-type-name { flex: 1; min-width: 0; font-size: 13px; font-weight: 800; color: #11381c; word-break: keep-all; }
+.report-type-meta { flex: 0 0 auto; display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-width: 86px; }
 .report-type-score { font-size: 12px; font-weight: 700; color: #55776d; }
-.report-type-badge { display: inline-flex; align-items: center; min-height: 24px; padding: 0 10px; border-radius: 999px; font-size: 11px; font-weight: 800; }
+.report-type-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 48px; min-height: 24px; padding: 0 10px; border-radius: 999px; font-size: 11px; font-weight: 800; text-align: center; white-space: nowrap; }
 .report-type-badge.is-stable { background-color: #dff2e3; color: #1d6b32; }
 .report-type-badge.is-training-needed { background-color: #fde9e8; color: #b33b32; }
-.report-training-link { display: inline-flex; align-items: center; min-height: 24px; padding: 0 10px; border-radius: 999px; background-color: #1e5e3a; color: #ffffff; font-size: 11px; font-weight: 800; text-decoration: none; }
 .report-empty-message { display: none; align-items: center; justify-content: center; min-height: 130px; font-size: 13px; font-weight: 600; color: #728a7a; text-align: center; line-height: 1.6; }
 .report-empty-message.is-visible { display: flex; }
 

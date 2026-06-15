@@ -46,6 +46,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const reportSummaryHeader = document.getElementById("report-summary-header");
     const trendSummaryHeader = document.getElementById("trend-summary-header");
     const reportTypeSummary = document.getElementById("report-type-summary");
+    const latestReportFilterButtons = Array.from(document.querySelectorAll('[data-report-filter-scope="latest"]'));
+    const trendReportFilterButtons = Array.from(document.querySelectorAll('[data-report-filter-scope="trend"]'));
     const downloadButtons = [
         document.getElementById("report-download-btn"),
         document.getElementById("trend-download-btn")
@@ -59,6 +61,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     let recipients = [];
     let isLocked = false;
     let selectedRecipient = null;
+    let latestQuestionTypeScores = [];
+    let trendReportPoints = [];
 
     downloadButtons.forEach((button) => {
         button.addEventListener("click", downloadPDF);
@@ -112,6 +116,27 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     });
 
+    latestReportFilterButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+            setActiveReportFilter(latestReportFilterButtons, button);
+
+            if (button.dataset.reportFilter === "all" && latestQuestionTypeScores.length > 0) {
+                renderLatestChart(latestQuestionTypeScores);
+                renderTypeSummary(latestQuestionTypeScores);
+            }
+        });
+    });
+
+    trendReportFilterButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+            setActiveReportFilter(trendReportFilterButtons, button);
+
+            if (button.dataset.reportFilter === "all" && trendReportPoints.length > 0) {
+                renderTrendChart(trendReportPoints);
+            }
+        });
+    });
+
     const closeCombo = () => {
         comboBox.classList.remove("is-open");
         comboBox.innerHTML = "";
@@ -150,6 +175,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         trendSummaryHeader.textContent = "최근 기간의 검사 평균 점수 변화를 표시합니다.";
         reportTypeSummary.innerHTML = "";
         reportTypeSummary.classList.add("hidden");
+        latestQuestionTypeScores = [];
+        trendReportPoints = [];
+        setActiveReportFilter(latestReportFilterButtons, getAllReportFilterButton(latestReportFilterButtons));
+        setActiveReportFilter(trendReportFilterButtons, getAllReportFilterButton(trendReportFilterButtons));
         setEmptyState(latestReportEmpty, true);
         setEmptyState(trendReportEmpty, true);
     };
@@ -374,19 +403,41 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
                 reportTypeSummary.innerHTML = "";
                 reportTypeSummary.classList.add("hidden");
+                latestQuestionTypeScores = [];
+                setActiveReportFilter(latestReportFilterButtons, getAllReportFilterButton(latestReportFilterButtons));
                 setEmptyState(latestReportEmpty, true);
                 return;
             }
 
+            latestQuestionTypeScores = payload.questionTypeScores;
+            setActiveReportFilter(latestReportFilterButtons, getAllReportFilterButton(latestReportFilterButtons));
             setEmptyState(latestReportEmpty, false);
-            renderLatestChart(payload.questionTypeScores);
-            renderTypeSummaryWithTrainingLink(payload.questionTypeScores, recipientId);
+            renderLatestChart(latestQuestionTypeScores);
+            renderTypeSummary(latestQuestionTypeScores);
         } catch (error) {
             console.error(error);
             reportTypeSummary.innerHTML = "";
             reportTypeSummary.classList.add("hidden");
+            latestQuestionTypeScores = [];
+            setActiveReportFilter(latestReportFilterButtons, getAllReportFilterButton(latestReportFilterButtons));
             setEmptyState(latestReportEmpty, true);
         }
+    }
+
+    function getAllReportFilterButton(buttons) {
+        return buttons.find((button) => button.dataset.reportFilter === "all") || buttons[0];
+    }
+
+    function setActiveReportFilter(buttons, activeButton) {
+        if (!activeButton) {
+            return;
+        }
+
+        buttons.forEach((button) => {
+            const isActive = button === activeButton;
+            button.classList.toggle("is-active", isActive);
+            button.setAttribute("aria-pressed", String(isActive));
+        });
     }
 
     async function loadTrendReport(recipientId, days) {
@@ -403,15 +454,21 @@ document.addEventListener("DOMContentLoaded", async () => {
                     trendReportChart = null;
                 }
                 trendSummaryHeader.textContent = `최근 ${formatDaysLabel(days)} 동안 표시할 평균 점수 데이터가 없습니다.`;
+                trendReportPoints = [];
+                setActiveReportFilter(trendReportFilterButtons, getAllReportFilterButton(trendReportFilterButtons));
                 setEmptyState(trendReportEmpty, true);
                 return;
             }
 
+            trendReportPoints = payload.points;
+            setActiveReportFilter(trendReportFilterButtons, getAllReportFilterButton(trendReportFilterButtons));
             trendSummaryHeader.textContent = `최근 ${formatDaysLabel(days)} 동안 검사일별 평균 점수 추이입니다.`;
             setEmptyState(trendReportEmpty, false);
-            renderTrendChart(payload.points);
+            renderTrendChart(trendReportPoints);
         } catch (error) {
             console.error(error);
+            trendReportPoints = [];
+            setActiveReportFilter(trendReportFilterButtons, getAllReportFilterButton(trendReportFilterButtons));
             trendSummaryHeader.textContent = "기간별 변화 추이를 불러오지 못했습니다.";
             setEmptyState(trendReportEmpty, true);
         }
@@ -547,29 +604,6 @@ function renderTypeSummary(scores) {
                 <span class="report-type-badge ${item.trainingNeeded ? "is-training-needed" : "is-stable"}">
                     ${item.trainingNeeded ? "훈련 필요" : "안정"}
                 </span>
-            </div>
-        </div>
-    `).join("");
-    container.classList.remove("hidden");
-}
-
-function renderTypeSummaryWithTrainingLink(scores, recipientId) {
-    const container = document.getElementById("report-type-summary");
-    if (!container) {
-        return;
-    }
-
-    container.innerHTML = scores.map((item) => `
-        <div class="report-type-summary-item">
-            <span class="report-type-name">${escapeHtml(item.questionTypeName)}</span>
-            <div class="report-type-meta">
-                <span class="report-type-score">${item.averageScore}점</span>
-                <span class="report-type-badge ${item.trainingNeeded ? "is-training-needed" : "is-stable"}">
-                    ${item.trainingNeeded ? "훈련 필요" : "안정"}
-                </span>
-                ${item.trainingNeeded
-                    ? `<a class="report-training-link" href="/training-program?recipientId=${recipientId}&questionTypeName=${encodeURIComponent(item.questionTypeName)}">훈련하기</a>`
-                    : ""}
             </div>
         </div>
     `).join("");

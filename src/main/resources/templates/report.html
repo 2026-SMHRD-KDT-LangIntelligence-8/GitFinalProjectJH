@@ -38,6 +38,14 @@
         </select>
       </div>
       <div class="card-panel report-card-panel">
+        <div class="report-filter-buttons">
+          <button type="button" class="report-filter-btn is-active" data-report-filter-scope="latest" data-report-filter="all" aria-pressed="true">전체</button>
+          <button type="button" class="report-filter-btn" data-report-filter-scope="latest" data-report-filter="오늘 날짜 말하기" aria-pressed="false">오늘 날짜 말하기</button>
+          <button type="button" class="report-filter-btn" data-report-filter-scope="latest" data-report-filter="그림 설명하기" aria-pressed="false">그림 설명하기</button>
+          <button type="button" class="report-filter-btn" data-report-filter-scope="latest" data-report-filter="상황 질문 답하기" aria-pressed="false">상황 질문 답하기</button>
+          <button type="button" class="report-filter-btn" data-report-filter-scope="latest" data-report-filter="규칙 기반 언어추론" aria-pressed="false">규칙 기반 언어추론</button>
+          <button type="button" class="report-filter-btn" data-report-filter-scope="latest" data-report-filter="추억 말하기" aria-pressed="false">추억 말하기</button>
+        </div>
         <div class="report-summary-header" id="report-summary-header">수급자를 선택하면 최근 검사 리포트가 표시됩니다.</div>
         <div class="report-chart-wrap">
           <canvas id="latest-report-chart"></canvas>
@@ -61,6 +69,14 @@
         </select>
       </div>
       <div class="card-panel report-card-panel report-card-panel-large">
+        <div class="report-filter-buttons">
+          <button type="button" class="report-filter-btn is-active" data-report-filter-scope="trend" data-report-filter="all" aria-pressed="true">전체</button>
+          <button type="button" class="report-filter-btn" data-report-filter-scope="trend" data-report-filter="오늘 날짜 말하기" aria-pressed="false">오늘 날짜 말하기</button>
+          <button type="button" class="report-filter-btn" data-report-filter-scope="trend" data-report-filter="그림 설명하기" aria-pressed="false">그림 설명하기</button>
+          <button type="button" class="report-filter-btn" data-report-filter-scope="trend" data-report-filter="상황 질문 답하기" aria-pressed="false">상황 질문 답하기</button>
+          <button type="button" class="report-filter-btn" data-report-filter-scope="trend" data-report-filter="규칙 기반 언어추론" aria-pressed="false">규칙 기반 언어추론</button>
+          <button type="button" class="report-filter-btn" data-report-filter-scope="trend" data-report-filter="추억 말하기" aria-pressed="false">추억 말하기</button>
+        </div>
         <div class="report-summary-header" id="trend-summary-header">최근 기간의 검사 평균 점수 변화를 표시합니다.</div>
         <div class="report-chart-wrap report-chart-wrap-large">
           <canvas id="trend-report-chart"></canvas>

@@ -391,6 +391,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     function renderVoiceReview(questionId) {
+        if (!voiceReviewText) {
+            return;
+        }
+
         const transcript = state.dbTranscriptsByQuestionId[questionId]?.trim() || "";
         const analysisFailed = state.analysisFailureQuestionIds.includes(questionId);
         const questionCompleted = state.completedQuestionIds.includes(questionId);
