@@ -54,3 +54,6 @@ __pycache__/
 speech_analysis/_questions_for_test.tsv
 speech_analysis/_tester_results.json
 speech_analysis/*_noise.wav
+
+# 업로드된 음성 녹음(개인정보) - 깃에 올리지 않음
+cognitive-voice/

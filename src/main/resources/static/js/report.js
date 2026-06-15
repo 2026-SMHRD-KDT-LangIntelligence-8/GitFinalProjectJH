@@ -61,16 +61,15 @@ function formatScore(score) {
 }
 
 function formatDaysLabel(days) {
-    if (days === 7) {
-        return "1주일";
+    switch (days) {
+        case 3: return "3일";
+        case 7: return "1주일";
+        case 14: return "2주";
+        case 30: return "1개월";
+        case 60: return "2개월";
+        case 90: return "3개월";
+        default: return `${days}일`;
     }
-    if (days === 30) {
-        return "1개월";
-    }
-    if (days === 90) {
-        return "3개월";
-    }
-    return `${days}일`;
 }
 
 function getFilterLabel(button) {
@@ -256,6 +255,76 @@ function renderTrendChart(points, filterLabel = "전체") {
     });
 }
 
+function clearTrendFeedback() {
+    const element = document.getElementById("trend-feedback");
+    if (element) {
+        element.textContent = "";
+    }
+}
+
+// 선택한 유형/기간의 점수 변화를 규칙 기반으로 요약한 피드백 문구를 만든다. (LLM 미사용)
+// 의료 진단을 단정하는 표현은 쓰지 않고, 변화 관찰·담당자 공유 위주로 안내한다.
+function renderTrendFeedback(points, filterLabel, days) {
+    const element = document.getElementById("trend-feedback");
+    if (!element) {
+        return;
+    }
+
+    const round1 = (value) => Math.round(value * 10) / 10;
+    const periodLabel = formatDaysLabel(days);
+    const label = isAllFilter(filterLabel) ? "전체 평균" : `'${filterLabel}'`;
+
+    const series = buildTrendSeries(points, filterLabel).scores
+        .filter((score) => score !== null && score !== undefined)
+        .map((score) => Number(score));
+
+    if (series.length === 0) {
+        element.textContent = `최근 ${periodLabel} 동안 ${label} 점수 데이터가 없습니다.`;
+        return;
+    }
+    if (series.length === 1) {
+        element.textContent = `최근 ${periodLabel} 동안 ${label} 검사가 1회뿐이라 추세를 비교할 수 없습니다. (현재 ${round1(series[0])}점)`;
+        return;
+    }
+
+    const first = series[0];
+    const last = series[series.length - 1];
+    const delta = round1(last - first);
+    const drop = round1(first - last);                              // 양수면 하락폭
+    const avg = round1(series.reduce((sum, value) => sum + value, 0) / series.length);
+    const dropPct = first > 0 ? Math.round((first - last) / first * 100) : 0;
+    const isShort = days <= 14;                                     // 3일·1주·2주 = 단기
+    const flow = `${round1(first)}점 → ${round1(last)}점`;
+
+    let text;
+    if (delta >= 3) {
+        // 상승: 얼마나 올랐는지 알려준다.
+        text = `최근 ${periodLabel} 동안 ${label} 점수가 ${flow}으로 ${Math.abs(delta)}점 올랐습니다. 평균 ${avg}점으로 좋은 흐름입니다.`;
+        if (!isShort) {
+            text += " 길게 봐도 우상향이라 긍정적입니다.";
+        }
+    } else if (isShort) {
+        // 단기(3일·1주·2주): 5점 이내 변동은 정상, 6점 이상부터 관찰, 15점 이상 또는 절반 하락은 강한 안내.
+        if (delta > -6) {
+            text = `최근 ${periodLabel} 동안 ${label} 점수가 평균 ${avg}점으로 큰 변화 없이 유지되고 있습니다. 며칠 사이의 작은 등락은 컨디션·집중도에 따른 자연스러운 차이입니다.`;
+        } else if (dropPct >= 50 || drop >= 15) {
+            text = `최근 ${periodLabel}의 짧은 기간에 ${label} 점수가 ${flow}으로 ${drop}점(약 ${dropPct}%) 낮아졌습니다. 변동 폭이 큰 편이니, 최근 상태와 변화 내용을 담당 선생님(보호자)과 함께 살펴보시길 권합니다.`;
+        } else {
+            text = `최근 ${periodLabel} 동안 ${label} 점수가 ${flow}으로 ${drop}점 낮아졌습니다(평균 ${avg}점). 일시적인 변동일 수 있으니 다음 검사 결과를 함께 지켜봐 주세요.`;
+        }
+    } else {
+        // 중장기(1개월·2개월·3개월): 8점 이내 변동은 안정, 9점 이상 완만한 하락, 20점 이상 또는 절반 하락은 강한 안내.
+        if (delta > -9) {
+            text = `최근 ${periodLabel} 동안 ${label} 점수가 평균 ${avg}점 안팎으로 안정적으로 유지되고 있습니다. 이 정도의 오르내림은 자연스러운 변동입니다.`;
+        } else if (dropPct >= 50 || drop >= 20) {
+            text = `최근 ${periodLabel} 동안 ${label} 점수가 ${flow}으로 ${drop}점(약 ${dropPct}%) 낮아졌습니다(평균 ${avg}점). 지속적인 하락 추세이니, 변화 내용을 담당 선생님(보호자)과 함께 살펴보시길 권합니다.`;
+        } else {
+            text = `최근 ${periodLabel} 동안 ${label} 점수가 ${flow}으로 ${drop}점가량 완만하게 낮아지는 추세입니다(평균 ${avg}점). 추세가 이어지는지 관심 있게 지켜봐 주세요.`;
+        }
+    }
+    element.textContent = text;
+}
+
 function renderTypeSummary(scores, filterLabel = "전체") {
     const container = document.getElementById("report-type-summary");
     if (!container) {
@@ -364,6 +433,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const applyTrendReportFilter = () => {
         if (!trendReportPoints.length) {
             setEmptyState(trendReportEmpty, true);
+            clearTrendFeedback();
             if (trendReportChart) {
                 trendReportChart.destroy();
                 trendReportChart = null;
@@ -378,6 +448,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (!hasRenderableScore) {
             trendReportEmpty.textContent = "선택한 문항 타입의 기간별 점수가 없습니다.";
             setEmptyState(trendReportEmpty, true);
+            clearTrendFeedback();
             if (trendReportChart) {
                 trendReportChart.destroy();
                 trendReportChart = null;
@@ -387,6 +458,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         setEmptyState(trendReportEmpty, false);
         renderTrendChart(trendReportPoints, selectedFilter);
+        renderTrendFeedback(trendReportPoints, selectedFilter, Number(trendSelect.value));
     };
 
     const resetReportUi = (message) => {
@@ -402,6 +474,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         trendReportEmpty.textContent = "기간별 그래프로 표시할 검사 결과가 없습니다.";
         setActiveReportFilter(latestReportFilterButtons, getAllReportFilterButton(latestReportFilterButtons));
         setActiveReportFilter(trendReportFilterButtons, getAllReportFilterButton(trendReportFilterButtons));
+        clearTrendFeedback();
         setEmptyState(latestReportEmpty, true);
         setEmptyState(trendReportEmpty, true);
     };
@@ -725,6 +798,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 trendSummaryHeader.textContent = `최근 ${formatDaysLabel(days)} 동안 표시할 평균 점수 데이터가 없습니다.`;
                 trendReportPoints = [];
                 setActiveReportFilter(trendReportFilterButtons, getAllReportFilterButton(trendReportFilterButtons));
+                clearTrendFeedback();
                 setEmptyState(trendReportEmpty, true);
                 if (trendReportChart) {
                     trendReportChart.destroy();
@@ -740,6 +814,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             console.error(error);
             trendReportPoints = [];
             setActiveReportFilter(trendReportFilterButtons, getAllReportFilterButton(trendReportFilterButtons));
+            clearTrendFeedback();
             trendSummaryHeader.textContent = "기간별 변화 추이를 불러오지 못했습니다.";
             setEmptyState(trendReportEmpty, true);
         }

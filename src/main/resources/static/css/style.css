@@ -888,6 +888,11 @@ a {
 .report-empty-message { display: none; align-items: center; justify-content: center; min-height: 130px; font-size: 13px; font-weight: 600; color: #728a7a; text-align: center; line-height: 1.6; }
 .report-empty-message.is-visible { display: flex; }
 
+/* 기간별 추이 - 점수 변화 피드백 텍스트 */
+.report-trend-feedback { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background-color: #f3f8f4; border: 1px solid #dfe8e1; border-left: 3px solid #23B943; font-size: 12px; font-weight: 600; color: #355244; line-height: 1.6; }
+.report-trend-feedback:empty { display: none; }
+.report-trend-note { margin-top: 6px; font-size: 11px; color: #9aa9a0; line-height: 1.5; }
+
 
 /* ==========================================================================
    8. 검사 및 훈련 그래픽 대시보드 (test.html / training.html)

@@ -63,8 +63,11 @@
       <div class="section-label-row">
         <h2 class="section-title">기간별 변화 추이</h2>
         <select class="select-period-box report-control-shift" id="report-trend-select">
+          <option value="3">최근 3일</option>
           <option value="7">최근 1주일</option>
+          <option value="14">최근 2주</option>
           <option value="30">최근 1개월</option>
+          <option value="60">최근 2개월</option>
           <option value="90">최근 3개월</option>
         </select>
       </div>
@@ -81,6 +84,8 @@
         <div class="report-chart-wrap report-chart-wrap-large">
           <canvas id="trend-report-chart"></canvas>
         </div>
+        <div class="report-trend-feedback" id="trend-feedback"></div>
+        <div class="report-trend-note">※ 점수 추이는 참고용 정보입니다.</div>
         <div class="report-empty-message" id="trend-report-empty">기간 내 그래프로 표시할 검사 결과가 없습니다.</div>
       </div>
       <div class="btn-align-right report-action-row">
