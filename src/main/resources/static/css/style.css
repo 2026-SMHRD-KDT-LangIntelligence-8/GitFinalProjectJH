@@ -900,20 +900,24 @@ a {
 .test-intro-view { width: 100%; display: flex; flex: 1; flex-direction: column; }
 .test-session-view { width: 100%; display: flex; flex: 1; flex-direction: column; gap: 16px; }
 .test-review-view { width: 100%; display: flex; flex: 1; flex-direction: column; gap: 16px; }
-.test-phone-frame {
+.test-phone-frame,
+.training-program-phone-frame {
     overflow-x: hidden;
     overflow-y: auto;
 }
 
-.test-phone-frame::-webkit-scrollbar {
+.test-phone-frame::-webkit-scrollbar,
+.training-program-phone-frame::-webkit-scrollbar {
     width: 5px;
 }
 
-.test-phone-frame::-webkit-scrollbar-track {
+.test-phone-frame::-webkit-scrollbar-track,
+.training-program-phone-frame::-webkit-scrollbar-track {
     margin-block: 36px;
 }
 
-.test-phone-frame::-webkit-scrollbar-thumb {
+.test-phone-frame::-webkit-scrollbar-thumb,
+.training-program-phone-frame::-webkit-scrollbar-thumb {
     background-color: #8fa195;
     border-radius: 3px;
 }

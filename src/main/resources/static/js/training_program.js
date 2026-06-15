@@ -1,5 +1,6 @@
 const TRAINING_SESSION_STORAGE_KEY = "trainingStartPayload";
 const TRAINING_AUDIO_FILE_NAME = "training-answer.webm";
+const TRAINING_DURATION_SECONDS = 70;
 
 document.addEventListener("DOMContentLoaded", async () => {
     const params = new URLSearchParams(window.location.search);
@@ -107,10 +108,17 @@ async function renderTrainingQuestionSession(trainingList, payload, weakPrograms
         mediaStream: null,
         mediaRecorder: null,
         recordedChunks: [],
-        recordingStarted: false
+        recordingStarted: false,
+        timerId: null,
+        remainingSeconds: TRAINING_DURATION_SECONDS,
+        questionAdvancePending: false
     };
 
     trainingList.innerHTML = `
+        <div class="test-timer-card">
+            <span class="timer-label">남은 시간</span>
+            <strong class="timer-value" id="training-question-timer">01:10</strong>
+        </div>
         <div class="test-question-card" id="training-question-card">
             <div class="question-meta-row">
                 <span class="question-type-badge" id="training-type-name"></span>
@@ -137,41 +145,33 @@ async function renderTrainingQuestionSession(trainingList, payload, weakPrograms
     const questionTextElement = document.getElementById("training-question-text");
     const imageWrapElement = document.getElementById("training-image-wrap");
     const imageElement = document.getElementById("training-image");
+    const timerElement = document.getElementById("training-question-timer");
     const startButton = document.getElementById("training-start-button");
     const voiceBadge = document.getElementById("training-voice-badge");
     const voiceGuide = document.getElementById("training-voice-guide");
 
     startButton.addEventListener("click", async () => {
         if (recordingState.recordingStarted) {
-            startButton.disabled = true;
-            await stopTrainingRecordingAndUpload(recordingState, payload.performanceId, selectedQuestions[currentIndex]);
-
-            if (currentIndex >= selectedQuestions.length - 1) {
-                releaseTrainingMediaStream(recordingState);
-                renderTrainingProgramList(trainingList, payload, weakPrograms);
-                return;
-            }
-
-            currentIndex += 1;
-            recordingState.recordingStarted = false;
-            startButton.textContent = "훈련 시작";
-            startButton.disabled = false;
-            setTrainingVoiceState("idle", voiceBadge, voiceGuide);
-            renderTrainingQuestion();
+            await moveToNextTrainingQuestion(false);
             return;
         }
 
         startButton.disabled = true;
         startButton.textContent = "넘어가기";
+        recordingState.recordingStarted = true;
+        runTrainingQuestionTimer();
 
         try {
             await ensureTrainingMicrophoneReady(recordingState);
             startTrainingRecording(recordingState);
-            recordingState.recordingStarted = true;
             startButton.disabled = false;
             setTrainingVoiceState("listening", voiceBadge, voiceGuide);
         } catch (error) {
             console.error(error);
+            clearTrainingQuestionTimer();
+            recordingState.recordingStarted = false;
+            recordingState.remainingSeconds = TRAINING_DURATION_SECONDS;
+            updateTrainingTimerText();
             startButton.disabled = false;
             startButton.textContent = "훈련 시작";
             setTrainingVoiceState("error", voiceBadge, voiceGuide, "마이크 권한을 허용해야 훈련 음성을 저장할 수 있습니다.");
@@ -179,6 +179,71 @@ async function renderTrainingQuestionSession(trainingList, payload, weakPrograms
     });
 
     renderTrainingQuestion();
+
+    async function moveToNextTrainingQuestion(timedOut) {
+        const currentQuestion = selectedQuestions[currentIndex];
+        if (!currentQuestion || recordingState.questionAdvancePending) {
+            return;
+        }
+
+        recordingState.questionAdvancePending = true;
+        startButton.disabled = true;
+        clearTrainingQuestionTimer();
+
+        try {
+            await stopTrainingRecordingAndUpload(recordingState, payload.performanceId, currentQuestion);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            recordingState.questionAdvancePending = false;
+        }
+
+        recordingState.recordingStarted = false;
+
+        if (currentIndex >= selectedQuestions.length - 1) {
+            releaseTrainingMediaStream(recordingState);
+            renderTrainingProgramList(trainingList, payload, weakPrograms);
+            return;
+        }
+
+        currentIndex += 1;
+        recordingState.remainingSeconds = TRAINING_DURATION_SECONDS;
+        startButton.textContent = "훈련 시작";
+        startButton.disabled = false;
+        setTrainingVoiceState("idle", voiceBadge, voiceGuide, timedOut ? "시간이 종료되어 다음 문항으로 이동했습니다." : undefined);
+        renderTrainingQuestion();
+    }
+
+    function runTrainingQuestionTimer() {
+        clearTrainingQuestionTimer();
+        updateTrainingTimerText();
+
+        recordingState.timerId = window.setInterval(() => {
+            recordingState.remainingSeconds -= 1;
+            updateTrainingTimerText();
+
+            if (recordingState.remainingSeconds <= 0) {
+                clearTrainingQuestionTimer();
+                moveToNextTrainingQuestion(true).catch((error) => {
+                    console.error(error);
+                });
+            }
+        }, 1000);
+    }
+
+    function clearTrainingQuestionTimer() {
+        if (recordingState.timerId !== null) {
+            window.clearInterval(recordingState.timerId);
+            recordingState.timerId = null;
+        }
+    }
+
+    function updateTrainingTimerText() {
+        const safeSeconds = Math.max(recordingState.remainingSeconds, 0);
+        const minutes = String(Math.floor(safeSeconds / 60)).padStart(2, "0");
+        const seconds = String(safeSeconds % 60).padStart(2, "0");
+        timerElement.textContent = `${minutes}:${seconds}`;
+    }
 
     function renderTrainingQuestion() {
         const currentQuestion = selectedQuestions[currentIndex];
@@ -195,6 +260,8 @@ async function renderTrainingQuestionSession(trainingList, payload, weakPrograms
             imageElement.removeAttribute("src");
             imageWrapElement.classList.add("hidden");
         }
+
+        updateTrainingTimerText();
     }
 }
 
