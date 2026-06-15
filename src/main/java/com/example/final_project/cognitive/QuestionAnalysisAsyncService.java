@@ -74,11 +74,11 @@ public class QuestionAnalysisAsyncService {
 
             cognitiveTestRepository.updateQuestionResultTexts(
                     questionResultId,
-                    analysisResult.sttText(),
-                    analysisResult.preprocessedText()
+                    analysisResult.sttText()
             );
             cognitiveTestRepository.saveAnalysisResult(
                     questionResultId,
+                    analysisResult.preprocessedText(),
                     analysisResult.responseTime(),
                     analysisResult.repetitionRatio(),
                     analysisResult.avgSentenceLength(),

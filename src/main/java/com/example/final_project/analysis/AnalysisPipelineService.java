@@ -28,7 +28,7 @@ public class AnalysisPipelineService {
             @Value("${app.speech-analysis.base-url:http://localhost:8000}") String baseUrl,
             @Value("${app.speech-analysis.connect-timeout-ms:5000}") int connectTimeoutMs,
             @Value("${app.speech-analysis.read-timeout-ms:60000}") int readTimeoutMs,
-            @Value("${app.speech-analysis.use-llm-scoring:false}") boolean useLlmScoring
+            @Value("${app.speech-analysis.use-llm-scoring:true}") boolean useLlmScoring
     ) {
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(Duration.ofMillis(connectTimeoutMs));

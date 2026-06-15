@@ -159,7 +159,7 @@ public class CognitiveTestRepository {
     }
 
     // STT 원문과 전처리 문장을 같은 문항 결과에 덮어쓴다.
-    public void updateQuestionResultTexts(Long questionResultId, String sttText, String preprocessedText) {
+    public void updateQuestionResultTexts(Long questionResultId, String sttText) {
         jdbcTemplate.update(
                 """
                 UPDATE QUESTION_RESULTS
@@ -174,6 +174,7 @@ public class CognitiveTestRepository {
     // 문항별 분석 결과는 재업로드 상황을 고려해 있으면 수정하고 없으면 새로 저장한다.
     public void saveAnalysisResult(
             Long questionResultId,
+            String preprocessedText,
             Double responseTime,
             Double repetitionRatio,
             Double avgSentenceLength,
@@ -189,13 +190,15 @@ public class CognitiveTestRepository {
             jdbcTemplate.update(
                     """
                     UPDATE ANALYSIS_RESULTS
-                    SET response_time = ?,
+                    SET preprocessed_text = ?,
+                        response_time = ?,
                         repetition_ratio = ?,
                         avg_sentence_length = ?,
                         appropriateness_score = ?,
                         analyzed_at = NOW()
                     WHERE question_result_id = ?
                     """,
+                    preprocessedText,
                     responseTime,
                     repetitionRatio,
                     avgSentenceLength,
@@ -209,14 +212,16 @@ public class CognitiveTestRepository {
                 """
                 INSERT INTO ANALYSIS_RESULTS (
                     question_result_id,
+                    preprocessed_text,
                     response_time,
                     repetition_ratio,
                     avg_sentence_length,
                     appropriateness_score,
                     analyzed_at
-                ) VALUES (?, ?, ?, ?, ?, NOW())
+                ) VALUES (?, ?, ?, ?, ?, ?, NOW())
                 """,
                 questionResultId,
+                preprocessedText,
                 responseTime,
                 repetitionRatio,
                 avgSentenceLength,
@@ -231,7 +236,7 @@ public class CognitiveTestRepository {
                        qr.question_id,
                        qr.voice_file_path,
                        qr.stt_text,
-                       NULL AS preprocessed_text,
+                       ar.preprocessed_text,
                        ar.appropriateness_score
                 FROM QUESTION_RESULTS qr
                 INNER JOIN PERFORMANCE_RECORDS pr ON pr.performance_id = qr.performance_id
