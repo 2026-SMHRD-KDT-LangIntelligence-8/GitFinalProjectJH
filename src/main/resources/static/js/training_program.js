@@ -128,9 +128,7 @@ async function renderTrainingQuestionSession(trainingList, payload, weakPrograms
             </div>
         </div>
         <div class="test-session-actions">
-            <button type="button" class="timer-start-btn" id="training-list-button">목록으로</button>
             <button type="button" class="timer-start-btn" id="training-start-button">훈련 시작</button>
-            <button type="button" class="next-question-btn" id="training-next-button" disabled>다음 문제</button>
         </div>
     `;
 
@@ -139,49 +137,45 @@ async function renderTrainingQuestionSession(trainingList, payload, weakPrograms
     const questionTextElement = document.getElementById("training-question-text");
     const imageWrapElement = document.getElementById("training-image-wrap");
     const imageElement = document.getElementById("training-image");
-    const listButton = document.getElementById("training-list-button");
     const startButton = document.getElementById("training-start-button");
-    const nextButton = document.getElementById("training-next-button");
     const voiceBadge = document.getElementById("training-voice-badge");
     const voiceGuide = document.getElementById("training-voice-guide");
 
-    listButton.addEventListener("click", async () => {
-        await stopTrainingRecordingAndUpload(recordingState, payload.performanceId, selectedQuestions[currentIndex]);
-        releaseTrainingMediaStream(recordingState);
-        renderTrainingProgramList(trainingList, payload, weakPrograms);
-    });
-
     startButton.addEventListener("click", async () => {
+        if (recordingState.recordingStarted) {
+            startButton.disabled = true;
+            await stopTrainingRecordingAndUpload(recordingState, payload.performanceId, selectedQuestions[currentIndex]);
+
+            if (currentIndex >= selectedQuestions.length - 1) {
+                releaseTrainingMediaStream(recordingState);
+                renderTrainingProgramList(trainingList, payload, weakPrograms);
+                return;
+            }
+
+            currentIndex += 1;
+            recordingState.recordingStarted = false;
+            startButton.textContent = "훈련 시작";
+            startButton.disabled = false;
+            setTrainingVoiceState("idle", voiceBadge, voiceGuide);
+            renderTrainingQuestion();
+            return;
+        }
+
         startButton.disabled = true;
-        nextButton.disabled = false;
+        startButton.textContent = "넘어가기";
 
         try {
             await ensureTrainingMicrophoneReady(recordingState);
             startTrainingRecording(recordingState);
             recordingState.recordingStarted = true;
+            startButton.disabled = false;
             setTrainingVoiceState("listening", voiceBadge, voiceGuide);
         } catch (error) {
             console.error(error);
             startButton.disabled = false;
+            startButton.textContent = "훈련 시작";
             setTrainingVoiceState("error", voiceBadge, voiceGuide, "마이크 권한을 허용해야 훈련 음성을 저장할 수 있습니다.");
         }
-    });
-
-    nextButton.addEventListener("click", async () => {
-        await stopTrainingRecordingAndUpload(recordingState, payload.performanceId, selectedQuestions[currentIndex]);
-
-        if (currentIndex >= selectedQuestions.length - 1) {
-            releaseTrainingMediaStream(recordingState);
-            renderTrainingProgramList(trainingList, payload, weakPrograms);
-            return;
-        }
-
-        currentIndex += 1;
-        recordingState.recordingStarted = false;
-        startButton.disabled = false;
-        nextButton.disabled = true;
-        setTrainingVoiceState("idle", voiceBadge, voiceGuide);
-        renderTrainingQuestion();
     });
 
     renderTrainingQuestion();
@@ -201,8 +195,6 @@ async function renderTrainingQuestionSession(trainingList, payload, weakPrograms
             imageElement.removeAttribute("src");
             imageWrapElement.classList.add("hidden");
         }
-
-        nextButton.textContent = currentIndex >= selectedQuestions.length - 1 ? "훈련 종료" : "다음 문제";
     }
 }
 
