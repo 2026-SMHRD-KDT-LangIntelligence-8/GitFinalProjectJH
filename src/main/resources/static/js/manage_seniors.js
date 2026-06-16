@@ -3,6 +3,7 @@
 document.addEventListener("DOMContentLoaded", async () => {
     const searchInput = document.getElementById("recipient-search-input");
     const searchButton = document.getElementById("recipient-search-button");
+    const suggestionBox = document.getElementById("recipient-suggestion-box");
     const listContainer = document.getElementById("recipient-list-container");
     const addButton = document.getElementById("recipient-add-button");
     const consentModal = document.getElementById("privacy-consent-modal");
@@ -11,6 +12,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     const consentCancelButton = document.getElementById("privacy-consent-cancel-button");
 
     let recipients = [];
+
+    const escapeHtml = (value) => String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll("\"", "&quot;")
+        .replaceAll("'", "&#039;");
 
     const renderRecipients = (keyword = "") => {
         const normalizedKeyword = keyword.trim();
@@ -56,15 +64,77 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
 
+    const hideSuggestions = () => {
+        if (!suggestionBox) {
+            return;
+        }
+
+        suggestionBox.classList.add("hidden");
+        suggestionBox.innerHTML = "";
+    };
+
+    const renderSuggestions = () => {
+        if (!suggestionBox) {
+            return;
+        }
+
+        const keyword = searchInput.value.trim();
+        if (!keyword) {
+            hideSuggestions();
+            return;
+        }
+
+        const matchedRecipients = recipients.filter((recipient) =>
+            (recipient.recipientName ?? "").includes(keyword)
+        );
+
+        if (matchedRecipients.length === 0) {
+            hideSuggestions();
+            return;
+        }
+
+        suggestionBox.innerHTML = matchedRecipients.map((recipient) => `
+            <button type="button" class="recipient-suggestion-item" data-recipient-id="${recipient.recipientId}">
+                ${escapeHtml(recipient.recipientName)}
+            </button>
+        `).join("");
+        suggestionBox.classList.remove("hidden");
+    };
+
     // 검색 버튼 클릭과 Enter 입력 모두 같은 검색 함수를 사용한다.
-    const runSearch = () => renderRecipients(searchInput.value);
+    const runSearch = () => {
+        renderRecipients(searchInput.value);
+        hideSuggestions();
+    };
 
     searchButton.addEventListener("click", runSearch);
+    searchInput.addEventListener("input", renderSuggestions);
     searchInput.addEventListener("keydown", (event) => {
         if (event.key === "Enter") {
             event.preventDefault();
             runSearch();
         }
+
+        if (event.key === "Escape") {
+            hideSuggestions();
+        }
+    });
+
+    suggestionBox?.addEventListener("click", (event) => {
+        const item = event.target.closest(".recipient-suggestion-item");
+        if (!item) {
+            return;
+        }
+
+        window.location.href = `/manage-seniors/detail?recipientId=${item.dataset.recipientId}`;
+    });
+
+    document.addEventListener("click", (event) => {
+        if (event.target.closest(".recipient-search-field")) {
+            return;
+        }
+
+        hideSuggestions();
     });
 
     if (addButton && consentModal && consentCheckbox && consentConfirmButton && consentCancelButton) {

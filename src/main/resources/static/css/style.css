@@ -479,8 +479,51 @@ a {
    4. 수급자 관리 리스트 (manage_seniors.html)
    ========================================================================== */
 .search-container { display: flex; gap: 8px; width: 100%; margin-bottom: 20px; }
+.recipient-search-field { position: relative; flex: 1; }
 .search-input { flex: 1; height: 40px; border: 1.5px solid #e2ece6; border-radius: 10px; padding: 0 12px; font-size: 13px; outline: none; }
+.recipient-search-field .search-input { width: 100%; box-sizing: border-box; }
 .search-btn { width: 60px; height: 40px; background-color: #2e6f40; color: #ffffff; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; }
+
+.recipient-suggestion-box {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 20;
+    max-height: 180px;
+    overflow-y: auto;
+    border: 1px solid #d9e5dc;
+    border-radius: 10px;
+    background-color: #ffffff;
+    box-shadow: 0 8px 18px rgba(17, 56, 28, 0.12);
+}
+
+.recipient-suggestion-item {
+    width: 100%;
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    box-sizing: border-box;
+    border: none;
+    border-bottom: 1px solid #eef4ef;
+    background-color: transparent;
+    color: #11381c;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+}
+
+.recipient-suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.recipient-suggestion-item:hover,
+.recipient-suggestion-item:focus {
+    background-color: #f4f8f5;
+}
 
 .table-header-labels { display: flex; justify-content: space-between; width: 100%; padding: 10px 0; border-bottom: 2px solid #1e5e3a; }
 .header-item { font-size: 13px; font-weight: 800; color: #0d2b15; text-align: center; }

@@ -25,12 +25,16 @@
 
     <div class="search-container">
         <!-- JS에서 이름 검색을 연결할 수 있도록 id를 분리한다. -->
-        <input
-                type="text"
-                id="recipient-search-input"
-                class="search-input"
-                placeholder="수급자 이름을 입력하세요"
-        >
+        <div class="recipient-search-field">
+            <input
+                    type="text"
+                    id="recipient-search-input"
+                    class="search-input"
+                    placeholder="수급자 이름을 입력하세요"
+                    autocomplete="off"
+            >
+            <div class="recipient-suggestion-box hidden" id="recipient-suggestion-box"></div>
+        </div>
         <button type="button" id="recipient-search-button" class="search-btn">검색</button>
     </div>
 
