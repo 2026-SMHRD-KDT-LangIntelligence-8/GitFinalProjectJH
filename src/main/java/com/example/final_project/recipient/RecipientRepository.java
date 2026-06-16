@@ -224,6 +224,31 @@ public class RecipientRepository {
         }
     }
 
+    public void deleteByIdAndUserId(Long recipientId, String userId) {
+        boolean exists = findByIdAndUserId(recipientId, userId).isPresent();
+        if (!exists) {
+            throw new IllegalArgumentException("해당 수급자를 찾을 수 없습니다. id=" + recipientId);
+        }
+
+        deletePerformanceDataByRecipientIdAndUserId(recipientId, userId);
+
+        jdbcTemplate.update(
+                "DELETE FROM USER_RECIPIENTS WHERE user_id = ? AND recipient_id = ?",
+                userId,
+                recipientId
+        );
+
+        Integer mappingCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM USER_RECIPIENTS WHERE recipient_id = ?",
+                Integer.class,
+                recipientId
+        );
+
+        if (mappingCount != null && mappingCount == 0) {
+            jdbcTemplate.update("DELETE FROM RECIPIENTS WHERE recipient_id = ?", recipientId);
+        }
+    }
+
     private void deletePerformanceDataByRecipientIdAndUserId(Long recipientId, String userId) {
         jdbcTemplate.update(
                 """

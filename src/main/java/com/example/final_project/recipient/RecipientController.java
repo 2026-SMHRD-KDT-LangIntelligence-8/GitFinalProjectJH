@@ -7,6 +7,7 @@ import com.example.final_project.recipient.dto.RecipientResponse;
 import com.example.final_project.recipient.dto.RecipientUpdateRequest;
 import com.example.final_project.user.CurrentUserService;
 import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -82,5 +83,13 @@ public class RecipientController {
             @RequestBody RecipientNotesUpdateRequest request
     ) {
         return recipientService.updateRecipientNotes(recipientId, request, currentUserService.getRequiredUserId());
+    }
+
+    /**
+     * 현재 로그인한 사용자에게 연결된 수급자와 관련 검사 데이터를 삭제한다.
+     */
+    @DeleteMapping("/{recipientId}")
+    public void deleteRecipient(@PathVariable Long recipientId) {
+        recipientService.deleteRecipient(recipientId, currentUserService.getRequiredUserId());
     }
 }

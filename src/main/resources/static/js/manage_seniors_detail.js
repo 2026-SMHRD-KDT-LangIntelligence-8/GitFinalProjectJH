@@ -69,7 +69,11 @@ document.getElementById("val-keypad").addEventListener("blur", (event) => {
 });
 
 const notesEditButton = document.getElementById("notes-edit-button");
+const notesDeleteButton = document.getElementById("notes-delete-button");
 const notesTextarea = document.getElementById("notes-textarea");
+const deleteModal = document.getElementById("recipient-delete-modal");
+const deleteConfirmButton = document.getElementById("recipient-delete-confirm-button");
+const deleteCancelButton = document.getElementById("recipient-delete-cancel-button");
 const detailParams = new URLSearchParams(window.location.search);
 const detailRecipientId = detailParams.get("recipientId");
 
@@ -113,6 +117,66 @@ if (notesEditButton && notesTextarea && detailRecipientId) {
             alert("기타 특이사항 저장에 실패했습니다.");
         } finally {
             notesEditButton.disabled = false;
+        }
+    });
+}
+
+const openDeleteModal = () => {
+    if (!deleteModal) {
+        return;
+    }
+
+    deleteModal.classList.remove("hidden");
+    deleteConfirmButton?.focus();
+};
+
+const closeDeleteModal = () => {
+    if (!deleteModal) {
+        return;
+    }
+
+    deleteModal.classList.add("hidden");
+    notesDeleteButton?.focus();
+};
+
+if (notesDeleteButton && deleteModal && deleteConfirmButton && deleteCancelButton && detailRecipientId) {
+    notesDeleteButton.addEventListener("click", openDeleteModal);
+    deleteCancelButton.addEventListener("click", closeDeleteModal);
+
+    deleteConfirmButton.addEventListener("click", async () => {
+        notesDeleteButton.disabled = true;
+        deleteConfirmButton.disabled = true;
+        deleteCancelButton.disabled = true;
+        if (notesEditButton) {
+            notesEditButton.disabled = true;
+        }
+
+        try {
+            const response = await fetch(`/api/recipients/${detailRecipientId}`, {
+                method: "DELETE"
+            });
+
+            if (!response.ok) {
+                throw new Error("수급자 삭제 실패");
+            }
+
+            alert("수급자가 삭제되었습니다.");
+            window.location.href = "/manage-seniors";
+        } catch (error) {
+            console.error(error);
+            alert("수급자 삭제에 실패했습니다.");
+            notesDeleteButton.disabled = false;
+            deleteConfirmButton.disabled = false;
+            deleteCancelButton.disabled = false;
+            if (notesEditButton) {
+                notesEditButton.disabled = false;
+            }
+        }
+    });
+
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && !deleteModal.classList.contains("hidden")) {
+            closeDeleteModal();
         }
     });
 }

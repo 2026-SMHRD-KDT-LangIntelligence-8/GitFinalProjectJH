@@ -39,6 +39,8 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
 
     @SuppressWarnings("unchecked")
     private void saveKakaoUser(OAuth2User oauth2User) {
+        ensureCaregiverInfoColumns();
+
         // 카카오 응답 구조가 중첩 Map 형태라 필요한 영역만 단계적으로 꺼낸다.
         Map<String, Object> attributes = oauth2User.getAttributes();
         Map<String, Object> kakaoAccount = (Map<String, Object>) attributes.get("kakao_account");
@@ -76,5 +78,54 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
                     kakaoId, nickname
             );
         }
+    }
+
+    private void ensureCaregiverInfoColumns() {
+        ensureColumn("care_worker_cert_no", "varchar(100)");
+        ensureColumn("agency_name", "varchar(255)");
+        ensureColumn("email", "varchar(255)");
+        ensureColumn("phone_number", "varchar(30)");
+        dropColumnIfExists("caregiver_license_number");
+        dropColumnIfExists("organization_name");
+    }
+
+    private void ensureColumn(String columnName, String columnDefinition) {
+        Integer columnCount = jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'USERS'
+                  AND COLUMN_NAME = ?
+                """,
+                Integer.class,
+                columnName
+        );
+
+        if (columnCount == null || columnCount > 0) {
+            return;
+        }
+
+        jdbcTemplate.execute("ALTER TABLE USERS ADD COLUMN " + columnName + " " + columnDefinition);
+    }
+
+    private void dropColumnIfExists(String columnName) {
+        Integer columnCount = jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'USERS'
+                  AND COLUMN_NAME = ?
+                """,
+                Integer.class,
+                columnName
+        );
+
+        if (columnCount == null || columnCount == 0) {
+            return;
+        }
+
+        jdbcTemplate.execute("ALTER TABLE USERS DROP COLUMN " + columnName);
     }
 }

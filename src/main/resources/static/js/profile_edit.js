@@ -9,6 +9,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const domainSelect = document.getElementById("email-domain-select");
     const customDomainInput = document.getElementById("email-domain-custom");
     const emailIdInput = document.getElementById("email-id");
+    const caregiverLicenseNumberInput = document.getElementById("profile-caregiver-license-number");
+    const organizationNameInput = document.getElementById("profile-organization-name");
     const saveButton = document.getElementById("profile-save-button");
     const withdrawButton = document.getElementById("profile-withdraw-button");
 
@@ -17,7 +19,9 @@ document.addEventListener("DOMContentLoaded", () => {
         emailId: "",
         emailDomain: "naver.com",
         emailDomainCustom: "",
-        phone: ""
+        phone: "",
+        caregiverLicenseNumber: "",
+        organizationName: ""
     };
 
     // 현재 입력 상태를 하나의 객체로 모아두면 변경 여부 비교와 저장 처리가 단순해진다.
@@ -26,8 +30,37 @@ document.addEventListener("DOMContentLoaded", () => {
         emailId: emailIdInput.value.trim(),
         emailDomain: domainSelect.value,
         emailDomainCustom: customDomainInput.value.trim(),
-        phone: phoneInput.value.trim()
+        phone: phoneInput.value.trim(),
+        caregiverLicenseNumber: caregiverLicenseNumberInput.value.trim(),
+        organizationName: organizationNameInput.value.trim()
     });
+
+    const resolveEmail = (profile) => {
+        const domain = profile.emailDomain === "직접입력" ? profile.emailDomainCustom : profile.emailDomain;
+        return profile.emailId && domain ? `${profile.emailId}@${domain}` : "";
+    };
+
+    const applyEmailToInputs = (email) => {
+        if (!email || !email.includes("@")) {
+            return;
+        }
+
+        const [emailId, ...domainParts] = email.split("@");
+        const emailDomain = domainParts.join("@");
+        const presetDomains = Array.from(domainSelect.options).map((option) => option.value);
+
+        emailIdInput.value = emailId;
+        if (presetDomains.includes(emailDomain)) {
+            domainSelect.value = emailDomain;
+            customDomainInput.value = "";
+            customDomainInput.classList.add("hidden");
+            return;
+        }
+
+        domainSelect.value = "직접입력";
+        customDomainInput.value = emailDomain;
+        customDomainInput.classList.remove("hidden");
+    };
 
     // localStorage에 저장된 값이 있으면 불러오고, 없으면 기본값으로 시작한다.
     const loadSavedProfile = () => {
@@ -46,6 +79,8 @@ document.addEventListener("DOMContentLoaded", () => {
         domainSelect.value = profile.emailDomain ?? "naver.com";
         customDomainInput.value = profile.emailDomainCustom ?? "";
         phoneInput.value = profile.phone ?? "";
+        caregiverLicenseNumberInput.value = profile.caregiverLicenseNumber ?? "";
+        organizationNameInput.value = profile.organizationName ?? "";
 
         const isCustomDomain = domainSelect.value === "직접입력";
         customDomainInput.classList.toggle("hidden", !isCustomDomain);
@@ -64,9 +99,20 @@ document.addEventListener("DOMContentLoaded", () => {
             const profile = await response.json();
             const kakaoName = profile.userName ?? "";
             nameInput.value = kakaoName;
+            applyEmailToInputs(profile.email ?? "");
+            phoneInput.value = profile.phoneNumber ?? "";
+            caregiverLicenseNumberInput.value = profile.caregiverLicenseNumber ?? "";
+            organizationNameInput.value = profile.organizationName ?? "";
+            const loadedProfile = getCurrentProfile();
             originalProfile = {
                 ...originalProfile,
-                name: kakaoName
+                name: kakaoName,
+                emailId: loadedProfile.emailId,
+                emailDomain: loadedProfile.emailDomain,
+                emailDomainCustom: loadedProfile.emailDomainCustom,
+                phone: loadedProfile.phone,
+                caregiverLicenseNumber: loadedProfile.caregiverLicenseNumber,
+                organizationName: loadedProfile.organizationName
             };
         } catch (error) {
             console.error(error);
@@ -114,7 +160,7 @@ document.addEventListener("DOMContentLoaded", () => {
         event.target.value = formattedValue;
     });
 
-    saveButton.addEventListener("click", () => {
+    saveButton.addEventListener("click", async () => {
         const currentProfile = getCurrentProfile();
 
         // 이메일 도메인을 직접 입력으로 두었으면 실제 도메인 값을 꼭 확인한다.
@@ -124,22 +170,68 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+        const email = resolveEmail(currentProfile);
+        if (!email) {
+            alert("이메일을 입력해주세요.");
+            emailIdInput.focus();
+            return;
+        }
+
         // 세 항목 중 하나라도 달라졌는지 비교해서, 실제 변경이 있을 때만 저장하도록 한다.
         const hasAnyChange =
             currentProfile.emailId !== originalProfile.emailId ||
             currentProfile.emailDomain !== originalProfile.emailDomain ||
             currentProfile.emailDomainCustom !== originalProfile.emailDomainCustom ||
-            currentProfile.phone !== originalProfile.phone;
+            currentProfile.phone !== originalProfile.phone ||
+            currentProfile.caregiverLicenseNumber !== originalProfile.caregiverLicenseNumber ||
+            currentProfile.organizationName !== originalProfile.organizationName;
 
         if (!hasAnyChange) {
             alert("변경된 내용이 없습니다.");
             return;
         }
 
-        localStorage.setItem(storageKey, JSON.stringify(currentProfile));
-        // 수정 완료 안내를 보여준 뒤 메인 페이지로 이동시켜 사용 흐름을 마무리한다.
-        alert("수정이 완료되었습니다.");
-        window.location.href = "/main";
+        if (!currentProfile.caregiverLicenseNumber) {
+            alert("요양보호사 자격번호를 입력해주세요.");
+            caregiverLicenseNumberInput.focus();
+            return;
+        }
+
+        if (!currentProfile.organizationName) {
+            alert("소속 기관을 입력해주세요.");
+            organizationNameInput.focus();
+            return;
+        }
+
+        saveButton.disabled = true;
+
+        try {
+            const response = await fetch("/api/users/profile", {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    email,
+                    phoneNumber: currentProfile.phone,
+                    caregiverLicenseNumber: currentProfile.caregiverLicenseNumber,
+                    organizationName: currentProfile.organizationName
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error("profile_update_failed");
+            }
+
+            localStorage.setItem(storageKey, JSON.stringify(currentProfile));
+            // 수정 완료 안내를 보여준 뒤 메인 페이지로 이동시켜 사용 흐름을 마무리한다.
+            alert("수정이 완료되었습니다.");
+            window.location.href = "/main";
+        } catch (error) {
+            console.error(error);
+            alert("개인정보 수정 저장에 실패했습니다.");
+            saveButton.disabled = false;
+        }
     });
 
     withdrawButton.addEventListener("click", async () => {

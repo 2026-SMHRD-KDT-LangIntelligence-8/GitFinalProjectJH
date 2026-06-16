@@ -4,6 +4,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     const searchInput = document.getElementById("recipient-search-input");
     const searchButton = document.getElementById("recipient-search-button");
     const listContainer = document.getElementById("recipient-list-container");
+    const addButton = document.getElementById("recipient-add-button");
+    const consentModal = document.getElementById("privacy-consent-modal");
+    const consentCheckbox = document.getElementById("privacy-consent-checkbox");
+    const consentConfirmButton = document.getElementById("privacy-consent-confirm-button");
+    const consentCancelButton = document.getElementById("privacy-consent-cancel-button");
 
     let recipients = [];
 
@@ -61,6 +66,45 @@ document.addEventListener("DOMContentLoaded", async () => {
             runSearch();
         }
     });
+
+    if (addButton && consentModal && consentCheckbox && consentConfirmButton && consentCancelButton) {
+        const openConsentModal = () => {
+            consentCheckbox.checked = false;
+            consentConfirmButton.disabled = true;
+            consentModal.classList.remove("hidden");
+            consentCheckbox.focus();
+        };
+
+        const closeConsentModal = () => {
+            consentModal.classList.add("hidden");
+            addButton.focus();
+        };
+
+        addButton.addEventListener("click", (event) => {
+            event.preventDefault();
+            openConsentModal();
+        });
+
+        consentCheckbox.addEventListener("change", () => {
+            consentConfirmButton.disabled = !consentCheckbox.checked;
+        });
+
+        consentCancelButton.addEventListener("click", closeConsentModal);
+
+        consentConfirmButton.addEventListener("click", () => {
+            if (!consentCheckbox.checked) {
+                return;
+            }
+
+            window.location.href = addButton.href;
+        });
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape" && !consentModal.classList.contains("hidden")) {
+                closeConsentModal();
+            }
+        });
+    }
 
     await loadRecipients();
 });

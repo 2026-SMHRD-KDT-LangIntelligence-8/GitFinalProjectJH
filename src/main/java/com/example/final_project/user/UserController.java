@@ -12,9 +12,12 @@ import org.springframework.security.web.authentication.logout.SecurityContextLog
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @RestController
@@ -42,23 +45,118 @@ public class UserController {
                 && authentication.isAuthenticated()
                 && authentication.getPrincipal() instanceof OAuth2User;
 
-        return Map.of("authenticated", authenticated);
+        Map<String, Object> status = new HashMap<>();
+        status.put("authenticated", authenticated);
+
+        if (authenticated) {
+            ensureCaregiverInfoColumns();
+            String userId = currentUserService.getRequiredUserId();
+            status.put("caregiverProfileCompleted", hasCaregiverInfo(userId));
+        }
+
+        return status;
     }
 
     @GetMapping("/me")
     public Map<String, Object> getCurrentUser() {
+        ensureCaregiverInfoColumns();
         String userId = currentUserService.getRequiredUserId();
-        String userName = jdbcTemplate.query(
-                "select user_name from USERS where user_id = ?",
-                rs -> rs.next() ? rs.getString("user_name") : "",
+        return jdbcTemplate.query(
+                """
+                select user_name, email, phone_number, care_worker_cert_no, agency_name
+                from USERS
+                where user_id = ?
+                """,
+                rs -> {
+                    Map<String, Object> user = new HashMap<>();
+                    user.put("authenticated", true);
+                    user.put("userId", userId);
+
+                    if (rs.next()) {
+                        user.put("userName", rs.getString("user_name"));
+                        user.put("email", rs.getString("email"));
+                        user.put("phoneNumber", rs.getString("phone_number"));
+                        user.put("caregiverLicenseNumber", rs.getString("care_worker_cert_no"));
+                        user.put("organizationName", rs.getString("agency_name"));
+                    } else {
+                        user.put("userName", "");
+                        user.put("email", "");
+                        user.put("phoneNumber", "");
+                        user.put("caregiverLicenseNumber", "");
+                        user.put("organizationName", "");
+                    }
+
+                    return user;
+                },
+                userId
+        );
+    }
+
+    @GetMapping("/caregiver-info")
+    public Map<String, Object> getCaregiverInfo() {
+        return getCurrentUser();
+    }
+
+    @PutMapping("/caregiver-info")
+    public Map<String, Object> updateCaregiverInfo(@RequestBody Map<String, String> request) {
+        ensureCaregiverInfoColumns();
+        String userId = currentUserService.getRequiredUserId();
+        String caregiverLicenseNumber = request.getOrDefault("caregiverLicenseNumber", "").trim();
+        String organizationName = request.getOrDefault("organizationName", "").trim();
+
+        if (caregiverLicenseNumber.isBlank() || organizationName.isBlank()) {
+            throw new IllegalArgumentException("요양보호사 자격번호와 소속 기관을 모두 입력해주세요.");
+        }
+
+        jdbcTemplate.update(
+                """
+                update USERS
+                set care_worker_cert_no = ?,
+                    agency_name = ?
+                where user_id = ?
+                """,
+                caregiverLicenseNumber,
+                organizationName,
                 userId
         );
 
-        return Map.of(
-                "authenticated", true,
-                "userId", userId,
-                "userName", userName
+        return Map.of("message", "saved");
+    }
+
+    @PutMapping("/profile")
+    public Map<String, Object> updateProfile(@RequestBody Map<String, String> request) {
+        ensureCaregiverInfoColumns();
+        String userId = currentUserService.getRequiredUserId();
+        String email = request.getOrDefault("email", "").trim();
+        String phoneNumber = request.getOrDefault("phoneNumber", "").trim();
+        String caregiverLicenseNumber = request.getOrDefault("caregiverLicenseNumber", "").trim();
+        String organizationName = request.getOrDefault("organizationName", "").trim();
+
+        if (email.isBlank()) {
+            throw new IllegalArgumentException("이메일을 입력해주세요.");
+        }
+
+        if (caregiverLicenseNumber.isBlank() || organizationName.isBlank()) {
+            throw new IllegalArgumentException("요양보호사 자격번호와 소속 기관을 모두 입력해주세요.");
+        }
+
+        jdbcTemplate.update(
+                """
+                update USERS
+                set email = ?,
+                    phone_number = ?,
+                    care_worker_cert_no = ?,
+                    agency_name = ?
+                where user_id = ?
+                """,
+                email,
+                phoneNumber,
+                caregiverLicenseNumber,
+                organizationName,
+                userId
         );
+
+        return Map.of("message", "saved");
     }
 
     @DeleteMapping("/me")
@@ -76,5 +174,75 @@ public class UserController {
         new CookieClearingLogoutHandler("JSESSIONID").logout(request, response, authentication);
 
         return Map.of("message", "withdrawn");
+    }
+
+    private boolean hasCaregiverInfo(String userId) {
+        return jdbcTemplate.query(
+                """
+                select care_worker_cert_no, agency_name
+                from USERS
+                where user_id = ?
+                """,
+                rs -> {
+                    if (!rs.next()) {
+                        return false;
+                    }
+
+                    String caregiverLicenseNumber = rs.getString("care_worker_cert_no");
+                    String organizationName = rs.getString("agency_name");
+                    return caregiverLicenseNumber != null && !caregiverLicenseNumber.isBlank()
+                            && organizationName != null && !organizationName.isBlank();
+                },
+                userId
+        );
+    }
+
+    private void ensureCaregiverInfoColumns() {
+        ensureColumn("care_worker_cert_no", "varchar(100)");
+        ensureColumn("agency_name", "varchar(255)");
+        ensureColumn("email", "varchar(255)");
+        ensureColumn("phone_number", "varchar(30)");
+        dropColumnIfExists("caregiver_license_number");
+        dropColumnIfExists("organization_name");
+    }
+
+    private void ensureColumn(String columnName, String columnDefinition) {
+        Integer columnCount = jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'USERS'
+                  AND COLUMN_NAME = ?
+                """,
+                Integer.class,
+                columnName
+        );
+
+        if (columnCount == null || columnCount > 0) {
+            return;
+        }
+
+        jdbcTemplate.execute("ALTER TABLE USERS ADD COLUMN " + columnName + " " + columnDefinition);
+    }
+
+    private void dropColumnIfExists(String columnName) {
+        Integer columnCount = jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'USERS'
+                  AND COLUMN_NAME = ?
+                """,
+                Integer.class,
+                columnName
+        );
+
+        if (columnCount == null || columnCount == 0) {
+            return;
+        }
+
+        jdbcTemplate.execute("ALTER TABLE USERS DROP COLUMN " + columnName);
     }
 }

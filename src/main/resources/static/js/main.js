@@ -33,6 +33,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (response.ok) {
                 const payload = await response.json();
                 if (payload.authenticated) {
+                    if (payload.caregiverProfileCompleted === false) {
+                        window.location.href = "/caregiver-info";
+                        return;
+                    }
+
                     localStorage.setItem(AUTH_STORAGE_KEY, "true");
                     updateAuthUi(true);
                     return;

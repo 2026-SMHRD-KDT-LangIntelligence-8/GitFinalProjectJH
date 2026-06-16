@@ -9,6 +9,7 @@ import com.example.final_project.recipient.dto.TrainingStatusResponse;
 import com.example.final_project.report.ReportService;
 import com.example.final_project.report.dto.QuestionTypeScoreResponse;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -69,6 +70,11 @@ public class RecipientService {
             String userId
     ) {
         return recipientRepository.updateNotes(recipientId, request.getNotes(), userId);
+    }
+
+    @Transactional
+    public void deleteRecipient(Long recipientId, String userId) {
+        recipientRepository.deleteByIdAndUserId(recipientId, userId);
     }
 
     private TrainingStatusResponse toTrainingStatusResponse(QuestionTypeScoreResponse score) {

@@ -8,7 +8,7 @@
 </head>
 <body>
 
-<div class="phone-frame">
+<div class="phone-frame profile-edit-phone-frame">
   <div class="top-nav-bar">
     <a href="/main" class="back-btn">
       <svg width="14" height="14" viewBox="0 0 24 24">
@@ -73,9 +73,35 @@
         >
       </div>
     </div>
+
+    <div class="form-row profile-caregiver-row">
+      <div class="form-label">요양보호사<br>자격번호</div>
+      <div class="form-input-wrapper">
+        <input
+                type="text"
+                id="profile-caregiver-license-number"
+                class="form-input"
+                placeholder="예: 2024-000000"
+                autocomplete="off"
+        >
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-label">소속기관</div>
+      <div class="form-input-wrapper">
+        <input
+                type="text"
+                id="profile-organization-name"
+                class="form-input"
+                placeholder="기관명을 입력하세요"
+                autocomplete="organization"
+        >
+      </div>
+    </div>
   </div>
 
-  <div class="security-notice-box">
+  <div class="security-notice-box profile-security-notice-box">
     <div class="security-icon">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>

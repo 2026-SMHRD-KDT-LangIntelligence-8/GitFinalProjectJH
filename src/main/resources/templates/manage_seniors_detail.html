@@ -120,12 +120,23 @@
         <div class="info-section">
             <div class="section-label-row">
                 <h2 class="section-title">기타 특이사항</h2>
-                <span class="section-badge-info">Memo</span>
+                <button type="button" class="edit-action-btn" id="notes-edit-button">수정</button>
             </div>
             <textarea id="notes-textarea" class="card-panel h-blank-medium notes-textarea" readonly tabindex="-1"></textarea>
 
             <div class="btn-align-right">
-                <button type="button" class="edit-action-btn" id="notes-edit-button">수정</button>
+                <button type="button" class="edit-action-btn" id="notes-delete-button">삭제</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="recipient-delete-modal hidden" id="recipient-delete-modal" role="dialog" aria-modal="true" aria-labelledby="recipient-delete-modal-title">
+        <div class="recipient-delete-modal-card">
+            <h2 class="recipient-delete-modal-title" id="recipient-delete-modal-title">정말 삭제하시겠습니까?</h2>
+            <p class="recipient-delete-modal-message">삭제를 누르면 수급자 정보가 삭제되며, 해당 정보는 복구할 수 없습니다.</p>
+            <div class="recipient-delete-modal-actions">
+                <button type="button" class="recipient-delete-confirm-btn" id="recipient-delete-confirm-button">예</button>
+                <button type="button" class="recipient-delete-cancel-btn" id="recipient-delete-cancel-button">아니오</button>
             </div>
         </div>
     </div>

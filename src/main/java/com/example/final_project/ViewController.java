@@ -19,6 +19,12 @@ public class ViewController {
         return "main";
     }
 
+    // 첫 로그인 사용자의 요양보호사 추가 정보를 입력받는 화면을 렌더링한다.
+    @GetMapping({"/caregiver-info", "/caregiver_info.html"})
+    public String caregiverInfoPage() {
+        return "caregiver_info";
+    }
+
     // 수급자 목록 화면을 렌더링한다.
     @GetMapping({"/manage-seniors", "/manage_seniors.html"})
     public String manageSeniors() {

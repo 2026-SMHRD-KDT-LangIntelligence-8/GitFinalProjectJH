@@ -178,6 +178,7 @@ a {
 
 .senior-detail-phone-frame,
 .senior-edit-phone-frame {
+    position: relative;
     overflow-x: hidden;
     overflow-y: auto;
 }
@@ -365,6 +366,47 @@ a {
     height: 20px;
 }
 
+.caregiver-info-header {
+    margin-top: 42px;
+    margin-bottom: 28px;
+}
+
+.caregiver-info-description {
+    margin: 10px 0 0;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.5;
+    color: #55776d;
+    text-align: center;
+}
+
+.caregiver-info-form {
+    width: 100%;
+    margin-top: 10px;
+}
+
+.caregiver-info-form .form-row {
+    min-height: 64px;
+    height: auto;
+    align-items: flex-start;
+    margin-bottom: 14px;
+}
+
+.caregiver-info-form .form-label {
+    width: 118px;
+    padding-top: 17px;
+    line-height: 1.35;
+}
+
+.caregiver-info-form .form-input {
+    height: 56px;
+    font-size: 14px;
+}
+
+.caregiver-info-notice {
+    margin-top: auto;
+}
+
 
 /* ==========================================================================
    3. 메인 메뉴 및 광고 (main.html)
@@ -462,6 +504,96 @@ a {
 }
 .floating-add-btn::before { content: '+'; color: white; font-size: 28px; font-weight: 300; }
 
+.privacy-consent-modal {
+    position: absolute;
+    inset: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    box-sizing: border-box;
+    background-color: rgba(17, 56, 28, 0.22);
+    backdrop-filter: blur(2px);
+}
+
+.privacy-consent-modal-card {
+    width: 100%;
+    padding: 20px 18px;
+    box-sizing: border-box;
+    border: 1px solid #d9e6dd;
+    border-radius: 16px;
+    background-color: #ffffff;
+    box-shadow: 0 14px 30px rgba(17, 56, 28, 0.16);
+}
+
+.privacy-consent-modal-title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 800;
+    color: #11381c;
+    text-align: center;
+}
+
+.privacy-consent-modal-message {
+    margin: 12px 0 0;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.6;
+    color: #55776d;
+    word-break: keep-all;
+}
+
+.privacy-consent-check-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 14px;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.5;
+    color: #11381c;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.privacy-consent-check-row input {
+    flex: 0 0 auto;
+}
+
+.privacy-consent-modal-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 18px;
+}
+
+.privacy-consent-confirm-btn,
+.privacy-consent-cancel-btn {
+    flex: 1;
+    height: 38px;
+    border: none;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.privacy-consent-confirm-btn {
+    background-color: #2e6f40;
+    color: #ffffff;
+}
+
+.privacy-consent-confirm-btn:disabled {
+    background-color: #b8c8bd;
+    cursor: default;
+}
+
+.privacy-consent-cancel-btn {
+    background-color: #eef4ef;
+    color: #436052;
+}
+
 
 /* ==========================================================================
    5. 수급자 상세 관리 (manage_seniors_detail.html)
@@ -496,6 +628,77 @@ a {
 .notes-textarea[readonly] {
     cursor: default;
     caret-color: transparent;
+}
+
+.recipient-delete-modal {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 24px 30px;
+    box-sizing: border-box;
+    background-color: rgba(17, 56, 28, 0.22);
+    backdrop-filter: blur(2px);
+}
+
+.recipient-delete-modal-card {
+    width: 100%;
+    padding: 20px 18px;
+    box-sizing: border-box;
+    border: 1px solid #d9e6dd;
+    border-radius: 16px;
+    background-color: #ffffff;
+    box-shadow: 0 14px 30px rgba(17, 56, 28, 0.16);
+    text-align: center;
+}
+
+.recipient-delete-modal-title {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 800;
+    color: #11381c;
+}
+
+.recipient-delete-modal-message {
+    margin: 10px 0 0;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.6;
+    color: #55776d;
+    word-break: keep-all;
+}
+
+.recipient-delete-modal-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 18px;
+}
+
+.recipient-delete-confirm-btn,
+.recipient-delete-cancel-btn {
+    flex: 1;
+    height: 38px;
+    border: none;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.recipient-delete-confirm-btn {
+    background-color: #2e6f40;
+    color: #ffffff;
+}
+
+.recipient-delete-cancel-btn {
+    background-color: #eef4ef;
+    color: #436052;
 }
 
 .training-status-panel {
@@ -620,6 +823,21 @@ a {
 .form-input[readonly] { background-color: #f6f8f6; color: #55776d; cursor: default; caret-color: transparent; }
 #profile-name[readonly] { pointer-events: none; user-select: none; }
 
+.profile-edit-phone-frame {
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.profile-edit-phone-frame::-webkit-scrollbar {
+    width: 5px;
+    background-color: transparent;
+}
+
+.profile-edit-phone-frame::-webkit-scrollbar-thumb {
+    background-color: #8fa195;
+    border-radius: 3px;
+}
+
 /* 이메일은 아이디, @, 도메인 선택이 한 줄에서 자연스럽게 보이도록 별도 레이아웃을 둔다. */
 .profile-email-row {
     align-items: flex-start;
@@ -688,7 +906,17 @@ a {
     height: 56px;
 }
 
+.profile-caregiver-row {
+    height: auto;
+    align-items: center;
+}
+
+.profile-caregiver-row .form-label {
+    line-height: 1.35;
+}
+
 .security-notice-box { width: 100%; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+.profile-security-notice-box { gap: 18px; min-height: 150px; }
 .security-icon { color: #2e6f40; background-color: rgba(46, 111, 64, 0.06); padding: 8px; border-radius: 50%; }
 .security-text { font-size: 12px; font-weight: 600; color: #728a7a; text-align: center; line-height: 1.4; }
 
