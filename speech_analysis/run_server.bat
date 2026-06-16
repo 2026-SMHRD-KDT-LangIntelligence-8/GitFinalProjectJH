@@ -25,6 +25,21 @@ if errorlevel 1 (
     exit /b 1
 )
 
+rem .env 파일에서 환경변수 로드 (OPENAI_API_KEY 등). 주석(#)과 빈 줄은 건너뛴다.
+if exist ".env" (
+    for /f "usebackq eol=# tokens=1,* delims==" %%a in (".env") do (
+        if not "%%a"=="" set "%%a=%%b"
+    )
+) else (
+    echo [warn] .env not found. OPENAI_API_KEY must be set in the environment.
+)
+
+rem 로컬 Whisper(torch+librosa) OpenMP 중복 로드 방지 + 한글 콘솔 출력
+set "KMP_DUPLICATE_LIB_OK=TRUE"
+set "PYTHONIOENCODING=utf-8"
+
+if not defined OPENAI_API_KEY echo [warn] OPENAI_API_KEY is not set. The server may fail to start.
+
 echo Starting speech-analysis FastAPI server on http://127.0.0.1:8000
 "%PYTHON%" -m uvicorn app:app --host 0.0.0.0 --port 8000
 
