@@ -77,6 +77,13 @@
                     <span class="question-voice-guide" id="question-voice-guide">검사 시작을 누르면 마이크가 활성화됩니다.</span>
                 </div>
                 <div class="question-voice-transcript" id="question-voice-transcript"></div>
+                <div class="question-voice-review">
+                    <div class="voice-review-header">
+                        <strong class="voice-review-title">최종 인식 텍스트</strong>
+                        <span class="voice-review-caption">DB의 QUESTION_RESULTS.stt_text 기준으로 자동 갱신됩니다.</span>
+                    </div>
+                    <div class="voice-review-text" id="voice-review-text"></div>
+                </div>
             </div>
         </div>
 
@@ -91,6 +98,7 @@
                 <strong class="voice-review-title">최종 텍스트 확인</strong>
                 <span class="voice-review-caption">DB의 QUESTION_RESULTS.stt_text 기준으로 표시됩니다.</span>
             </div>
+            <div class="test-review-status hidden" id="test-review-status"></div>
             <div class="test-review-list" id="test-review-list"></div>
         </div>
 

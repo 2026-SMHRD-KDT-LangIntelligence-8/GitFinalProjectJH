@@ -1,9 +1,15 @@
 HELP.md
-.gradle
+
+### Gradle ###
+.gradle/
+.gradle-user-home*/
 build/
+out/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
+!**/src/main/**/out/
+!**/src/test/**/out/
 
 ### STS ###
 .apt_generated
@@ -18,13 +24,10 @@ bin/
 !**/src/test/**/bin/
 
 ### IntelliJ IDEA ###
-.idea
+.idea/
 *.iws
 *.iml
 *.ipr
-out/
-!**/src/main/**/out/
-!**/src/test/**/out/
 
 ### NetBeans ###
 /nbproject/private/
@@ -36,21 +39,40 @@ out/
 ### VS Code ###
 .vscode/
 
-.gradle-user-home/
-
-# Local server requirements file
-speech_analysis/requirements-server.txt
-
-# Secrets and local env files
+### Secrets and local env files ###
 .env
 **/.env
+*.env
 
-# Local Python environment and caches
+### Java ###
+*.class
+
+### Python virtual environments ###
 .venv/
-__pycache__/
-*.pyc
+**/.venv/
+speech_analysis/.venv/
 
-# Python speech-analysis scratch outputs
+### Python caches ###
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+### Python speech-analysis scratch outputs ###
 speech_analysis/_questions_for_test.tsv
 speech_analysis/_tester_results.json
 speech_analysis/*_noise.wav
+speech_analysis/*.log
+
+### Uploaded voice recordings 개인정보 제외 ###
+cognitive-voice/
+speech_analysis/uploads/
+speech_analysis/recordings/
+speech_analysis/audio/
+speech_analysis/tmp/
+speech_analysis/temp/
+
+### OS files ###
+.DS_Store
+Thumbs.db

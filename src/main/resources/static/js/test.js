@@ -25,6 +25,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const voiceTranscript = document.getElementById("question-voice-transcript");
     const voiceReviewText = document.getElementById("voice-review-text");
     const reviewView = document.getElementById("test-review-view");
+    const reviewStatus = document.getElementById("test-review-status");
     const reviewList = document.getElementById("test-review-list");
     const reviewFinishButton = document.getElementById("review-finish-btn");
     const finalizingOverlay = document.getElementById("test-finalizing-overlay");
@@ -60,13 +61,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         questionAdvancePending: false,
         pendingAnalysisTasks: new Map(),
         analysisFailureQuestionIds: [],
-        finalizing: false
+        finalizing: false,
+        completed: false,
+        reviewPollingTimerId: null,
+        reviewPollingBusy: false
     };
 
     setVoiceState("idle");
 
     try {
         await loadRecipients(recipientSelect);
+        await restoreTestProgressIfAvailable();
     } catch (error) {
         console.error(error);
         alert("수급자 목록을 불러오지 못했습니다.");
@@ -100,6 +105,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             state.pendingAnalysisTasks = new Map();
             state.analysisFailureQuestionIds = [];
             state.finalizing = false;
+            state.completed = false;
 
             saveTestProgress(state);
             setFinalizingState(false);
@@ -141,15 +147,74 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.addEventListener("beforeunload", () => {
         stopVoiceRecognition();
         stopVoicePulse();
+        stopReviewPolling();
         releaseMediaStream(state);
         if (state.questions.length > 0) {
-            saveTestProgress(state);
+            saveTestProgress(state, state.completed);
         }
     });
 
     reviewFinishButton?.addEventListener("click", () => {
+        stopReviewPolling();
+        sessionStorage.removeItem(TEST_PROGRESS_STORAGE_KEY);
         window.location.href = "/main";
     });
+
+    async function restoreTestProgressIfAvailable() {
+        const rawProgress = sessionStorage.getItem(TEST_PROGRESS_STORAGE_KEY);
+        if (!rawProgress) {
+            return;
+        }
+
+        try {
+            const saved = JSON.parse(rawProgress);
+            if (!saved || !Array.isArray(saved.questions) || !saved.questions.length) {
+                return;
+            }
+
+            state.performanceId = saved.performanceId ?? null;
+            state.recipientId = saved.recipientId ?? null;
+            state.recipientName = saved.recipientName ?? "";
+            state.questions = saved.questions;
+            state.currentIndex = Math.min(saved.currentIndex ?? 0, Math.max(saved.questions.length - 1, 0));
+            state.completedQuestionIds = Array.isArray(saved.completedQuestionIds) ? saved.completedQuestionIds : [];
+            state.timedOutQuestionIds = Array.isArray(saved.timedOutQuestionIds) ? saved.timedOutQuestionIds : [];
+            state.questionResultIdsByQuestionId = {...(saved.questionResultIdsByQuestionId || {})};
+            state.transcriptsByQuestionId = {...(saved.transcriptsByQuestionId || {})};
+            state.dbTranscriptsByQuestionId = {...(saved.dbTranscriptsByQuestionId || {})};
+            state.finalScoresByQuestionId = {...(saved.finalScoresByQuestionId || saved.questionScoresById || {})};
+            state.analysisFailureQuestionIds = Array.isArray(saved.analysisFailureQuestionIds) ? saved.analysisFailureQuestionIds : [];
+            state.completed = Boolean(saved.completed);
+            state.finalizing = false;
+            state.remainingSeconds = state.questionDurationSeconds;
+
+            if (state.recipientId) {
+                recipientSelect.value = String(state.recipientId);
+            }
+
+            if (state.completed) {
+                introView.classList.add("hidden");
+                sessionView.classList.add("hidden");
+                reviewView.classList.remove("hidden");
+                await refreshPerformanceResults();
+                renderFinalReview();
+                updateReviewStatus();
+                startReviewPolling();
+                return;
+            }
+
+            introView.classList.add("hidden");
+            reviewView.classList.add("hidden");
+            sessionView.classList.remove("hidden");
+            recipientNameChip.textContent = `${state.recipientName} 검사`;
+            timerStartButton.textContent = "검사 시작";
+            timerStartButton.disabled = false;
+            renderCurrentQuestion();
+        } catch (error) {
+            console.error(error);
+            sessionStorage.removeItem(TEST_PROGRESS_STORAGE_KEY);
+        }
+    }
 
     function renderCurrentQuestion() {
         const currentQuestion = state.questions[state.currentIndex];
@@ -200,39 +265,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 });
             }
         }, 1000);
-    }
-
-    async function moveToNextQuestion(timedOut) {
-        const currentQuestion = state.questions[state.currentIndex];
-        if (!currentQuestion || state.questionAdvancePending) {
-            return;
-        }
-
-        // 업로드 중 중복 클릭으로 다음 문항이 꼬이지 않게 잠깐 잠근다.
-        state.questionAdvancePending = true;
-        clearQuestionTimer();
-        stopVoiceRecognition();
-        stopVoicePulse();
-
-        try {
-            await stopRecordingAndUpload(state, currentQuestion);
-        } finally {
-            state.questionAdvancePending = false;
-        }
-
-        state.timerStarted = false;
-        markQuestionCompleted(currentQuestion.questionId, timedOut);
-
-        if (state.currentIndex >= state.questions.length - 1) {
-            await finishTest();
-            return;
-        }
-
-        state.currentIndex += 1;
-        state.remainingSeconds = state.questionDurationSeconds;
-        timerStartButton.textContent = "검사 시작";
-        timerStartButton.disabled = false;
-        renderCurrentQuestion();
     }
 
     function markQuestionCompleted(questionId, timedOut) {
@@ -446,6 +478,29 @@ document.addEventListener("DOMContentLoaded", async () => {
         }).join("");
     }
 
+    function updateReviewStatus() {
+        if (!reviewStatus) {
+            return;
+        }
+
+        const pendingQuestionIds = getPendingQuestionIds();
+        reviewStatus.classList.remove("hidden", "is-complete", "is-error");
+
+        if (state.analysisFailureQuestionIds.length > 0) {
+            reviewStatus.classList.add("is-error");
+            reviewStatus.textContent = `일부 문항의 음성 업로드 또는 분석이 아직 완료되지 않았습니다. 실패 ${state.analysisFailureQuestionIds.length}건은 다시 검사해 주세요.`;
+            return;
+        }
+
+        if (pendingQuestionIds.length > 0) {
+            reviewStatus.textContent = `남은 ${pendingQuestionIds.length}건의 최종 텍스트를 DB에서 확인 중입니다. 이 화면을 벗어나지 않아도 다른 문항 결과부터 바로 확인할 수 있습니다.`;
+            return;
+        }
+
+        reviewStatus.classList.add("is-complete");
+        reviewStatus.textContent = "모든 문항의 최종 인식 텍스트 확인이 완료되었습니다.";
+    }
+
     function startVoicePulse() {
         const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
         if (!AudioContextConstructor || !state.mediaStream || state.voiceAnimationId) {
@@ -504,30 +559,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     function setFinalizingState(visible, message) {
-        finalizingOverlay.classList.toggle("hidden", !visible);
+        finalizingOverlay.classList.add("hidden");
         finalizingDescription.textContent = message
             || "남은 음성 업로드와 분석을 마무리하고 있습니다. 잠시만 기다려주세요.";
-    }
-
-    async function waitForPendingAnalyses(currentState) {
-        const pendingTasks = Array.from(currentState.pendingAnalysisTasks.values());
-        if (!pendingTasks.length) {
-            return true;
-        }
-
-        setFinalizingState(
-            true,
-            `남은 ${pendingTasks.length}건의 음성 업로드와 분석을 마무리하고 있습니다.\n잠시만 기다려주세요.`
-        );
-        await Promise.allSettled(pendingTasks);
-
-        if (currentState.analysisFailureQuestionIds.length > 0) {
-            const failedCount = currentState.analysisFailureQuestionIds.length;
-            alert(`음성 업로드 또는 분석에 실패한 문항이 ${failedCount}건 있습니다. 다시 종료를 시도해주세요.`);
-            return false;
-        }
-
-        return true;
     }
 
     async function moveToNextQuestion(timedOut) {
@@ -559,33 +593,119 @@ document.addEventListener("DOMContentLoaded", async () => {
         renderCurrentQuestion();
     }
 
+    function getPendingQuestionIds() {
+        return state.questions
+            .map((question) => question.questionId)
+            .filter((questionId) => {
+                if (state.analysisFailureQuestionIds.includes(questionId)) {
+                    return false;
+                }
+
+                const savedTranscript = String(state.dbTranscriptsByQuestionId[questionId] || "").trim();
+                return !savedTranscript;
+            });
+    }
+
+    async function refreshPerformanceResults() {
+        if (!state.performanceId) {
+            return;
+        }
+
+        const response = await fetch(`/api/cognitive-tests/${state.performanceId}/question-results`);
+        if (!response.ok) {
+            throw new Error("performance_question_results_fetch_failed");
+        }
+
+        const results = await response.json();
+        results.forEach((result) => {
+            const questionId = Number(result.questionId);
+            if (!questionId) {
+                return;
+            }
+
+            if (result.questionResultId) {
+                state.questionResultIdsByQuestionId[questionId] = result.questionResultId;
+            }
+
+            applyQuestionAnalysisResult(state, questionId, result);
+
+            if (result.analysisStatus === "FAILED" && !state.analysisFailureQuestionIds.includes(questionId)) {
+                state.analysisFailureQuestionIds.push(questionId);
+            }
+        });
+    }
+
+    async function pollReviewResultsOnce() {
+        if (state.reviewPollingBusy) {
+            return;
+        }
+
+        state.reviewPollingBusy = true;
+        try {
+            await refreshPerformanceResults();
+            renderFinalReview();
+            updateReviewStatus();
+
+            if (!getPendingQuestionIds().length) {
+                stopReviewPolling();
+            }
+        } catch (error) {
+            console.error(error);
+            if (reviewStatus) {
+                reviewStatus.classList.remove("hidden", "is-complete");
+                reviewStatus.classList.add("is-error");
+                reviewStatus.textContent = "최종 인식 텍스트를 다시 불러오는 중 문제가 발생했습니다. 잠시 후 새로고침하면 이어서 다시 확인합니다.";
+            }
+        } finally {
+            state.reviewPollingBusy = false;
+        }
+    }
+
+    function startReviewPolling() {
+        stopReviewPolling();
+        if (!state.completed) {
+            return;
+        }
+
+        if (!getPendingQuestionIds().length) {
+            updateReviewStatus();
+            return;
+        }
+
+        state.reviewPollingTimerId = window.setInterval(() => {
+            pollReviewResultsOnce().catch((error) => console.error(error));
+        }, 2000);
+    }
+
+    function stopReviewPolling() {
+        if (state.reviewPollingTimerId !== null) {
+            window.clearInterval(state.reviewPollingTimerId);
+            state.reviewPollingTimerId = null;
+        }
+    }
+
     async function finishTest() {
         if (state.finalizing) {
             return;
         }
 
         state.finalizing = true;
+        state.completed = true;
         timerStartButton.disabled = true;
         stopVoiceRecognition();
         stopVoicePulse();
         releaseMediaStream(state);
-        setFinalizingState(true);
-
-        const analysisCompleted = await waitForPendingAnalyses(state);
-        if (!analysisCompleted) {
-            state.finalizing = false;
-            setFinalizingState(false);
-            return;
-        }
 
         saveTestProgress(state, true);
         await completeTest(state.recipientId);
-        sessionStorage.removeItem(TEST_PROGRESS_STORAGE_KEY);
-        setFinalizingState(false);
         introView.classList.add("hidden");
         sessionView.classList.add("hidden");
         reviewView.classList.remove("hidden");
+        await refreshPerformanceResults();
         renderFinalReview();
+        updateReviewStatus();
+        startReviewPolling();
+        state.finalizing = false;
     }
 });
 
@@ -810,12 +930,18 @@ function saveTestProgress(state, completed = false) {
         timedOutQuestionIds: [...state.timedOutQuestionIds],
         weakTypeIds,
         questionScoresById,
+        finalScoresByQuestionId: {...state.finalScoresByQuestionId},
+        questionResultIdsByQuestionId: {...state.questionResultIdsByQuestionId},
         questionTypeScores,
         transcriptsByQuestionId: {...state.transcriptsByQuestionId},
+        dbTranscriptsByQuestionId: {...state.dbTranscriptsByQuestionId},
+        analysisFailureQuestionIds: [...state.analysisFailureQuestionIds],
         questions: state.questions.map((question) => ({
             questionId: question.questionId,
             questionTypeId: question.questionTypeId,
-            questionTypeName: question.questionTypeName
+            questionTypeName: question.questionTypeName,
+            questionText: question.questionText,
+            imageFilePath: question.imageFilePath || ""
         }))
     };
 
@@ -925,12 +1051,10 @@ function applyQuestionAnalysisResult(state, questionId, analysisResult) {
     if (backendTranscript) {
         // 브라우저 STT가 비어도 서버 STT 결과는 이후 점수 계산과 확인용 텍스트로 남긴다.
         state.transcriptsByQuestionId[questionId] = backendTranscript;
-        if (analysisResult.analysisStatus === "COMPLETED") {
-            state.dbTranscriptsByQuestionId[questionId] = backendTranscript;
-        }
+        state.dbTranscriptsByQuestionId[questionId] = backendTranscript;
     }
 
-    saveTestProgress(state);
+    saveTestProgress(state, Boolean(state.completed));
 }
 
 function normalizeScoringText(value) {

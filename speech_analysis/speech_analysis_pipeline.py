@@ -155,6 +155,27 @@ def calculate_response_time_from_audio(audio_path):
 
     return detect_first_sound_time(audio_path)
 
+def score_response_time(response_time):
+    """
+    반응 시간을 0~100점으로 변환한다.
+    response_time 단위는 초이다.
+    반응 시간이 짧을수록 높은 점수를 부여한다.
+    """
+
+    if response_time is None:
+        return 0
+
+    if response_time <= 3:
+        return 100
+    elif response_time <= 5:
+        return 80
+    elif response_time <= 8:
+        return 60
+    elif response_time <= 12:
+        return 40
+    else:
+        return 0
+
 # 반복어 비율 계산
 
 def tokenize_text(text):
@@ -473,7 +494,11 @@ def analyze_answer_length(text, question_type_name):
 # LLM 모델 불러오기
 
 API_KEY = os.getenv("OPENAI_API_KEY")
-client = OpenAI(api_key=API_KEY) if API_KEY else None
+
+if not API_KEY:
+    raise ValueError("OPENAI_API_KEY 환경변수가 설정되어 있지 않습니다.")
+
+client = OpenAI(api_key=API_KEY)
 
 LLM_MODEL_NAME = "gpt-5.4-mini-2026-03-17"
 
@@ -869,9 +894,6 @@ def score_appropriateness_with_llm(
     반환값: 0, 40, 60, 80, 100 중 하나
     """
 
-    if client is None:
-        raise ValueError("OPENAI_API_KEY 환경변수가 설정되어 있지 않아 LLM 채점을 실행할 수 없습니다.")
-
     prompt = build_appropriateness_prompt(
         question_type_name=question_type_name,
         question_text=question_text,
@@ -916,8 +938,9 @@ def analyze_question_answer(
     # 2. STT 텍스트 최소 전처리
     preprocessed_text = preprocess_stt_text(stt_text)
 
-    # 3. 음성 파일 기반 반응 시간 계산
+    # 3. 음성 파일 기반 반응 시간 계산, 점수화
     response_time = calculate_response_time_from_audio(audio_path)
+    response_time_score = score_response_time(response_time)
 
     # 4. 반복어 비율 계산
     repetition_result = analyze_repetition(preprocessed_text)
@@ -948,6 +971,7 @@ def analyze_question_answer(
 
         # ANALYSIS_RESULTS에 저장할 값
         "response_time": response_time,
+        "response_time_score": response_time_score,
         "repetition_ratio": repetition_result["repetition_ratio"],
         "avg_sentence_length": length_result["avg_sentence_length"],
         "appropriateness_score": appropriateness_score,
@@ -957,200 +981,163 @@ def analyze_question_answer(
         "sentence_length_score": length_result["sentence_length_score"],
     }
 
-# 리포트 요약 함수
+# 리포트 집계 함수
+# app.py에서 calculate_report_summary 함수를 import하고 있으므로,
+# 서버 실행 시 ImportError가 발생하지 않도록 해당 함수를 파이프라인 파일에 추가한다.
+# 이 함수는 analyze_question_answer()가 문항별로 반환한 분석 결과 목록을 받아
+# Reports 테이블 또는 리포트 API 응답에 사용할 평균 지표와 요약 문구를 계산한다.
 
-def calculate_average(values):
+def _safe_float(value, default=0.0):
     """
-    None을 제외하고 평균을 계산한다.
-    값이 없으면 None을 반환한다.
+    None, 빈 문자열, 변환 불가능한 값을 안전하게 float로 변환한다.
+    리포트 평균 계산 중 문자열, None 값이 섞여도 서버가 중단되지 않도록 보조한다.
+    """
+    try:
+        if value is None:
+            return default
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def calculate_report_summary(analysis_results):
+    """
+    문항별 분석 결과 목록을 기반으로 리포트 요약 값을 계산한다.
+
+    analysis_results:
+        analyze_question_answer()가 반환한 dict들의 list를 기대한다.
+        단일 dict가 들어와도 list로 변환하여 처리한다.
+
+    반환값:
+        리포트 저장 또는 API 응답에 사용할 평균 반응 시간, 평균 반복어 비율,
+        평균 문장 길이, 평균 화행 적절성 점수, 전체 점수, 요약 문구를 반환한다.
     """
 
-    valid_values = [
-        value for value in values
-        if value is not None
+    if analysis_results is None:
+        analysis_results = []
+
+    # app.py에서 단일 dict를 넘기는 경우에도 오류 없이 처리하기 위한 보정
+    if isinstance(analysis_results, dict):
+        analysis_results = [analysis_results]
+
+    # dict 형태의 분석 결과만 집계 대상으로 사용
+    valid_results = [
+        result for result in analysis_results
+        if isinstance(result, dict)
     ]
 
-    if len(valid_values) == 0:
-        return None
+    total_questions = len(valid_results)
 
-    return round(sum(valid_values) / len(valid_values), 2)
-
-
-def score_response_time(response_time):
-    """
-    반응 시간을 0~100점으로 변환한다.
-    단위: 초
-    """
-
-    if response_time is None:
-        return 0
-
-    if response_time <= 3:
-        return 100
-    elif response_time <= 5:
-        return 80
-    elif response_time <= 8:
-        return 60
-    elif response_time <= 12:
-        return 40
-    else:
-        return 0
-    
-# 문항/항목별 가중치
-
-QUESTION_TYPE_WEIGHTS = {
-    "오늘 날짜 말하기": {
-        "appropriateness": 0.70,
-        "response_time": 0.20,
-        "repetition": 0.10,
-        "answer_length": 0.00,
-    },
-    "그림 설명하기": {
-        "appropriateness": 0.60,
-        "response_time": 0.10,
-        "repetition": 0.10,
-        "answer_length": 0.20,
-    },
-    "상황 질문 답하기": {
-        "appropriateness": 0.70,
-        "response_time": 0.10,
-        "repetition": 0.10,
-        "answer_length": 0.10,
-    },
-    "규칙 기반 언어추론": {
-        "appropriateness": 0.75,
-        "response_time": 0.10,
-        "repetition": 0.10,
-        "answer_length": 0.05,
-    },
-    "추억 말하기": {
-        "appropriateness": 0.60,
-        "response_time": 0.05,
-        "repetition": 0.10,
-        "answer_length": 0.25,
-    },
-}
-
-
-def calculate_question_final_score(row):
-    """
-    문항 하나의 지표별 점수와 종합 점수를 계산한다.
-    """
-
-    question_type_name = row["question_type_name"]
-
-    appropriateness_score = row.get("appropriateness_score")
-    if appropriateness_score is None:
-        appropriateness_score = 0
-
-    response_time_score = score_response_time(
-        row.get("response_time")
-    )
-
-    repetition_score = score_repetition_ratio(
-        row.get("repetition_ratio")
-    )
-
-    answer_length_score = score_answer_length(
-        row.get("avg_sentence_length"),
-        question_type_name
-    )
-
-    weights = QUESTION_TYPE_WEIGHTS.get(question_type_name)
-
-    if weights is None:
-        raise ValueError(f"알 수 없는 문항 유형입니다: {question_type_name}")
-
-    final_score = (
-        appropriateness_score * weights["appropriateness"]
-        + response_time_score * weights["response_time"]
-        + repetition_score * weights["repetition"]
-        + answer_length_score * weights["answer_length"]
-    )
-
-    return {
-        **row,
-        "response_time_score": response_time_score,
-        "repetition_score": repetition_score,
-        "answer_length_score": answer_length_score,
-        "final_score": round(final_score, 2),
-    }
-
-# 리포트 요약 함수 추가
-
-def calculate_question_type_summaries(scored_rows):
-    """
-    문항 유형별 평균값을 계산한다.
-    """
-
-    grouped = {}
-
-    for row in scored_rows:
-        question_type_name = row["question_type_name"]
-
-        if question_type_name not in grouped:
-            grouped[question_type_name] = []
-
-        grouped[question_type_name].append(row)
-
-    summaries = {}
-
-    for question_type_name, rows in grouped.items():
-        summaries[question_type_name] = {
-            "question_count": len(rows),
-            "avg_response_time": calculate_average([row["response_time"] for row in rows]),
-            "avg_repetition_ratio": calculate_average([row["repetition_ratio"] for row in rows]),
-            "avg_sentence_length": calculate_average([row["avg_sentence_length"] for row in rows]),
-            "avg_appropriateness_score": calculate_average([row["appropriateness_score"] for row in rows]),
-            "avg_response_time_score": calculate_average([row["response_time_score"] for row in rows]),
-            "avg_repetition_score": calculate_average([row["repetition_score"] for row in rows]),
-            "avg_answer_length_score": calculate_average([row["answer_length_score"] for row in rows]),
-            "avg_final_score": calculate_average([row["final_score"] for row in rows]),
-        }
-
-    return summaries
-
-
-def calculate_report_summary(analysis_rows):
-    """
-    여러 문항의 분석 결과를 받아 리포트용 요약값을 만든다.
-
-    analysis_rows에는 각 row마다 question_type_name이 포함되어 있어야 한다.
-    """
-
-    if analysis_rows is None or len(analysis_rows) == 0:
+    # 분석 결과가 없을 때도 app.py가 기대하는 key를 모두 반환하여 KeyError를 방지
+    if total_questions == 0:
         return {
-            "question_count": 0,
-            "avg_response_time": None,
-            "avg_repetition_ratio": None,
-            "avg_sentence_length": None,
-            "avg_appropriateness_score": None,
-            "avg_response_time_score": None,
-            "avg_repetition_score": None,
-            "avg_answer_length_score": None,
-            "avg_final_score": None,
-            "question_type_summaries": {},
-            "rows": [],
+            "total_questions": 0,
+
+            # Reports 테이블 저장용 평균값
+            "average_response_time": 0.0,
+            "average_repetition_ratio": 0.0,
+            "average_sentence_length": 0.0,
+            "average_appropriateness_score": 0.0,
+            "overall_score": 0.0,
+
+            # app.py에서 다른 이름으로 참조할 가능성을 고려한 alias
+            "avg_response_time": 0.0,
+            "avg_repetition_ratio": 0.0,
+            "avg_sentence_length": 0.0,
+            "avg_appropriateness_score": 0.0,
+            "avg_speech_act_score": 0.0,
+
+            "summary_text": "분석 결과가 없습니다.",
+            "report_summary": "분석 결과가 없습니다."
         }
 
-    scored_rows = [
-        calculate_question_final_score(row)
-        for row in analysis_rows
+    # 문항별 분석 결과에서 리포트 평균 계산에 필요한 값 추출
+    response_times = [
+        _safe_float(result.get("response_time"))
+        for result in valid_results
     ]
 
+    repetition_ratios = [
+        _safe_float(result.get("repetition_ratio"))
+        for result in valid_results
+    ]
+
+    sentence_lengths = [
+        _safe_float(result.get("avg_sentence_length"))
+        for result in valid_results
+    ]
+
+    appropriateness_scores = [
+        _safe_float(result.get("appropriateness_score"))
+        for result in valid_results
+        if result.get("appropriateness_score") is not None
+    ]
+
+    # analyze_question_answer()에서 반환하는 보조 점수들을 전체 점수 계산에 활용
+    response_time_scores = [
+        _safe_float(result.get("response_time_score"))
+        for result in valid_results
+    ]
+
+    repetition_scores = [
+        _safe_float(result.get("repetition_score"))
+        for result in valid_results
+    ]
+
+    sentence_length_scores = [
+        _safe_float(result.get("sentence_length_score"))
+        for result in valid_results
+    ]
+
+    def average(values):
+        """
+        숫자 리스트의 평균을 소수점 둘째 자리까지 계산한다.
+        빈 리스트가 들어오면 0.0을 반환한다.
+        """
+        if not values:
+            return 0.0
+        return round(sum(values) / len(values), 2)
+
+    avg_response_time = average(response_times)
+    avg_repetition_ratio = average(repetition_ratios)
+    avg_sentence_length = average(sentence_lengths)
+    avg_appropriateness_score = average(appropriateness_scores)
+
+    # 전체 점수는 반응 시간 점수, 반복어 점수, 문장 길이 점수, 화행 적절성 점수의 평균으로 계산
+    score_values = []
+    score_values.extend(response_time_scores)
+    score_values.extend(repetition_scores)
+    score_values.extend(sentence_length_scores)
+    score_values.extend(appropriateness_scores)
+
+    overall_score = average(score_values)
+
+    # 리포트 화면 또는 PDF 보고서에서 사용할 수 있는 기본 요약 문구
+    summary_text = (
+        f"총 {total_questions}개 문항에 대한 발화 분석을 완료했습니다. "
+        f"평균 반응 시간은 {avg_response_time}초, "
+        f"평균 반복어 비율은 {avg_repetition_ratio}%, "
+        f"평균 문장 길이는 {avg_sentence_length}, "
+        f"평균 화행 적절성 점수는 {avg_appropriateness_score}점입니다."
+    )
+
     return {
-        "question_count": len(scored_rows),
+        "total_questions": total_questions,
 
-        "avg_response_time": calculate_average([row["response_time"] for row in scored_rows]),
-        "avg_repetition_ratio": calculate_average([row["repetition_ratio"] for row in scored_rows]),
-        "avg_sentence_length": calculate_average([row["avg_sentence_length"] for row in scored_rows]),
-        "avg_appropriateness_score": calculate_average([row["appropriateness_score"] for row in scored_rows]),
+        # Reports 테이블 저장용 평균값
+        "average_response_time": avg_response_time,
+        "average_repetition_ratio": avg_repetition_ratio,
+        "average_sentence_length": avg_sentence_length,
+        "average_appropriateness_score": avg_appropriateness_score,
+        "overall_score": overall_score,
 
-        "avg_response_time_score": calculate_average([row["response_time_score"] for row in scored_rows]),
-        "avg_repetition_score": calculate_average([row["repetition_score"] for row in scored_rows]),
-        "avg_answer_length_score": calculate_average([row["answer_length_score"] for row in scored_rows]),
-        "avg_final_score": calculate_average([row["final_score"] for row in scored_rows]),
+        # app.py에서 다른 이름으로 참조할 가능성을 고려한 alias
+        "avg_response_time": avg_response_time,
+        "avg_repetition_ratio": avg_repetition_ratio,
+        "avg_sentence_length": avg_sentence_length,
+        "avg_appropriateness_score": avg_appropriateness_score,
+        "avg_speech_act_score": avg_appropriateness_score,
 
-        "question_type_summaries": calculate_question_type_summaries(scored_rows),
-        "rows": scored_rows,
+        "summary_text": summary_text,
+        "report_summary": summary_text
     }

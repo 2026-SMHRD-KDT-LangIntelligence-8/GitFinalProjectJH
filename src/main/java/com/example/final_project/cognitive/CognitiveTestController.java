@@ -15,6 +15,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/cognitive-tests")
 public class CognitiveTestController {
@@ -52,5 +54,10 @@ public class CognitiveTestController {
     @GetMapping("/question-results/{questionResultId}")
     public QuestionAudioUploadResponse getQuestionAudioResult(@PathVariable Long questionResultId) {
         return cognitiveTestService.getQuestionAudioResult(questionResultId);
+    }
+
+    @GetMapping("/{performanceId}/question-results")
+    public List<QuestionAudioUploadResponse> getQuestionAudioResultsByPerformanceId(@PathVariable Long performanceId) {
+        return cognitiveTestService.getQuestionAudioResultsByPerformanceId(performanceId);
     }
 }

@@ -7,7 +7,9 @@ import com.example.final_project.report.dto.TrendPointResponse;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.sql.Date;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -182,6 +184,118 @@ public class ReportRepository {
                 recipientId,
                 userId,
                 Timestamp.valueOf(fromDateTime)
+        );
+    }
+
+    public LocalDateTime findPerformedAtByPerformanceId(Long performanceId, Long recipientId, String userId) {
+        String sql = """
+                SELECT pr.performed_at
+                FROM PERFORMANCE_RECORDS pr
+                WHERE pr.performance_id = ?
+                  AND pr.recipient_id = ?
+                  AND pr.user_id = ?
+                """;
+
+        List<LocalDateTime> performedAtList = jdbcTemplate.query(
+                sql,
+                (rs, rowNum) -> rs.getTimestamp("performed_at").toLocalDateTime(),
+                performanceId,
+                recipientId,
+                userId
+        );
+
+        if (performedAtList.isEmpty()) {
+            throw new IllegalArgumentException("해당 검사 이력을 찾을 수 없습니다. performanceId=" + performanceId);
+        }
+
+        return performedAtList.get(0);
+    }
+
+    public void upsertReportSnapshot(
+            String userId,
+            Long recipientId,
+            LocalDate periodStartDate,
+            LocalDate periodEndDate,
+            Double avgResponseTime,
+            Double avgRepetitionRatio,
+            Double avgSentenceLength,
+            Double avgAppropriatenessScore,
+            String trendSummary,
+            String reportSummary
+    ) {
+        String selectSql = """
+                SELECT report_id
+                FROM REPORTS
+                WHERE user_id = ?
+                  AND recipient_id = ?
+                  AND period_start_date = ?
+                  AND period_end_date = ?
+                ORDER BY report_id DESC
+                LIMIT 1
+                """;
+
+        List<Long> reportIds = jdbcTemplate.query(
+                selectSql,
+                (rs, rowNum) -> rs.getLong("report_id"),
+                userId,
+                recipientId,
+                Date.valueOf(periodStartDate),
+                Date.valueOf(periodEndDate)
+        );
+
+        if (reportIds.isEmpty()) {
+            String insertSql = """
+                    INSERT INTO REPORTS (
+                        user_id,
+                        recipient_id,
+                        period_start_date,
+                        period_end_date,
+                        avg_response_time,
+                        avg_repetition_ratio,
+                        avg_sentence_length,
+                        avg_appropriateness_score,
+                        trend_summary,
+                        report_summary
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """;
+
+            jdbcTemplate.update(
+                    insertSql,
+                    userId,
+                    recipientId,
+                    Date.valueOf(periodStartDate),
+                    Date.valueOf(periodEndDate),
+                    avgResponseTime,
+                    avgRepetitionRatio,
+                    avgSentenceLength,
+                    avgAppropriatenessScore,
+                    trendSummary,
+                    reportSummary
+            );
+            return;
+        }
+
+        String updateSql = """
+                UPDATE REPORTS
+                SET avg_response_time = ?,
+                    avg_repetition_ratio = ?,
+                    avg_sentence_length = ?,
+                    avg_appropriateness_score = ?,
+                    trend_summary = COALESCE(?, trend_summary),
+                    report_summary = COALESCE(?, report_summary)
+                WHERE report_id = ?
+                """;
+
+        jdbcTemplate.update(
+                updateSql,
+                avgResponseTime,
+                avgRepetitionRatio,
+                avgSentenceLength,
+                avgAppropriatenessScore,
+                trendSummary,
+                reportSummary,
+                reportIds.get(0)
         );
     }
 

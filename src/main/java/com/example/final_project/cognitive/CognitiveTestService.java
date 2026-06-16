@@ -149,6 +149,34 @@ public class CognitiveTestService {
         );
     }
 
+    public List<QuestionAudioUploadResponse> getQuestionAudioResultsByPerformanceId(Long performanceId) {
+        String userId = currentUserService.getRequiredUserId();
+        return cognitiveTestRepository.findQuestionResultSnapshotsByPerformanceId(performanceId, userId).stream()
+                .map(snapshot -> {
+                    QuestionAnalysisAsyncService.AnalysisSnapshot analysisSnapshot =
+                            questionAnalysisAsyncService.getSnapshot(snapshot.questionResultId());
+                    QuestionAnalysisResult inMemoryResult = analysisSnapshot == null ? null : analysisSnapshot.result();
+                    String analysisStatus = resolveAnalysisStatus(snapshot, analysisSnapshot);
+                    String analysisMessage = resolveAnalysisMessage(analysisStatus, analysisSnapshot);
+
+                    return new QuestionAudioUploadResponse(
+                            snapshot.questionResultId(),
+                            snapshot.performanceId(),
+                            snapshot.questionId(),
+                            snapshot.voiceFilePath(),
+                            analysisStatus,
+                            analysisMessage,
+                            firstNonBlank(inMemoryResult == null ? null : inMemoryResult.sttText(), snapshot.sttText()),
+                            firstNonBlank(inMemoryResult == null ? null : inMemoryResult.preprocessedText(), snapshot.preprocessedText()),
+                            inMemoryResult == null ? snapshot.appropriatenessScore() : inMemoryResult.appropriatenessScore(),
+                            inMemoryResult == null ? null : inMemoryResult.repetitionScore(),
+                            inMemoryResult == null ? null : inMemoryResult.sentenceLengthScore(),
+                            inMemoryResult == null ? null : inMemoryResult.finalScore()
+                    );
+                })
+                .toList();
+    }
+
     private CognitiveTestStartResponse startSession(CognitiveTestStartRequest request, String questionPurpose) {
         String userId = currentUserService.getRequiredUserId();
         RecipientResponse recipient = recipientRepository.findByIdAndUserId(request.recipientId(), userId)

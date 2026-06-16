@@ -267,6 +267,39 @@ public class CognitiveTestRepository {
         return results.get(0);
     }
 
+    public List<QuestionResultSnapshot> findQuestionResultSnapshotsByPerformanceId(Long performanceId, String userId) {
+        String sql = """
+                SELECT qr.question_result_id,
+                       qr.performance_id,
+                       qr.question_id,
+                       qr.voice_file_path,
+                       qr.stt_text,
+                       ar.preprocessed_text,
+                       ar.appropriateness_score
+                FROM QUESTION_RESULTS qr
+                INNER JOIN PERFORMANCE_RECORDS pr ON pr.performance_id = qr.performance_id
+                LEFT JOIN ANALYSIS_RESULTS ar ON ar.question_result_id = qr.question_result_id
+                WHERE qr.performance_id = ?
+                  AND pr.user_id = ?
+                ORDER BY qr.question_result_id ASC
+                """;
+
+        return jdbcTemplate.query(
+                sql,
+                (rs, rowNum) -> new QuestionResultSnapshot(
+                        rs.getLong("question_result_id"),
+                        rs.getLong("performance_id"),
+                        rs.getLong("question_id"),
+                        rs.getString("voice_file_path"),
+                        rs.getString("stt_text"),
+                        rs.getString("preprocessed_text"),
+                        (Integer) rs.getObject("appropriateness_score")
+                ),
+                performanceId,
+                userId
+        );
+    }
+
     public record QuestionAudioContext(
             Long performanceId,
             Long recipientId,
