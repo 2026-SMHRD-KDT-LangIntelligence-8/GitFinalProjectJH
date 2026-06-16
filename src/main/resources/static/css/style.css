@@ -205,6 +205,30 @@ a {
     background-clip: content-box;
 }
 
+.senior-create-phone-frame {
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.senior-create-phone-frame .scroll-content {
+    flex: 0 0 auto;
+    overflow: visible;
+    padding-right: 0;
+}
+
+.senior-create-phone-frame::-webkit-scrollbar {
+    width: 5px;
+    background-color: transparent;
+}
+
+.senior-create-phone-frame::-webkit-scrollbar-thumb {
+    background-color: #8fa195;
+    border-radius: 3px;
+    border-top: 72px solid transparent;
+    border-bottom: 72px solid transparent;
+    background-clip: content-box;
+}
+
 .section-label-row {
     display: flex;
     justify-content: space-between;
@@ -836,6 +860,9 @@ a {
 .profile-edit-phone-frame::-webkit-scrollbar-thumb {
     background-color: #8fa195;
     border-radius: 3px;
+    border-top: 72px solid transparent;
+    border-bottom: 72px solid transparent;
+    background-clip: content-box;
 }
 
 /* 이메일은 아이디, @, 도메인 선택이 한 줄에서 자연스럽게 보이도록 별도 레이아웃을 둔다. */

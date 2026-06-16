@@ -166,7 +166,8 @@ public class UserController {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String userId = currentUserService.getRequiredUserId();
 
-        // 회원 탈퇴 시 사용자-수급자 매핑을 먼저 정리하고, 연결이 끊긴 수급자 데이터만 삭제한다.
+        // 회원 탈퇴 시 사용자 리포트와 수급자 관련 데이터를 먼저 정리한 뒤 사용자 정보를 삭제한다.
+        jdbcTemplate.update("delete from REPORTS where user_id = ?", userId);
         recipientRepository.deleteAllByUserId(userId);
         jdbcTemplate.update("delete from USERS where user_id = ?", userId);
         // DB 정리 후 세션과 쿠키까지 비워야 브라우저에 로그인 흔적이 남지 않는다.
