@@ -7,6 +7,7 @@ import com.example.final_project.report.dto.PerformanceReportSummaryResponse;
 import com.example.final_project.report.dto.QuestionTypeScoreResponse;
 import com.example.final_project.report.dto.TrendPointResponse;
 import com.example.final_project.report.dto.TrendReportResponse;
+import com.example.final_project.analysis.dto.ReportAnalysisRow;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -49,8 +50,12 @@ public class ReportService {
 
     public PerformanceReportResponse getPerformanceReport(Long recipientId, Long performanceId, String userId) {
         RecipientResponse recipient = ensureRecipientAccess(recipientId, userId);
+
         List<QuestionTypeScoreResponse> questionTypeScores =
                 reportRepository.findScoresByPerformanceId(performanceId, recipientId, userId);
+
+        List<ReportAnalysisRow> analysisRows =
+                reportRepository.findAnalysisRowsByPerformanceId(performanceId, recipientId, userId);
 
         LocalDateTime performedAt = reportRepository.findPerformedAtByPerformanceId(performanceId, recipientId, userId);
         String performedAtLabel = resolvePerformedAtLabel(recipientId, performanceId, userId, performedAt);
@@ -59,6 +64,7 @@ public class ReportService {
                 recipient,
                 performedAt.toLocalDate(),
                 questionTypeScores,
+                analysisRows,
                 userId
         );
 
@@ -74,8 +80,10 @@ public class ReportService {
     public TrendReportResponse getTrendReport(Long recipientId, int periodDays, String userId) {
         RecipientResponse recipient = ensureRecipientAccess(recipientId, userId);
         List<TrendPointResponse> points = reportRepository.findTrendPoints(recipientId, userId, periodDays);
+        List<ReportRepository.PerformanceAnalysisRow> trendRows =
+                reportRepository.findTrendAnalysisRows(recipientId, userId, periodDays);
 
-        persistTrendSnapshotSafely(recipient, periodDays, points, userId);
+        persistTrendSnapshotSafely(recipient, periodDays, points, trendRows, userId);
 
         return new TrendReportResponse(
                 recipientId,
@@ -102,6 +110,7 @@ public class ReportService {
             RecipientResponse recipient,
             LocalDate performedDate,
             List<QuestionTypeScoreResponse> questionTypeScores,
+            List<ReportAnalysisRow> analysisRows,
             String userId
     ) {
         try {
@@ -110,16 +119,34 @@ public class ReportService {
                     .average()
                     .orElse(0.0);
 
+            double avgResponseTime = analysisRows.stream()
+                    .filter(row -> row.responseTime() != null)
+                    .mapToDouble(ReportAnalysisRow::responseTime)
+                    .average()
+                    .orElse(0.0);
+
+            double avgRepetitionRatio = analysisRows.stream()
+                    .filter(row -> row.repetitionRatio() != null)
+                    .mapToDouble(ReportAnalysisRow::repetitionRatio)
+                    .average()
+                    .orElse(0.0);
+
+            double avgSentenceLength = analysisRows.stream()
+                    .filter(row -> row.avgSentenceLength() != null)
+                    .mapToDouble(ReportAnalysisRow::avgSentenceLength)
+                    .average()
+                    .orElse(0.0);
+
             reportRepository.upsertReportSnapshot(
                     userId,
                     recipient.getRecipientId(),
                     performedDate,
                     performedDate,
-                    null,
-                    null,
-                    null,
+                    avgResponseTime,
+                    avgRepetitionRatio,
+                    avgSentenceLength,
                     averageScore,
-                    null,
+                    "단일 검사 리포트로 기간별 변화 추이는 해당 없음",
                     buildPerformanceSummaryText(recipient.getRecipientName(), performedDate, questionTypeScores)
             );
         } catch (RuntimeException exception) {
@@ -136,6 +163,7 @@ public class ReportService {
             RecipientResponse recipient,
             int periodDays,
             List<TrendPointResponse> points,
+            List<ReportRepository.PerformanceAnalysisRow> trendRows,
             String userId
     ) {
         if (points.isEmpty()) {
@@ -151,14 +179,35 @@ public class ReportService {
                     .average()
                     .orElse(0.0);
 
+            double avgResponseTime = trendRows.stream()
+                    .map(ReportRepository.PerformanceAnalysisRow::row)
+                    .filter(row -> row.responseTime() != null)
+                    .mapToDouble(ReportAnalysisRow::responseTime)
+                    .average()
+                    .orElse(0.0);
+
+            double avgRepetitionRatio = trendRows.stream()
+                    .map(ReportRepository.PerformanceAnalysisRow::row)
+                    .filter(row -> row.repetitionRatio() != null)
+                    .mapToDouble(ReportAnalysisRow::repetitionRatio)
+                    .average()
+                    .orElse(0.0);
+
+            double avgSentenceLength = trendRows.stream()
+                    .map(ReportRepository.PerformanceAnalysisRow::row)
+                    .filter(row -> row.avgSentenceLength() != null)
+                    .mapToDouble(ReportAnalysisRow::avgSentenceLength)
+                    .average()
+                    .orElse(0.0);
+
             reportRepository.upsertReportSnapshot(
                     userId,
                     recipient.getRecipientId(),
                     periodStartDate,
                     periodEndDate,
-                    null,
-                    null,
-                    null,
+                    avgResponseTime,
+                    avgRepetitionRatio,
+                    avgSentenceLength,
                     averageScore,
                     buildTrendSummaryText(periodDays, points),
                     buildTrendReportSummaryText(recipient.getRecipientName(), periodDays, averageScore)

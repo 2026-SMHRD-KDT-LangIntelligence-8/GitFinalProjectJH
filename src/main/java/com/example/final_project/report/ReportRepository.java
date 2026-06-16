@@ -255,9 +255,11 @@ public class ReportRepository {
                         avg_sentence_length,
                         avg_appropriateness_score,
                         trend_summary,
-                        report_summary
+                        report_summary,
+                        pdf_file_path,
+                        created_at
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NOW())
                     """;
 
             jdbcTemplate.update(
