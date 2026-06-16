@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>요양보호사 정보 입력</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<div class="phone-frame">
+    <div class="header-wrapper caregiver-info-header">
+        <h2 class="page-title">요양보호사 정보 입력</h2>
+        <p class="caregiver-info-description">서비스 이용을 위해 최초 1회 추가 정보를 입력해주세요.</p>
+    </div>
+
+    <div class="edit-form-container caregiver-info-form">
+        <div class="form-row">
+            <div class="form-label">요양보호사 자격번호</div>
+            <div class="form-input-wrapper">
+                <input
+                        type="text"
+                        id="caregiver-license-number"
+                        class="form-input"
+                        placeholder="예: 2024-000000"
+                        autocomplete="off"
+                >
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-label">소속 기관</div>
+            <div class="form-input-wrapper">
+                <input
+                        type="text"
+                        id="caregiver-organization-name"
+                        class="form-input"
+                        placeholder="기관명을 입력하세요"
+                        autocomplete="organization"
+                >
+            </div>
+        </div>
+    </div>
+
+    <div class="security-notice-box caregiver-info-notice">
+        <div class="security-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+        </div>
+        <div class="security-text">
+            입력한 정보는 담당자 확인과 서비스 이용 기록 관리를 위해 안전하게 보관됩니다.
+        </div>
+    </div>
+
+    <div class="action-button-group">
+        <button type="button" id="caregiver-info-save-button" class="primary-btn">저장하고 시작하기</button>
+    </div>
+</div>
+
+<script src="/js/caregiver_info.js"></script>
+
+</body>
+</html>
