@@ -328,15 +328,25 @@ public class ReportService {
                 : String.format(java.util.Locale.ROOT, "%.1f", value);
     }
 
-    public String saveReportPdfPath(Long recipientId, Long performanceId, String userId, byte[] pdfBytes) {
+    public String saveReportPdfPath(
+            Long recipientId,
+            Long performanceId,
+            String userId,
+            String originalFileName,
+            byte[] pdfBytes
+    ) {
         RecipientResponse recipient = ensureRecipientAccess(recipientId, userId);
         LocalDateTime performedAt = reportRepository.findPerformedAtByPerformanceId(performanceId, recipientId, userId);
 
         try {
             Files.createDirectories(reportPdfDirectory);
 
-            String safeRecipientName = recipient.getRecipientName().replaceAll("[^a-zA-Z0-9?-?_-]", "_");
-            String fileName = safeRecipientName + "_" + performanceId + "_" + performedAt.toLocalDate() + ".pdf";
+            String fileName = buildStoredPdfFileName(
+                    recipient.getRecipientName(),
+                    originalFileName,
+                    performanceId,
+                    performedAt.toLocalDate()
+            );
             Path filePath = reportPdfDirectory.resolve(fileName);
 
             Files.write(filePath, pdfBytes);
@@ -359,6 +369,31 @@ public class ReportService {
         } catch (Exception exception) {
             throw new IllegalStateException("PDF ??? ??????.", exception);
         }
+    }
+
+    private String buildStoredPdfFileName(
+            String recipientName,
+            String originalFileName,
+            Long performanceId,
+            LocalDate performedDate
+    ) {
+        String baseName = sanitizePdfFileNamePart(originalFileName);
+        if (baseName.isBlank()) {
+            baseName = sanitizePdfFileNamePart(recipientName) + "_전체";
+        }
+
+        if (baseName.toLowerCase(java.util.Locale.ROOT).endsWith(".pdf")) {
+            baseName = baseName.substring(0, baseName.length() - 4);
+        }
+
+        return baseName + "_" + performanceId + "_" + performedDate + ".pdf";
+    }
+
+    private String sanitizePdfFileNamePart(String value) {
+        return String.valueOf(value == null ? "" : value)
+                .replaceAll("[\\\\/:*?\"<>|]", "_")
+                .replaceAll("\\s+", "")
+                .trim();
     }
 
     private RecipientResponse ensureRecipientAccess(Long recipientId, String userId) {

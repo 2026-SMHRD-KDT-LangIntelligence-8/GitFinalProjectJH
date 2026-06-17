@@ -321,10 +321,10 @@ public class ReportRepository {
 
         String updateSql = """
         UPDATE REPORTS
-        SET avg_response_time = ?,
-            avg_repetition_ratio = ?,
-            avg_sentence_length = ?,
-            avg_appropriateness_score = ?,
+        SET avg_response_time = COALESCE(?, avg_response_time),
+            avg_repetition_ratio = COALESCE(?, avg_repetition_ratio),
+            avg_sentence_length = COALESCE(?, avg_sentence_length),
+            avg_appropriateness_score = COALESCE(?, avg_appropriateness_score),
             trend_summary = COALESCE(?, trend_summary),
             report_summary = COALESCE(?, report_summary),
             pdf_file_path = COALESCE(?, pdf_file_path)

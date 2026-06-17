@@ -100,7 +100,27 @@ function setChartDevicePixelRatio(charts, ratio) {
     };
 }
 
-async function downloadPDF(sectionId = "latest-report-section", shouldReturnBlob = false) {
+function sanitizePdfFileNamePart(value) {
+    return String(value ?? "")
+        .replace(/[\\/:*?"<>|]/g, "_")
+        .trim();
+}
+
+function getCurrentPdfSectionLabel(sectionType) {
+    const buttons = Array.from(
+        document.querySelectorAll(`[data-report-filter-scope="${sectionType === "trend" ? "trend" : "latest"}"]`)
+    );
+    const selectedFilter = getSelectedReportFilter(buttons);
+    return isAllFilter(selectedFilter) ? "전체" : normalizeQuestionTypeName(selectedFilter);
+}
+
+function buildPdfFileName(recipientName, sectionType) {
+    const safeRecipientName = sanitizePdfFileNamePart(recipientName || "수급자");
+    const safeSectionLabel = sanitizePdfFileNamePart(getCurrentPdfSectionLabel(sectionType) || "전체");
+    return `${safeRecipientName}_${safeSectionLabel}.pdf`;
+}
+
+async function downloadPDF(sectionId = "latest-report-section", shouldReturnBlob = false, fileName = null) {
     const sourceSection = document.getElementById(sectionId);
     const recipientName = document.getElementById("report-recipient-search")?.value?.trim() || "???";
 
@@ -120,7 +140,7 @@ async function downloadPDF(sectionId = "latest-report-section", shouldReturnBlob
 
     const opt = {
         margin: 10,
-        filename: `${recipientName}_???.pdf`,
+        filename: fileName || `${sanitizePdfFileNamePart(recipientName)}_전체.pdf`,
         image: { type: "png", quality: 1 },
         html2canvas: {
             scale: 4,
@@ -757,14 +777,18 @@ downloadButtons.forEach((button) => {
     button.addEventListener("click", async () => {
         const sectionType = button.dataset.reportSection || "latest";
         const sectionId = sectionType === "trend" ? "trend-report-section" : "latest-report-section";
+        const pdfFileName = buildPdfFileName(
+            selectedRecipient?.recipientName || searchInput.value || "수급자",
+            sectionType
+        );
 
-        const pdfBlob = await downloadPDF(sectionId, true);
+        const pdfBlob = await downloadPDF(sectionId, true, pdfFileName);
 
         if (sectionType === "latest" && selectedRecipient && historySelect.value && pdfBlob) {
             const formData = new FormData();
             formData.append("recipientId", String(selectedRecipient.recipientId));
             formData.append("performanceId", String(Number(historySelect.value)));
-            formData.append("pdfFile", pdfBlob, "report.pdf");
+            formData.append("pdfFile", pdfBlob, pdfFileName);
 
             const response = await fetch("/api/reports/pdf-files", {
                 method: "POST",

@@ -9,7 +9,6 @@ import com.example.final_project.user.CurrentUserService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
 import java.util.Map;
@@ -108,14 +107,15 @@ public class ReportController {
     @PostMapping(value = "/pdf-files", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseBody
     public Map<String, String> uploadReportPdf(
-            @RequestPart("recipientId") Long recipientId,
-            @RequestPart("performanceId") Long performanceId,
-            @RequestPart("pdfFile") MultipartFile pdfFile
+            @RequestParam("recipientId") Long recipientId,
+            @RequestParam("performanceId") Long performanceId,
+            @RequestParam("pdfFile") MultipartFile pdfFile
     ) throws Exception {
         String savedPath = reportService.saveReportPdfPath(
                 recipientId,
                 performanceId,
                 currentUserService.getRequiredUserId(),
+                pdfFile.getOriginalFilename(),
                 pdfFile.getBytes()
         );
         return Map.of("pdfFilePath", savedPath);
