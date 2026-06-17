@@ -8,6 +8,7 @@ body {
     margin: 0;
     padding: 0;
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
@@ -311,6 +312,7 @@ a {
     width: 100%;
     height: 180px;
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
 }
@@ -327,6 +329,19 @@ a {
     width: 140px;
     height: auto;
     object-fit: contain;
+    transform: translateY(10px);
+    z-index: 1;
+}
+
+.service-name {
+    margin-top: 10px;
+    font-family: 'PyeongChangPeace-Bold', sans-serif;
+    font-size: 36px;
+    font-weight: 700;
+    color: #2e6f40;
+    letter-spacing: 5px;
+    line-height: 1.1;
+    transform: translateY(20px);
     z-index: 1;
 }
 
@@ -451,7 +466,7 @@ a {
 
 .service-logo { width: 50px; height: 50px; object-fit: contain; }
 .main-title-container .service-logo { position: absolute; left: calc(50% - 112px); top: 50%; transform: translateY(-50%); }
-.service-title { width: 100%; text-align: center; font-size: 40px; font-weight: 800; color: #11381c; margin: 0; transform: translateX(5px); }
+.service-title { width: 100%; text-align: center; font-size: 40px; font-weight: 800; color: #11381c; letter-spacing: 5px; margin: 0; transform: translateX(5px); }
 
 .menu-container { width: 100%; display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; flex: 1; justify-content: center;}
 .menu-item {
