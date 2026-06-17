@@ -1,33 +1,5 @@
-let latestReportChart = null;
+﻿let latestReportChart = null;
 let trendReportChart = null;
-
-const QUESTION_TYPE_ORDER = [
-    "오늘 날짜 말하기",
-    "그림 설명하기",
-    "상황 질문 답하기",
-    "규칙 기반 언어추론",
-    "추억 말하기"
-];
-
-function buildCompleteQuestionTypeScores(scores = []) {
-    const scoreMap = new Map(
-        scores.map((item) => [normalizeQuestionTypeName(item.questionTypeName), item])
-    );
-
-    return QUESTION_TYPE_ORDER.map((questionTypeName) => {
-        const matchedItem = scoreMap.get(normalizeQuestionTypeName(questionTypeName));
-        if (matchedItem) {
-            return matchedItem;
-        }
-
-        return {
-            questionTypeName,
-            averageScore: 0,
-            trainingNeeded: true,
-            isMissingScore: true
-        };
-    });
-}
 
 function buildPendingStatusMessage(recipientName, latestTestDate) {
     const latestLabel = latestTestDate ? `${latestTestDate} 검사 기록 확인 완료` : "검사 기록 확인 완료";
@@ -41,140 +13,25 @@ function buildPendingStatusMessage(recipientName, latestTestDate) {
 
 async function fetchRecipientDetail(recipientId) {
     const response = await fetch(`/api/recipients/${recipientId}/detail`);
-
     if (!response.ok) {
-        throw new Error(`recipient_detail_failed_${response.status}`);
+        throw new Error("recipient_detail_failed");
     }
-
     return response.json();
 }
 
-function waitForPaint() {
-    return new Promise((resolve) => {
-        requestAnimationFrame(() => {
-            requestAnimationFrame(resolve);
-        });
-    });
-}
-
-function getChartsForSection(sectionId) {
-    if (sectionId === "trend-report-section") {
-        return [trendReportChart].filter(Boolean);
-    }
-
-    return [latestReportChart].filter(Boolean);
-}
-
-function resizeCharts(charts) {
-    charts.forEach((chart) => {
-        if (chart && typeof chart.resize === "function") {
-            chart.resize();
-        }
-    });
-}
-
-function setChartDevicePixelRatio(charts, ratio) {
-    const previousOptions = [];
-
-    charts.forEach((chart) => {
-        if (!chart || !chart.options) {
-            return;
-        }
-
-        previousOptions.push({
-            chart,
-            devicePixelRatio: chart.options.devicePixelRatio
-        });
-
-        chart.options.devicePixelRatio = ratio;
-        chart.resize();
-        chart.update("none");
-    });
-
-    return () => {
-        previousOptions.forEach(({ chart, devicePixelRatio }) => {
-            chart.options.devicePixelRatio = devicePixelRatio;
-            chart.resize();
-            chart.update("none");
-        });
-    };
-}
-
-async function downloadPDF(sectionId = "latest-report-section") {
-    const sourceSection = document.getElementById(sectionId);
+function downloadPDF() {
+    const element = document.getElementById("pdf-area");
     const recipientName = document.getElementById("report-recipient-search")?.value?.trim() || "리포트";
-
-    if (!sourceSection) {
-        alert("PDF로 출력할 리포트 영역을 찾지 못했습니다.");
-        return;
-    }
-
-    if (typeof html2pdf === "undefined") {
-        alert("PDF 출력 라이브러리를 불러오지 못했습니다. html2pdf script 경로를 확인해주세요.");
-        return;
-    }
-
-    const targetCharts = getChartsForSection(sectionId);
-
-    sourceSection.classList.add("pdf-section-export-mode");
-
-    await waitForPaint();
-
-    const restoreChartDpr = setChartDevicePixelRatio(targetCharts, 4);
-
-    await waitForPaint();
-
-    resizeCharts(targetCharts);
-
-    await waitForPaint();
 
     const opt = {
         margin: 10,
         filename: `${recipientName}_리포트.pdf`,
-        image: {
-            type: "png",
-            quality: 1
-        },
-        html2canvas: {
-            scale: 4,
-            useCORS: true,
-            backgroundColor: "#ffffff",
-            scrollX: 0,
-            scrollY: 0,
-            windowWidth: document.documentElement.scrollWidth,
-            windowHeight: document.documentElement.scrollHeight
-        },
-        jsPDF: {
-            unit: "mm",
-            format: "a4",
-            orientation: "portrait"
-        },
-        pagebreak: {
-            mode: ["css", "legacy"],
-            avoid: [
-                ".report-card-panel",
-                ".report-type-summary-item",
-                ".report-chart-wrap"
-            ]
-        }
+        image: {type: "jpeg", quality: 0.98},
+        html2canvas: {scale: 2, useCORS: true},
+        jsPDF: {unit: "mm", format: "a4", orientation: "portrait"}
     };
 
-    try {
-        await html2pdf().set(opt).from(sourceSection).save();
-    } catch (error) {
-        console.error("PDF 출력 실패:", error);
-        alert("PDF 출력 중 오류가 발생했습니다.");
-    } finally {
-        if (typeof restoreChartDpr === "function") {
-            restoreChartDpr();
-        }
-
-        sourceSection.classList.remove("pdf-section-export-mode");
-
-        await waitForPaint();
-
-        resizeCharts(targetCharts);
-    }
+    html2pdf().set(opt).from(element).save();
 }
 
 function escapeHtml(value) {
@@ -247,33 +104,12 @@ function setActiveReportFilter(buttons, activeButton) {
 }
 
 function filterQuestionTypeScores(scores, filterLabel) {
-    const completeScores = buildCompleteQuestionTypeScores(scores);
-
     if (isAllFilter(filterLabel)) {
-        return completeScores;
+        return scores;
     }
 
     const targetName = normalizeQuestionTypeName(filterLabel);
-    return completeScores.filter((item) => normalizeQuestionTypeName(item.questionTypeName) === targetName);
-}
-function filterQuestionScores(questionScores, filterLabel) {
-    if (isAllFilter(filterLabel)) {
-        return [];
-    }
-
-    const targetName = normalizeQuestionTypeName(filterLabel);
-
-    return (questionScores || []).filter((item) =>
-        normalizeQuestionTypeName(item.questionTypeName) === targetName
-    );
-}
-
-function buildQuestionChartLabel(item, index) {
-    return `${index + 1}번`;
-}
-
-function getQuestionScoreValue(item) {
-    return Number(item.score ?? item.averageScore ?? 0);
+    return scores.filter((item) => normalizeQuestionTypeName(item.questionTypeName) === targetName);
 }
 
 function extractTrendScore(point, filterLabel) {
@@ -300,7 +136,7 @@ function buildTrendSeries(points, filterLabel) {
     };
 }
 
-function renderLatestChart(scores, filterLabel = "전체", questionScores = []) {
+function renderLatestChart(scores, filterLabel = "전체") {
     const context = document.getElementById("latest-report-chart");
     if (!context) {
         return;
@@ -310,27 +146,18 @@ function renderLatestChart(scores, filterLabel = "전체", questionScores = []) 
         latestReportChart.destroy();
     }
 
-    const isAll = isAllFilter(filterLabel);
-    const chartItems = isAll
-        ? filterQuestionTypeScores(scores, filterLabel)
-        : filterQuestionScores(questionScores, filterLabel);
+    const filteredScores = filterQuestionTypeScores(scores, filterLabel);
 
     latestReportChart = new Chart(context, {
         type: "bar",
         data: {
-            labels: chartItems.map((item, index) =>
-                isAll ? item.questionTypeName : buildQuestionChartLabel(item, index)
-            ),
+            labels: filteredScores.map((item) => item.questionTypeName),
             datasets: [{
-                label: isAll ? "문항 타입별 평균 점수" : "문항별 점수",
-                data: chartItems.map((item) =>
-                    isAll ? Number(item.averageScore ?? 0) : getQuestionScoreValue(item)
-                ),
-                backgroundColor: chartItems.map((item) =>
-                    item.trainingNeeded ? "#F94144" : "#14AE5C"
-                ),
+                label: "평균 점수",
+                data: filteredScores.map((item) => item.averageScore),
+                backgroundColor: filteredScores.map((item) => item.trainingNeeded ? "#F94144" : "#14AE5C"),
                 borderRadius: 12,
-                maxBarThickness: isAll ? 38 : 48
+                maxBarThickness: 38
             }]
         },
         options: {
@@ -342,33 +169,16 @@ function renderLatestChart(scores, filterLabel = "전체", questionScores = []) 
                 },
                 tooltip: {
                     callbacks: {
-                        title(context) {
-                            const index = context[0]?.dataIndex ?? 0;
-                            const item = chartItems[index];
-
-                            if (isAll) {
-                                return item?.questionTypeName ?? "";
-                            }
-
-                            return item?.questionText || `${index + 1}번 문항`;
-                        },
                         label(context) {
                             const score = Number(context.raw ?? 0);
                             return score < 60
-                                ? `점수 ${formatScore(score)}점 / 훈련 필요`
-                                : `점수 ${formatScore(score)}점 / 안정`;
+                                ? `평균 점수 ${formatScore(score)}점 / 훈련 필요`
+                                : `평균 점수 ${formatScore(score)}점 / 안정`;
                         }
                     }
                 }
             },
             scales: {
-                x: {
-                    ticks: {
-                        maxRotation: isAll ? 45 : 0,
-                        minRotation: isAll ? 45 : 0,
-                        autoSkip: false
-                    }
-                },
                 y: {
                     min: 0,
                     max: 100,
@@ -446,60 +256,26 @@ function renderTrendChart(points, filterLabel = "전체") {
     });
 }
 
-function renderTypeSummary(scores, filterLabel = "전체", questionScores = []) {
+function renderTypeSummary(scores, filterLabel = "전체") {
     const container = document.getElementById("report-type-summary");
     if (!container) {
         return;
     }
 
-    const isAll = isAllFilter(filterLabel);
-
-    if (isAll) {
-        const filteredScores = filterQuestionTypeScores(scores, filterLabel);
-        container.innerHTML = filteredScores.map((item) => `
-            <div class="report-type-summary-item">
-                <span class="report-type-name">${escapeHtml(item.questionTypeName)}</span>
-                <div class="report-type-meta">
-                    <span class="report-type-score">${item.isMissingScore ? "0점" : `${formatScore(item.averageScore)}점`}</span>
-                    <span class="report-type-badge ${item.trainingNeeded ? "is-training-needed" : "is-stable"}">
-                        ${item.isMissingScore ? "데이터 없음" : (item.trainingNeeded ? "훈련 필요" : "안정")}
-                    </span>
-                </div>
+    const filteredScores = filterQuestionTypeScores(scores, filterLabel);
+    container.innerHTML = filteredScores.map((item) => `
+        <div class="report-type-summary-item">
+            <span class="report-type-name">${escapeHtml(item.questionTypeName)}</span>
+            <div class="report-type-meta">
+                <span class="report-type-score">${formatScore(item.averageScore)}점</span>
+                <span class="report-type-badge ${item.trainingNeeded ? "is-training-needed" : "is-stable"}">
+                    ${item.trainingNeeded ? "훈련 필요" : "안정"}
+                </span>
             </div>
-        `).join("");
+        </div>
+    `).join("");
 
-        container.classList.toggle("hidden", filteredScores.length === 0);
-        return;
-    }
-
-    const filteredQuestions = filterQuestionScores(questionScores, filterLabel);
-
-    container.innerHTML = filteredQuestions.map((item, index) => {
-        const score = getQuestionScoreValue(item);
-
-        return `
-            <div class="report-question-summary-item">
-                <div class="report-question-top">
-                    <div class="report-question-main">
-                        <span class="report-question-index">${index + 1}번 문항</span>
-                        <span class="report-question-text">${escapeHtml(item.questionText || "문항 내용 없음")}</span>
-                    </div>
-                    <div class="report-type-meta">
-                        <span class="report-type-score">${formatScore(score)}점</span>
-                        <span class="report-type-badge ${item.trainingNeeded ? "is-training-needed" : "is-stable"}">
-                            ${item.trainingNeeded ? "훈련 필요" : "안정"}
-                        </span>
-                    </div>
-                </div>
-                <div class="report-answer-box">
-                    <span class="report-answer-label">답변</span>
-                    <span class="report-answer-text">${escapeHtml(item.answerText || "답변 내용 없음")}</span>
-                </div>
-            </div>
-        `;
-    }).join("");
-
-    container.classList.toggle("hidden", filteredQuestions.length === 0);
+    container.classList.toggle("hidden", filteredScores.length === 0);
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -530,7 +306,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     let isLocked = false;
     let selectedRecipient = null;
     let latestQuestionTypeScores = [];
-    let latestQuestionScores = [];
     let trendReportPoints = [];
 
     const setEmptyState = (element, visible) => {
@@ -567,18 +342,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         const selectedFilter = getSelectedReportFilter(latestReportFilterButtons);
-        const isAll = isAllFilter(selectedFilter);
+        const filteredScores = filterQuestionTypeScores(latestQuestionTypeScores, selectedFilter);
 
-        const filteredItems = isAll
-            ? filterQuestionTypeScores(latestQuestionTypeScores, selectedFilter)
-            : filterQuestionScores(latestQuestionScores, selectedFilter);
-
-        if (!filteredItems.length) {
+        if (!filteredScores.length) {
             reportTypeSummary.innerHTML = "";
             reportTypeSummary.classList.add("hidden");
-            latestReportEmpty.textContent = isAll
-                ? "검사 분석 결과가 아직 없습니다."
-                : "선택한 문항 타입의 문항별 점수가 없습니다.";
+            latestReportEmpty.textContent = "선택한 문항 타입의 점수가 없습니다.";
             setEmptyState(latestReportEmpty, true);
             if (latestReportChart) {
                 latestReportChart.destroy();
@@ -587,10 +356,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        latestReportEmpty.textContent = "검사 분석 결과가 아직 없습니다.";
         setEmptyState(latestReportEmpty, false);
-        renderLatestChart(latestQuestionTypeScores, selectedFilter, latestQuestionScores);
-        renderTypeSummary(latestQuestionTypeScores, selectedFilter, latestQuestionScores);
+        renderLatestChart(latestQuestionTypeScores, selectedFilter);
+        renderTypeSummary(latestQuestionTypeScores, selectedFilter);
     };
 
     const applyTrendReportFilter = () => {
@@ -629,7 +397,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         reportTypeSummary.innerHTML = "";
         reportTypeSummary.classList.add("hidden");
         latestQuestionTypeScores = [];
-        latestQuestionScores = [];
         trendReportPoints = [];
         latestReportEmpty.textContent = "검사 분석 결과가 아직 없습니다.";
         trendReportEmpty.textContent = "기간별 그래프로 표시할 검사 결과가 없습니다.";
@@ -651,11 +418,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        const normalizedKeyword = keyword.toLowerCase();
-        const matchedRecipients = recipients.filter((recipient) =>
-            String(recipient.recipientName ?? "").trim().toLowerCase().includes(normalizedKeyword)
-        );
-
+        const matchedRecipients = recipients.filter((recipient) => (recipient.recipientName ?? "").includes(keyword));
         if (!matchedRecipients.length) {
             closeCombo();
             return;
@@ -675,18 +438,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             return null;
         }
 
-        const normalizedTypedName = typedName.toLowerCase();
-
-        if (
-            selectedRecipient &&
-            String(selectedRecipient.recipientName ?? "").trim().toLowerCase() === normalizedTypedName
-        ) {
+        if (selectedRecipient && selectedRecipient.recipientName === typedName) {
             return selectedRecipient;
         }
 
-        return recipients.find((recipient) =>
-            String(recipient.recipientName ?? "").trim().toLowerCase() === normalizedTypedName
-        ) ?? null;
+        return recipients.find((recipient) => recipient.recipientName === typedName) ?? null;
     };
 
     const unlockSearchInput = () => {
@@ -702,7 +458,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const lockSearchInput = async () => {
         const recipient = resolveSelectedRecipient();
         if (!recipient) {
-            renderCombo();
             alert("목록에서 수급자를 선택해주세요.");
             searchInput.focus();
             return;
@@ -719,12 +474,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     downloadButtons.forEach((button) => {
-        button.addEventListener("click", async () => {
-            const sectionType = button.dataset.reportSection || "latest";
-            const sectionId = sectionType === "trend" ? "trend-report-section" : "latest-report-section";
-
-            await downloadPDF(sectionId);
-        });
+        button.addEventListener("click", downloadPDF);
     });
 
     shareButtons.forEach((button) => {
@@ -921,7 +671,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             await loadLatestReport(recipientId, reports[0].performanceId);
             await loadTrendReport(recipientId, Number(trendSelect.value));
         } catch (error) {
-            console.error("loadReportsForRecipient 실패:", error);
+            console.error(error);
             resetReportUi("리포트 데이터를 불러오지 못했습니다.");
         }
     }
@@ -940,7 +690,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             if (!payload.questionTypeScores?.length) {
                 latestQuestionTypeScores = [];
-                latestQuestionScores = [];
                 reportTypeSummary.innerHTML = "";
                 reportTypeSummary.classList.add("hidden");
                 setActiveReportFilter(latestReportFilterButtons, getAllReportFilterButton(latestReportFilterButtons));
@@ -952,13 +701,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return;
             }
 
-            latestQuestionTypeScores = payload.questionTypeScores || [];
-            latestQuestionScores = payload.questionScores || [];
+            latestQuestionTypeScores = payload.questionTypeScores;
             applyLatestReportFilter();
         } catch (error) {
             console.error(error);
             latestQuestionTypeScores = [];
-            latestQuestionScores = [];
             reportTypeSummary.innerHTML = "";
             reportTypeSummary.classList.add("hidden");
             setActiveReportFilter(latestReportFilterButtons, getAllReportFilterButton(latestReportFilterButtons));

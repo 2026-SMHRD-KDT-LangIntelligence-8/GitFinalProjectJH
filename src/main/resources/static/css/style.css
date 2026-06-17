@@ -1105,7 +1105,7 @@ a {
     position: absolute;
     top: 38px;
     left: 0;
-    z-index: 10;
+    z-index: 60;
     width: 100%;
     max-height: 126px;
     overflow-y: auto;
@@ -1173,10 +1173,94 @@ a {
 .report-filter-btn.is-active { background-color: #1e5e3a; border-color: #1e5e3a; color: #ffffff; }
 .report-card-panel-large { min-height: 300px; }
 .report-summary-header { font-size: 13px; font-weight: 700; color: #436052; margin-bottom: 12px; }
-.report-chart-wrap { position: relative; width: 100%; height: 165px; }
+.report-chart-wrap { position: relative; width: 100%; height: 155px; }
 .report-chart-wrap-large { height: 220px; }
 .report-type-summary { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
-.report-type-summary-item { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; background-color: #ffffff; border: 1px solid #dfe8e1; }
+
+.report-type-summary-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background-color: #ffffff;
+    border: 1px solid #dfe8e1;
+}
+
+.report-question-summary-item {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background-color: #ffffff;
+    border: 1px solid #dfe8e1;
+}
+
+.report-question-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+    width: 100%;
+}
+
+.report-question-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.report-question-index {
+    font-size: 11px;
+    font-weight: 800;
+    color: #2e6f40;
+}
+
+.report-question-text {
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.45;
+    color: #11381c;
+    word-break: keep-all;
+}
+.report-answer-box {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+    margin-top: 0;
+    padding: 6px 8px;
+    border-radius: 9px;
+    background-color: #f7faf7;
+    border: 1px solid #e1ebe4;
+    box-sizing: border-box;
+}
+
+.report-answer-label {
+    font-size: 9.5px;
+    font-weight: 800;
+    color: #2e6f40;
+}
+
+.report-answer-text {
+    font-size: 11.5px;
+    font-weight: 600;
+    line-height: 1.35;
+    color: #436052;
+    word-break: keep-all;
+    white-space: pre-wrap;
+}
+
+.report-question-summary-item .report-type-meta {
+    min-width: 72px;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
 .report-type-name { flex: 1; min-width: 0; font-size: 13px; font-weight: 800; color: #11381c; word-break: keep-all; }
 .report-type-meta { flex: 0 0 auto; display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-width: 86px; }
 .report-type-score { font-size: 12px; font-weight: 700; color: #55776d; }
@@ -1197,6 +1281,10 @@ a {
 .dropdown-wrapper { flex: 1; }
 .select-recipient { width: 100%; height: 44px; font-size: 14px; font-weight: 700; color: #354a3b; padding: 0 12px; border-radius: 10px; border: 1px solid #c8d4cb; background-color: #f6f8f6; outline: none; }
 .start-btn { height: 44px; padding: 0 20px; background-color: #2e6f40; color: #ffffff; border: none; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.start-btn:disabled { opacity: 0.5; cursor: default; }
+.training-status-message { width: 100%; max-width: 280px; margin: 0 auto 14px; text-align: center; }
+.training-recipient-name { width: 100%; max-width: 280px; margin: 6px auto 0; text-align: center; }
+.training-graphic-hidden { display: none; }
 /* 검사 시작 전/후 화면을 같은 페이지 안에서 전환하기 위한 래퍼다. */
 .test-intro-view { width: 100%; display: flex; flex: 1; flex-direction: column; }
 .test-session-view { width: 100%; display: flex; flex: 1; flex-direction: column; gap: 16px; }
@@ -1281,3 +1369,101 @@ a {
 }
 .training-text { font-size: 22px; font-weight: 800; color: #11381c; }
 .arrow-icon { margin-left: auto; color: #728a7a; display: flex; align-items: center; }
+
+
+/* PDF 출력 시 실제 리포트 섹션을 안정적으로 캡처하기 위한 모드 */
+.pdf-section-export-mode {
+    width: 100% !important;
+    background-color: #ffffff !important;
+    overflow: visible !important;
+}
+
+.pdf-section-export-mode .report-card-panel {
+    min-height: auto !important;
+    overflow: visible !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+.pdf-section-export-mode .report-chart-wrap {
+    position: relative !important;
+    width: 100% !important;
+    height: 170px !important;
+    overflow: visible !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+.pdf-section-export-mode .report-chart-wrap-large {
+    height: 270px !important;
+}
+
+.pdf-section-export-mode .report-chart-wrap canvas {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    image-rendering: auto !important;
+}
+
+.pdf-section-export-mode .report-type-summary {
+    display: flex !important;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 8px;
+}
+
+.pdf-section-export-mode .report-type-summary-item,
+.pdf-section-export-mode .report-question-summary-item,
+.pdf-section-export-mode .report-answer-box {
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+.pdf-section-export-mode .report-question-summary-item {
+    gap: 5px;
+    padding: 7px 10px;
+}
+
+.pdf-section-export-mode .report-question-top {
+    gap: 8px;
+}
+
+.pdf-section-export-mode .report-question-index {
+    font-size: 9.5px;
+}
+
+.pdf-section-export-mode .report-question-text {
+    font-size: 10.5px;
+    line-height: 1.28;
+}
+
+.pdf-section-export-mode .report-answer-box {
+    gap: 1px;
+    padding: 4px 7px;
+    border-radius: 8px;
+}
+
+.pdf-section-export-mode .report-answer-label {
+    font-size: 8.5px;
+}
+
+.pdf-section-export-mode .report-answer-text {
+    font-size: 10px;
+    line-height: 1.25;
+}
+
+.pdf-section-export-mode .report-type-score {
+    font-size: 10.5px;
+}
+
+.pdf-section-export-mode .report-type-badge {
+    min-height: 20px;
+    min-width: 42px;
+    padding: 0 8px;
+    font-size: 9.5px;
+}
+
+.pdf-section-export-mode .report-action-row {
+    display: none !important;
+}

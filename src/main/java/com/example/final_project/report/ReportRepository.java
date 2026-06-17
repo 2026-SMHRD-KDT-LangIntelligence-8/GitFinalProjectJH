@@ -4,6 +4,7 @@ import com.example.final_project.analysis.dto.ReportAnalysisRow;
 import com.example.final_project.report.dto.PerformanceReportSummaryResponse;
 import com.example.final_project.report.dto.QuestionTypeScoreResponse;
 import com.example.final_project.report.dto.TrendPointResponse;
+import com.example.final_project.report.dto.QuestionScoreResponse;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -82,7 +83,45 @@ public class ReportRepository {
                 userId
         );
     }
+    public List<QuestionScoreResponse> findQuestionScoresByPerformanceId(Long performanceId, Long recipientId, String userId) {
+        String sql = """
+                SELECT q.question_id,
+                       qr.question_result_id,
+                       qt.question_type_name,
+                       q.question_text,
+                       qr.stt_text AS answer_text,
+                       ar.appropriateness_score
+                FROM PERFORMANCE_RECORDS pr
+                INNER JOIN QUESTION_RESULTS qr ON pr.performance_id = qr.performance_id
+                INNER JOIN ANALYSIS_RESULTS ar ON qr.question_result_id = ar.question_result_id
+                INNER JOIN QUESTIONS q ON qr.question_id = q.question_id
+                INNER JOIN QUESTION_TYPES qt ON q.question_type_id = qt.question_type_id
+                WHERE pr.performance_id = ?
+                  AND pr.recipient_id = ?
+                  AND pr.user_id = ?
+                ORDER BY q.question_type_id ASC, qr.question_result_id ASC
+                """;
 
+        return jdbcTemplate.query(
+                sql,
+                (rs, rowNum) -> {
+                    Integer score = getNullableInteger(rs, "appropriateness_score");
+
+                    return new QuestionScoreResponse(
+                            rs.getLong("question_id"),
+                            rs.getLong("question_result_id"),
+                            rs.getString("question_type_name"),
+                            rs.getString("question_text"),
+                            rs.getString("answer_text"),
+                            score,
+                            score != null && score < 60
+                    );
+                },
+                performanceId,
+                recipientId,
+                userId
+        );
+    }
     // 새 리포트 요약 계산은 문항별 분석 원본값을 파이썬 파이프라인으로 넘기기 위해 이 행 목록을 사용한다.
     public List<ReportAnalysisRow> findAnalysisRowsByPerformanceId(Long performanceId, Long recipientId, String userId) {
         String sql = """

@@ -5,6 +5,7 @@ const SpeechRecognitionConstructor = window.SpeechRecognition || window.webkitSp
 
 // 검사 페이지는 음성 인식, 음성 파일 저장, 텍스트 확인 UI를 한 스크립트에서 관리한다.
 document.addEventListener("DOMContentLoaded", async () => {
+    const backButton = document.getElementById("test-back-btn");
     const recipientSelect = document.getElementById("recipient-select");
     const startButton = document.getElementById("start-test-btn");
     const introView = document.getElementById("test-intro-view");
@@ -64,7 +65,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         finalizing: false,
         completed: false,
         reviewPollingTimerId: null,
-        reviewPollingBusy: false
+        reviewPollingBusy: false,
+        shouldPersistProgress: true
     };
 
     setVoiceState("idle");
@@ -149,14 +151,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         stopVoicePulse();
         stopReviewPolling();
         releaseMediaStream(state);
-        if (state.questions.length > 0) {
+        if (state.shouldPersistProgress && state.questions.length > 0) {
             saveTestProgress(state, state.completed);
         }
     });
 
+    backButton?.addEventListener("click", () => {
+        clearPersistedTestProgress(state);
+    });
+
     reviewFinishButton?.addEventListener("click", () => {
         stopReviewPolling();
-        sessionStorage.removeItem(TEST_PROGRESS_STORAGE_KEY);
+        clearPersistedTestProgress(state);
         window.location.href = "/main";
     });
 
@@ -186,6 +192,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             state.analysisFailureQuestionIds = Array.isArray(saved.analysisFailureQuestionIds) ? saved.analysisFailureQuestionIds : [];
             state.completed = Boolean(saved.completed);
             state.finalizing = false;
+            state.timerStarted = false;
             state.remainingSeconds = state.questionDurationSeconds;
 
             if (state.recipientId) {
@@ -946,6 +953,14 @@ function saveTestProgress(state, completed = false) {
     };
 
     sessionStorage.setItem(TEST_PROGRESS_STORAGE_KEY, JSON.stringify(summary));
+}
+
+function clearPersistedTestProgress(state) {
+    if (state) {
+        state.shouldPersistProgress = false;
+    }
+
+    sessionStorage.removeItem(TEST_PROGRESS_STORAGE_KEY);
 }
 
 // 그림 문항 이미지는 DB 경로나 fallback 파일명을 모두 브라우저용 정적 경로로 맞춰 준다.
