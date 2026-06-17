@@ -313,7 +313,8 @@ public class ReportRepository {
                     avgSentenceLength,
                     avgAppropriatenessScore,
                     trendSummary,
-                    reportSummary
+                    reportSummary,
+                    pdfFilePath
             );
             return;
         }
