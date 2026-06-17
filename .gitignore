@@ -51,6 +51,7 @@ bin/
 .venv/
 **/.venv/
 speech_analysis/.venv/
+_tmp_compare/
 
 ### Python caches ###
 __pycache__/

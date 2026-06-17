@@ -13,7 +13,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const organizationNameInput = document.getElementById("profile-organization-name");
     const saveButton = document.getElementById("profile-save-button");
     const withdrawButton = document.getElementById("profile-withdraw-button");
-    const sanitizeCaregiverLicenseNumber = (value) => String(value ?? "").replace(/\D/g, "");
+    const sanitizeCaregiverLicenseNumber = (value) => String(value ?? "").replace(/\D/g, "").slice(0, 11);
+    const formatCaregiverLicenseNumber = (value) => {
+        const digits = sanitizeCaregiverLicenseNumber(value);
+        if (digits.length <= 4) {
+            return digits;
+        }
+        return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+    };
 
     const defaultProfile = {
         name: "",
@@ -80,7 +87,7 @@ document.addEventListener("DOMContentLoaded", () => {
         domainSelect.value = profile.emailDomain ?? "naver.com";
         customDomainInput.value = profile.emailDomainCustom ?? "";
         phoneInput.value = profile.phone ?? "";
-        caregiverLicenseNumberInput.value = sanitizeCaregiverLicenseNumber(profile.caregiverLicenseNumber);
+        caregiverLicenseNumberInput.value = formatCaregiverLicenseNumber(profile.caregiverLicenseNumber);
         organizationNameInput.value = profile.organizationName ?? "";
 
         const isCustomDomain = domainSelect.value === "직접입력";
@@ -91,7 +98,7 @@ document.addEventListener("DOMContentLoaded", () => {
     applyProfileToInputs(originalProfile);
 
     caregiverLicenseNumberInput.addEventListener("input", () => {
-        caregiverLicenseNumberInput.value = sanitizeCaregiverLicenseNumber(caregiverLicenseNumberInput.value);
+        caregiverLicenseNumberInput.value = formatCaregiverLicenseNumber(caregiverLicenseNumberInput.value);
     });
 
     const loadKakaoProfileName = async () => {
@@ -106,7 +113,7 @@ document.addEventListener("DOMContentLoaded", () => {
             nameInput.value = kakaoName;
             applyEmailToInputs(profile.email ?? "");
             phoneInput.value = profile.phoneNumber ?? "";
-            caregiverLicenseNumberInput.value = sanitizeCaregiverLicenseNumber(profile.caregiverLicenseNumber);
+            caregiverLicenseNumberInput.value = formatCaregiverLicenseNumber(profile.caregiverLicenseNumber);
             organizationNameInput.value = profile.organizationName ?? "";
             const loadedProfile = getCurrentProfile();
             originalProfile = {
