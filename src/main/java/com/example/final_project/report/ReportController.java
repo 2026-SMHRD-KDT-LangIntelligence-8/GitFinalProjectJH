@@ -8,6 +8,11 @@ import com.example.final_project.report.dto.TrendReportResponse;
 import com.example.final_project.user.CurrentUserService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.multipart.MultipartFile;
+import java.util.Map;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -84,8 +89,8 @@ public class ReportController {
 
         return new ShareLinkResponse(
                 shareUrl,
-                report.recipientName() + " 리포트",
-                report.performedAt() + " 검사 결과를 확인할 수 있는 공유 링크입니다.",
+                report.recipientName() + " ???",
+                report.performedAt() + " ?? ??? ??? ? ?? ?? ?????.",
                 tokenPayload.expiresAt().toString()
         );
     }
@@ -98,5 +103,21 @@ public class ReportController {
                 payload.performanceId(),
                 payload.userId()
         );
+
+    }
+    @PostMapping(value = "/pdf-files", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseBody
+    public Map<String, String> uploadReportPdf(
+            @RequestPart("recipientId") Long recipientId,
+            @RequestPart("performanceId") Long performanceId,
+            @RequestPart("pdfFile") MultipartFile pdfFile
+    ) throws Exception {
+        String savedPath = reportService.saveReportPdfPath(
+                recipientId,
+                performanceId,
+                currentUserService.getRequiredUserId(),
+                pdfFile.getBytes()
+        );
+        return Map.of("pdfFilePath", savedPath);
     }
 }

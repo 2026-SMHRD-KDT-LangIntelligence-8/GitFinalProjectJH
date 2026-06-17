@@ -260,7 +260,8 @@ public class ReportRepository {
             Double avgSentenceLength,
             Double avgAppropriatenessScore,
             String trendSummary,
-            String reportSummary
+            String reportSummary,
+            String pdfFilePath
     ) {
         String selectSql = """
                 SELECT report_id
@@ -298,7 +299,7 @@ public class ReportRepository {
                         pdf_file_path,
                         created_at
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NOW())
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
                     """;
 
             jdbcTemplate.update(
@@ -318,15 +319,16 @@ public class ReportRepository {
         }
 
         String updateSql = """
-                UPDATE REPORTS
-                SET avg_response_time = ?,
-                    avg_repetition_ratio = ?,
-                    avg_sentence_length = ?,
-                    avg_appropriateness_score = ?,
-                    trend_summary = COALESCE(?, trend_summary),
-                    report_summary = COALESCE(?, report_summary)
-                WHERE report_id = ?
-                """;
+        UPDATE REPORTS
+        SET avg_response_time = ?,
+            avg_repetition_ratio = ?,
+            avg_sentence_length = ?,
+            avg_appropriateness_score = ?,
+            trend_summary = COALESCE(?, trend_summary),
+            report_summary = COALESCE(?, report_summary),
+            pdf_file_path = COALESCE(?, pdf_file_path)
+        WHERE report_id = ?
+        """;
 
         jdbcTemplate.update(
                 updateSql,
@@ -336,6 +338,7 @@ public class ReportRepository {
                 avgAppropriatenessScore,
                 trendSummary,
                 reportSummary,
+                pdfFilePath,
                 reportIds.get(0)
         );
     }

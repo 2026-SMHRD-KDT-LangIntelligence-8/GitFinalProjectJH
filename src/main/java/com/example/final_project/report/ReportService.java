@@ -13,6 +13,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import org.springframework.beans.factory.annotation.Value;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -27,13 +32,16 @@ public class ReportService {
 
     private final ReportRepository reportRepository;
     private final RecipientRepository recipientRepository;
+    private final Path reportPdfDirectory;
 
     public ReportService(
             ReportRepository reportRepository,
-            RecipientRepository recipientRepository
+            RecipientRepository recipientRepository,
+            @Value("${app.report.pdf-dir:./report-pdfs}") String reportPdfDir
     ) {
         this.reportRepository = reportRepository;
         this.recipientRepository = recipientRepository;
+        this.reportPdfDirectory = Paths.get(reportPdfDir);
     }
 
     public List<PerformanceReportSummaryResponse> getAvailableReports(Long recipientId, String userId) {
@@ -211,7 +219,8 @@ public class ReportService {
                     avgSentenceLength,
                     averageScore,
                     "단일 검사 리포트로 기간별 변화 추이는 해당 없음",
-                    buildPerformanceSummaryText(recipient.getRecipientName(), performedDate, questionTypeScores)
+                    buildPerformanceSummaryText(recipient.getRecipientName(), performedDate, questionTypeScores),
+                    null
             );
         } catch (RuntimeException exception) {
             log.warn(
@@ -274,7 +283,8 @@ public class ReportService {
                     avgSentenceLength,
                     averageScore,
                     buildTrendSummaryText(periodDays, points),
-                    buildTrendReportSummaryText(recipient.getRecipientName(), periodDays, averageScore)
+                    buildTrendReportSummaryText(recipient.getRecipientName(), periodDays, averageScore),
+                    null
             );
         } catch (RuntimeException exception) {
             log.warn(
@@ -292,24 +302,24 @@ public class ReportService {
             List<QuestionTypeScoreResponse> questionTypeScores
     ) {
         String scoreSummary = questionTypeScores.stream()
-                .map(score -> score.questionTypeName() + " " + formatScore(score.averageScore()) + "점")
+                .map(score -> score.questionTypeName() + " " + formatScore(score.averageScore()) + "?")
                 .reduce((left, right) -> left + ", " + right)
-                .orElse("문항 점수 없음");
+                .orElse("?? ?? ??");
 
         return recipientName + " / " + performedDate + " / " + scoreSummary;
     }
 
     private String buildTrendSummaryText(int periodDays, List<TrendPointResponse> points) {
         String pointSummary = points.stream()
-                .map(point -> point.performedDate() + ":" + formatScore(point.averageScore()) + "점")
+                .map(point -> point.performedDate() + ":" + formatScore(point.averageScore()) + "?")
                 .reduce((left, right) -> left + ", " + right)
-                .orElse("추이 데이터 없음");
+                .orElse("?? ??? ??");
 
-        return "최근 " + periodDays + "일 추이 / " + pointSummary;
+        return "?? " + periodDays + "? ?? / " + pointSummary;
     }
 
     private String buildTrendReportSummaryText(String recipientName, int periodDays, double averageScore) {
-        return recipientName + " / 최근 " + periodDays + "일 / 평균 " + formatScore(averageScore) + "점";
+        return recipientName + " / ?? " + periodDays + "? / ?? " + formatScore(averageScore) + "?";
     }
 
     private String formatScore(double value) {
@@ -318,8 +328,41 @@ public class ReportService {
                 : String.format(java.util.Locale.ROOT, "%.1f", value);
     }
 
+    public String saveReportPdfPath(Long recipientId, Long performanceId, String userId, byte[] pdfBytes) {
+        RecipientResponse recipient = ensureRecipientAccess(recipientId, userId);
+        LocalDateTime performedAt = reportRepository.findPerformedAtByPerformanceId(performanceId, recipientId, userId);
+
+        try {
+            Files.createDirectories(reportPdfDirectory);
+
+            String safeRecipientName = recipient.getRecipientName().replaceAll("[^a-zA-Z0-9?-?_-]", "_");
+            String fileName = safeRecipientName + "_" + performanceId + "_" + performedAt.toLocalDate() + ".pdf";
+            Path filePath = reportPdfDirectory.resolve(fileName);
+
+            Files.write(filePath, pdfBytes);
+
+            reportRepository.upsertReportSnapshot(
+                    userId,
+                    recipientId,
+                    performedAt.toLocalDate(),
+                    performedAt.toLocalDate(),
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    filePath.toString()
+            );
+
+            return filePath.toString();
+        } catch (Exception exception) {
+            throw new IllegalStateException("PDF ??? ??????.", exception);
+        }
+    }
+
     private RecipientResponse ensureRecipientAccess(Long recipientId, String userId) {
         return recipientRepository.findByIdAndUserId(recipientId, userId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 수급자를 찾을 수 없습니다. id=" + recipientId));
+                .orElseThrow(() -> new IllegalArgumentException("?? ???? ?? ? ????. id=" + recipientId));
     }
 }
