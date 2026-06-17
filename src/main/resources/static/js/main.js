@@ -1,5 +1,6 @@
 const AUTH_STORAGE_KEY = "isLoggedIn";
 const KAKAO_LOGOUT_URL = "/logout";
+const TEST_PROGRESS_STORAGE_KEY = "latestCognitiveTestProgress";
 
 document.addEventListener("DOMContentLoaded", async () => {
     const loginLink = document.getElementById("loginLink");
@@ -54,6 +55,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     logoutLink.addEventListener("click", (event) => {
         event.preventDefault();
         localStorage.removeItem(AUTH_STORAGE_KEY);
+        sessionStorage.removeItem(TEST_PROGRESS_STORAGE_KEY);
         window.location.href = KAKAO_LOGOUT_URL;
     });
 

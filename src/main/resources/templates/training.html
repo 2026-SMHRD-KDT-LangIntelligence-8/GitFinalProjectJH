@@ -20,9 +20,10 @@
 
     <div class="title-container">
         <h1 class="main-title">인지능력 훈련</h1>
+        <p class="question-purpose hidden training-recipient-name" id="training-recipient-name"></p>
     </div>
 
-    <div class="graphic-container">
+    <div class="graphic-container" id="training-graphic-container">
         <svg class="center-illustration" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
             <circle cx="100" cy="100" r="75" fill="none" stroke="#2e6f40" stroke-width="1" stroke-dasharray="4 6" opacity="0.15"/>
             <circle cx="100" cy="100" r="55" fill="#f0f4f1" opacity="0.5"/>
@@ -44,9 +45,10 @@
         </svg>
     </div>
 
+    <p class="question-purpose hidden training-status-message" id="training-status-message"></p>
+
     <div class="action-container">
         <div class="dropdown-wrapper">
-            <!-- 훈련 시작 전에도 DB의 수급자 목록이 바로 보이도록 select를 비워 둔다. -->
             <select class="select-recipient" id="recipient-select">
                 <option value="" disabled selected hidden>수급자명</option>
             </select>
@@ -56,7 +58,6 @@
 
 </div>
 
-<!-- 훈련 시작 화면용 수급자 목록 로딩 스크립트 -->
 <script src="/js/training.js"></script>
 
 </body>

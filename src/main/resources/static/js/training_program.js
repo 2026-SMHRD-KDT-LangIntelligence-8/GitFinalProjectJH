@@ -22,9 +22,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const weakTypeNameSet = new Set((payload.weakQuestionTypeNames || []).filter(Boolean));
     const weakPrograms = new Map();
+    const hasWeakType = weakTypeNameSet.size > 0;
 
     payload.questions.forEach((question) => {
-        const matchedWeakType = weakTypeNameSet.size === 0 || weakTypeNameSet.has(question.questionTypeName);
+        const matchedWeakType = hasWeakType && weakTypeNameSet.has(question.questionTypeName);
         const matchedSelectedType = !selectedQuestionTypeName || question.questionTypeName === selectedQuestionTypeName;
 
         if (matchedWeakType && matchedSelectedType && !weakPrograms.has(question.questionTypeName)) {
@@ -35,7 +36,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (weakPrograms.size === 0) {
         trainingList.innerHTML = selectedQuestionTypeName
             ? `<p class="question-purpose">${escapeHtml(selectedQuestionTypeName)} 유형은 현재 추가 훈련 대상이 아닙니다.</p>`
-            : "<p class=\"question-purpose\">검사에서 추가 훈련이 필요한 항목이 없습니다.</p>";
+            : "<p class=\"question-purpose\">해당 수급자는 인지능력 검사 결과 안정권이므로 훈련이 필요하지 않습니다.</p>";
         return;
     }
 

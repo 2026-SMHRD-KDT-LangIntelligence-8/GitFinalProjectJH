@@ -5,6 +5,7 @@ import com.example.final_project.recipient.dto.RecipientResponse;
 import com.example.final_project.report.dto.PerformanceReportResponse;
 import com.example.final_project.report.dto.PerformanceReportSummaryResponse;
 import com.example.final_project.report.dto.QuestionTypeScoreResponse;
+import com.example.final_project.report.dto.QuestionScoreResponse;
 import com.example.final_project.report.dto.TrendPointResponse;
 import com.example.final_project.report.dto.TrendReportResponse;
 import com.example.final_project.analysis.dto.ReportAnalysisRow;
@@ -14,7 +15,10 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class ReportService {
@@ -54,6 +58,9 @@ public class ReportService {
         List<QuestionTypeScoreResponse> questionTypeScores =
                 reportRepository.findScoresByPerformanceId(performanceId, recipientId, userId);
 
+        List<QuestionScoreResponse> questionScores =
+                reportRepository.findQuestionScoresByPerformanceId(performanceId, recipientId, userId);
+
         List<ReportAnalysisRow> analysisRows =
                 reportRepository.findAnalysisRowsByPerformanceId(performanceId, recipientId, userId);
 
@@ -73,15 +80,16 @@ public class ReportService {
                 recipient.getRecipientName(),
                 performanceId,
                 performedAtLabel,
-                questionTypeScores
+                questionTypeScores,
+                questionScores
         );
     }
 
     public TrendReportResponse getTrendReport(Long recipientId, int periodDays, String userId) {
         RecipientResponse recipient = ensureRecipientAccess(recipientId, userId);
-        List<TrendPointResponse> points = reportRepository.findTrendPoints(recipientId, userId, periodDays);
         List<ReportRepository.PerformanceAnalysisRow> trendRows =
                 reportRepository.findTrendAnalysisRows(recipientId, userId, periodDays);
+        List<TrendPointResponse> points = buildTrendPoints(trendRows);
 
         persistTrendSnapshotSafely(recipient, periodDays, points, trendRows, userId);
 
@@ -91,6 +99,62 @@ public class ReportService {
                 periodDays,
                 points
         );
+    }
+
+    private List<TrendPointResponse> buildTrendPoints(List<ReportRepository.PerformanceAnalysisRow> trendRows) {
+        Map<String, List<ReportAnalysisRow>> rowsByDate = new LinkedHashMap<>();
+
+        for (ReportRepository.PerformanceAnalysisRow trendRow : trendRows) {
+            rowsByDate.computeIfAbsent(trendRow.performedDate(), key -> new ArrayList<>())
+                    .add(trendRow.row());
+        }
+
+        return rowsByDate.entrySet().stream()
+                .map((entry) -> {
+                    List<ReportAnalysisRow> rows = entry.getValue();
+                    double averageScore = rows.stream()
+                            .filter((row) -> row.appropriatenessScore() != null)
+                            .mapToInt(ReportAnalysisRow::appropriatenessScore)
+                            .average()
+                            .orElse(0.0);
+
+                    Map<String, List<Integer>> scoresByType = new LinkedHashMap<>();
+                    for (ReportAnalysisRow row : rows) {
+                        if (row.appropriatenessScore() == null) {
+                            continue;
+                        }
+
+                        scoresByType.computeIfAbsent(row.questionTypeName(), key -> new ArrayList<>())
+                                .add(row.appropriatenessScore());
+                    }
+
+                    List<QuestionTypeScoreResponse> questionTypeScores = scoresByType.entrySet().stream()
+                            .map((typeEntry) -> {
+                                double typeAverageScore = typeEntry.getValue().stream()
+                                        .mapToInt(Integer::intValue)
+                                        .average()
+                                        .orElse(0.0);
+
+                                return new QuestionTypeScoreResponse(
+                                        null,
+                                        typeEntry.getKey(),
+                                        roundToSingleDecimal(typeAverageScore),
+                                        typeAverageScore < 60
+                                );
+                            })
+                            .toList();
+
+                    return new TrendPointResponse(
+                            entry.getKey(),
+                            roundToSingleDecimal(averageScore),
+                            questionTypeScores
+                    );
+                })
+                .toList();
+    }
+
+    private double roundToSingleDecimal(double value) {
+        return Math.round(value * 10.0) / 10.0;
     }
 
     private String resolvePerformedAtLabel(

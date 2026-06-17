@@ -3,97 +3,93 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>리포트</title>
-
+  <title>&#xB9AC;&#xD3EC;&#xD2B8;</title>
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-
 <div class="phone-frame report-phone-frame" id="pdf-area">
-
   <div class="top-nav-bar">
     <a href="/main" class="back-btn">
       <svg width="14" height="14" viewBox="0 0 24 24">
         <path d="M15 19l-7-7 7-7" />
       </svg>
-      뒤로가기
+      &#xB4A4;&#xB85C;&#xAC00;&#xAE30;
     </a>
   </div>
 
   <div class="header-wrapper report-header">
-    <h2 class="page-title">리포트</h2>
+    <h2 class="page-title">&#xB9AC;&#xD3EC;&#xD2B8;</h2>
     <div class="report-search-wrap">
-      <button type="button" class="report-search-toggle" id="report-search-toggle" aria-label="수급자명 고정"></button>
-      <input type="search" class="report-recipient-search" id="report-recipient-search" placeholder="수급자명" autocomplete="off">
+      <button type="button" class="report-search-toggle" id="report-search-toggle" aria-label="&#xC218;&#xAE09;&#xC790;&#xBA85; &#xACE0;&#xC815;"></button>
+      <input type="search" class="report-recipient-search" id="report-recipient-search" placeholder="&#xC218;&#xAE09;&#xC790;&#xBA85;" autocomplete="off">
       <div class="report-recipient-combo" id="report-recipient-combo"></div>
     </div>
   </div>
 
   <div class="scroll-content">
-    <div class="info-section">
+    <div class="info-section" id="latest-report-section">
       <div class="section-label-row">
-        <h2 class="section-title">검사결과 조회</h2>
+        <h2 class="section-title">&#xAC80;&#xC0AC;&#xACB0;&#xACFC; &#xC870;&#xD68C;</h2>
         <select class="select-period-box report-control-shift" id="report-history-select">
-          <option value="">리포트 선택</option>
+          <option value="">&#xB9AC;&#xD3EC;&#xD2B8; &#xC120;&#xD0DD;</option>
         </select>
       </div>
       <div class="card-panel report-card-panel">
         <div class="report-filter-buttons">
-          <button type="button" class="report-filter-btn is-active" data-report-filter-scope="latest" data-report-filter="all" aria-pressed="true">전체</button>
-          <button type="button" class="report-filter-btn" data-report-filter-scope="latest" data-report-filter="오늘 날짜 말하기" aria-pressed="false">오늘 날짜 말하기</button>
-          <button type="button" class="report-filter-btn" data-report-filter-scope="latest" data-report-filter="그림 설명하기" aria-pressed="false">그림 설명하기</button>
-          <button type="button" class="report-filter-btn" data-report-filter-scope="latest" data-report-filter="상황 질문 답하기" aria-pressed="false">상황 질문 답하기</button>
-          <button type="button" class="report-filter-btn" data-report-filter-scope="latest" data-report-filter="규칙 기반 언어추론" aria-pressed="false">규칙 기반 언어추론</button>
-          <button type="button" class="report-filter-btn" data-report-filter-scope="latest" data-report-filter="추억 말하기" aria-pressed="false">추억 말하기</button>
+          <button type="button" class="report-filter-btn is-active" data-report-filter-scope="latest" data-report-filter="all" aria-pressed="true">&#xC804;&#xCCB4;</button>
+          <button type="button" class="report-filter-btn" data-report-filter-scope="latest" data-report-filter="&#xC624;&#xB298; &#xB0A0;&#xC9DC; &#xB9D0;&#xD558;&#xAE30;" aria-pressed="false">&#xC624;&#xB298; &#xB0A0;&#xC9DC; &#xB9D0;&#xD558;&#xAE30;</button>
+          <button type="button" class="report-filter-btn" data-report-filter-scope="latest" data-report-filter="&#xADF8;&#xB9BC; &#xC124;&#xBA85;&#xD558;&#xAE30;" aria-pressed="false">&#xADF8;&#xB9BC; &#xC124;&#xBA85;&#xD558;&#xAE30;</button>
+          <button type="button" class="report-filter-btn" data-report-filter-scope="latest" data-report-filter="&#xC0C1;&#xD669; &#xC9C8;&#xBB38; &#xB2F5;&#xD558;&#xAE30;" aria-pressed="false">&#xC0C1;&#xD669; &#xC9C8;&#xBB38; &#xB2F5;&#xD558;&#xAE30;</button>
+          <button type="button" class="report-filter-btn" data-report-filter-scope="latest" data-report-filter="&#xADDC;&#xCE59; &#xAE30;&#xBC18; &#xC5B8;&#xC5B4;&#xCD94;&#xB860;" aria-pressed="false">&#xADDC;&#xCE59; &#xAE30;&#xBC18; &#xC5B8;&#xC5B4;&#xCD94;&#xB860;</button>
+          <button type="button" class="report-filter-btn" data-report-filter-scope="latest" data-report-filter="&#xCD94;&#xC5B5; &#xB9D0;&#xD558;&#xAE30;" aria-pressed="false">&#xCD94;&#xC5B5; &#xB9D0;&#xD558;&#xAE30;</button>
         </div>
-        <div class="report-summary-header" id="report-summary-header">수급자를 선택하면 최근 검사 리포트가 표시됩니다.</div>
+        <div class="report-summary-header" id="report-summary-header">&#xC218;&#xAE09;&#xC790;&#xB97C; &#xC120;&#xD0DD;&#xD558;&#xBA74; &#xCD5C;&#xADFC; &#xAC80;&#xC0AC; &#xB9AC;&#xD3EC;&#xD2B8;&#xAC00; &#xD45C;&#xC2DC;&#xB429;&#xB2C8;&#xB2E4;.</div>
         <div class="report-chart-wrap">
           <canvas id="latest-report-chart"></canvas>
         </div>
         <div class="report-type-summary hidden" id="report-type-summary"></div>
-        <div class="report-empty-message" id="latest-report-empty">검사 분석 결과가 아직 없습니다.</div>
+        <div class="report-empty-message" id="latest-report-empty">&#xAC80;&#xC0AC; &#xBD84;&#xC11D; &#xACB0;&#xACFC;&#xAC00; &#xC544;&#xC9C1; &#xC5C6;&#xC2B5;&#xB2C8;&#xB2E4;.</div>
       </div>
       <div class="btn-align-right report-action-row">
-        <button type="button" class="action-btn report-control-shift report-output-btn report-share-btn report-share-btn-js"><span class="report-output-text">공유</span></button>
-        <button type="button" class="action-btn report-control-shift report-output-btn" id="report-download-btn"><span class="report-output-text">출력</span></button>
+        <button type="button" class="action-btn report-control-shift report-output-btn report-share-btn report-share-btn-js" data-report-section="latest"><span class="report-output-text">&#xACF5;&#xC720;</span></button>
+        <button type="button" class="action-btn report-control-shift report-output-btn" id="report-download-btn" data-report-section="latest"><span class="report-output-text">&#xCD9C;&#xB825;</span></button>
       </div>
     </div>
 
-    <div class="info-section">
+    <div class="info-section" id="trend-report-section">
       <div class="section-label-row">
-        <h2 class="section-title">기간별 변화 추이</h2>
+        <h2 class="section-title">&#xAE30;&#xAC04;&#xBCC4; &#xBCC0;&#xD654; &#xCD94;&#xC774;</h2>
         <select class="select-period-box report-control-shift" id="report-trend-select">
-          <option value="7">최근 1주일</option>
-          <option value="30">최근 1개월</option>
-          <option value="90">최근 3개월</option>
+          <option value="7">&#xCD5C;&#xADFC; 1&#xC8FC;&#xC77C;</option>
+          <option value="30">&#xCD5C;&#xADFC; 1&#xAC1C;&#xC6D4;</option>
+          <option value="90">&#xCD5C;&#xADFC; 3&#xAC1C;&#xC6D4;</option>
         </select>
       </div>
       <div class="card-panel report-card-panel report-card-panel-large">
         <div class="report-filter-buttons">
-          <button type="button" class="report-filter-btn is-active" data-report-filter-scope="trend" data-report-filter="all" aria-pressed="true">전체</button>
-          <button type="button" class="report-filter-btn" data-report-filter-scope="trend" data-report-filter="오늘 날짜 말하기" aria-pressed="false">오늘 날짜 말하기</button>
-          <button type="button" class="report-filter-btn" data-report-filter-scope="trend" data-report-filter="그림 설명하기" aria-pressed="false">그림 설명하기</button>
-          <button type="button" class="report-filter-btn" data-report-filter-scope="trend" data-report-filter="상황 질문 답하기" aria-pressed="false">상황 질문 답하기</button>
-          <button type="button" class="report-filter-btn" data-report-filter-scope="trend" data-report-filter="규칙 기반 언어추론" aria-pressed="false">규칙 기반 언어추론</button>
-          <button type="button" class="report-filter-btn" data-report-filter-scope="trend" data-report-filter="추억 말하기" aria-pressed="false">추억 말하기</button>
+          <button type="button" class="report-filter-btn is-active" data-report-filter-scope="trend" data-report-filter="all" aria-pressed="true">&#xC804;&#xCCB4;</button>
+          <button type="button" class="report-filter-btn" data-report-filter-scope="trend" data-report-filter="&#xC624;&#xB298; &#xB0A0;&#xC9DC; &#xB9D0;&#xD558;&#xAE30;" aria-pressed="false">&#xC624;&#xB298; &#xB0A0;&#xC9DC; &#xB9D0;&#xD558;&#xAE30;</button>
+          <button type="button" class="report-filter-btn" data-report-filter-scope="trend" data-report-filter="&#xADF8;&#xB9BC; &#xC124;&#xBA85;&#xD558;&#xAE30;" aria-pressed="false">&#xADF8;&#xB9BC; &#xC124;&#xBA85;&#xD558;&#xAE30;</button>
+          <button type="button" class="report-filter-btn" data-report-filter-scope="trend" data-report-filter="&#xC0C1;&#xD669; &#xC9C8;&#xBB38; &#xB2F5;&#xD558;&#xAE30;" aria-pressed="false">&#xC0C1;&#xD669; &#xC9C8;&#xBB38; &#xB2F5;&#xD558;&#xAE30;</button>
+          <button type="button" class="report-filter-btn" data-report-filter-scope="trend" data-report-filter="&#xADDC;&#xCE59; &#xAE30;&#xBC18; &#xC5B8;&#xC5B4;&#xCD94;&#xB860;" aria-pressed="false">&#xADDC;&#xCE59; &#xAE30;&#xBC18; &#xC5B8;&#xC5B4;&#xCD94;&#xB860;</button>
+          <button type="button" class="report-filter-btn" data-report-filter-scope="trend" data-report-filter="&#xCD94;&#xC5B5; &#xB9D0;&#xD558;&#xAE30;" aria-pressed="false">&#xCD94;&#xC5B5; &#xB9D0;&#xD558;&#xAE30;</button>
         </div>
-        <div class="report-summary-header" id="trend-summary-header">최근 기간의 검사 평균 점수 변화를 표시합니다.</div>
+        <div class="report-summary-header" id="trend-summary-header">&#xCD5C;&#xADFC; &#xAE30;&#xAC04;&#xC758; &#xAC80;&#xC0AC;&#xC77C;&#xBCC4; &#xD3C9;&#xADE0; &#xC810;&#xC218; &#xBCC0;&#xD654;&#xB97C; &#xD45C;&#xC2DC;&#xD569;&#xB2C8;&#xB2E4;.</div>
         <div class="report-chart-wrap report-chart-wrap-large">
           <canvas id="trend-report-chart"></canvas>
         </div>
-        <div class="report-empty-message" id="trend-report-empty">기간 내 그래프로 표시할 검사 결과가 없습니다.</div>
+        <div class="report-empty-message" id="trend-report-empty">&#xAE30;&#xAC04;&#xBCC4; &#xADF8;&#xB798;&#xD504;&#xB85C; &#xD45C;&#xC2DC;&#xD560; &#xAC80;&#xC0AC; &#xACB0;&#xACFC;&#xAC00; &#xC5C6;&#xC2B5;&#xB2C8;&#xB2E4;.</div>
       </div>
       <div class="btn-align-right report-action-row">
-        <button type="button" class="action-btn report-control-shift report-output-btn report-share-btn report-share-btn-js"><span class="report-output-text">공유</span></button>
-        <button type="button" class="action-btn report-control-shift report-output-btn" id="trend-download-btn"><span class="report-output-text">출력</span></button>
+        <button type="button" class="action-btn report-control-shift report-output-btn report-share-btn report-share-btn-js" data-report-section="trend"><span class="report-output-text">&#xACF5;&#xC720;</span></button>
+        <button type="button" class="action-btn report-control-shift report-output-btn" id="trend-download-btn" data-report-section="trend"><span class="report-output-text">&#xCD9C;&#xB825;</span></button>
       </div>
     </div>
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
 <script src="/js/report.js"></script>
-
 </body>
 </html>

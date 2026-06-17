@@ -40,7 +40,7 @@ public class CognitiveTestService {
     private static final String TEST_PURPOSE = "검사";
     private static final String TRAINING_PURPOSE = "훈련";
     private static final int QUESTION_TYPES_COUNT = 5;
-    private static final int QUESTIONS_PER_TYPE = 5;
+    private static final int QUESTIONS_PER_TYPE = 3;
     private static final DateTimeFormatter FILE_TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("HHmmss");
 
     private final CognitiveTestRepository cognitiveTestRepository;
