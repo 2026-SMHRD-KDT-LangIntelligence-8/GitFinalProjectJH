@@ -100,41 +100,28 @@ function setChartDevicePixelRatio(charts, ratio) {
     };
 }
 
-async function downloadPDF(sectionId = "latest-report-section") {
+async function downloadPDF(sectionId = "latest-report-section", shouldReturnBlob = false) {
     const sourceSection = document.getElementById(sectionId);
-    const recipientName = document.getElementById("report-recipient-search")?.value?.trim() || "리포트";
+    const recipientName = document.getElementById("report-recipient-search")?.value?.trim() || "???";
 
     if (!sourceSection) {
-        alert("PDF로 출력할 리포트 영역을 찾지 못했습니다.");
-        return;
-    }
-
-    if (typeof html2pdf === "undefined") {
-        alert("PDF 출력 라이브러리를 불러오지 못했습니다. html2pdf script 경로를 확인해주세요.");
-        return;
+        alert("PDF? ??? ??? ??? ?? ?????.");
+        return null;
     }
 
     const targetCharts = getChartsForSection(sectionId);
-
     sourceSection.classList.add("pdf-section-export-mode");
 
     await waitForPaint();
-
     const restoreChartDpr = setChartDevicePixelRatio(targetCharts, 4);
-
     await waitForPaint();
-
     resizeCharts(targetCharts);
-
     await waitForPaint();
 
     const opt = {
         margin: 10,
-        filename: `${recipientName}_리포트.pdf`,
-        image: {
-            type: "png",
-            quality: 1
-        },
+        filename: `${recipientName}_???.pdf`,
+        image: { type: "png", quality: 1 },
         html2canvas: {
             scale: 4,
             useCORS: true,
@@ -151,28 +138,30 @@ async function downloadPDF(sectionId = "latest-report-section") {
         },
         pagebreak: {
             mode: ["css", "legacy"],
-            avoid: [
-                ".report-card-panel",
-                ".report-type-summary-item",
-                ".report-chart-wrap"
-            ]
+            avoid: [".report-card-panel", ".report-type-summary-item", ".report-chart-wrap"]
         }
     };
 
     try {
+        if (shouldReturnBlob) {
+            const worker = html2pdf().set(opt).from(sourceSection);
+            const blob = await worker.outputPdf("blob");
+            await worker.save();
+            return blob;
+        }
+
         await html2pdf().set(opt).from(sourceSection).save();
+        return null;
     } catch (error) {
-        console.error("PDF 출력 실패:", error);
-        alert("PDF 출력 중 오류가 발생했습니다.");
+        console.error("PDF ?? ??:", error);
+        alert("PDF ?? ? ??? ??????.");
+        return null;
     } finally {
         if (typeof restoreChartDpr === "function") {
             restoreChartDpr();
         }
-
         sourceSection.classList.remove("pdf-section-export-mode");
-
         await waitForPaint();
-
         resizeCharts(targetCharts);
     }
 }
@@ -293,10 +282,36 @@ function extractTrendScore(point, filterLabel) {
     return Number(matchedItem.averageScore ?? 0);
 }
 
-function buildTrendSeries(points, filterLabel) {
+function findLatestQuestionTypeScore(latestScores, filterLabel) {
+    if (!Array.isArray(latestScores) || isAllFilter(filterLabel)) {
+        return null;
+    }
+
+    const targetName = normalizeQuestionTypeName(filterLabel);
+    const matchedItem = latestScores.find(
+        (item) => normalizeQuestionTypeName(item.questionTypeName) === targetName
+    );
+
+    if (!matchedItem) {
+        return null;
+    }
+
+    return Number(matchedItem.averageScore ?? 0);
+}
+
+function buildTrendSeries(points, filterLabel, latestScores = []) {
+    const scores = points.map((point) => extractTrendScore(point, filterLabel));
+
+    if (!isAllFilter(filterLabel) && points.length === 1) {
+        const latestScore = findLatestQuestionTypeScore(latestScores, filterLabel);
+        if (latestScore !== null) {
+            scores[0] = latestScore;
+        }
+    }
+
     return {
         labels: points.map((point) => point.performedDate),
-        scores: points.map((point) => extractTrendScore(point, filterLabel))
+        scores
     };
 }
 
@@ -336,6 +351,14 @@ function renderLatestChart(scores, filterLabel = "전체", questionScores = []) 
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: {
+                padding: {
+                    top: 10,
+                    right: 6,
+                    bottom: 10,
+                    left: 2
+                }
+            },
             plugins: {
                 legend: {
                     display: false
@@ -372,6 +395,7 @@ function renderLatestChart(scores, filterLabel = "전체", questionScores = []) 
                 y: {
                     min: 0,
                     max: 100,
+                    grace: 0,
                     ticks: {
                         stepSize: 20
                     }
@@ -381,7 +405,7 @@ function renderLatestChart(scores, filterLabel = "전체", questionScores = []) 
     });
 }
 
-function renderTrendChart(points, filterLabel = "전체") {
+function renderTrendChart(points, filterLabel = "??", latestScores = []) {
     const context = document.getElementById("trend-report-chart");
     if (!context) {
         return;
@@ -391,7 +415,7 @@ function renderTrendChart(points, filterLabel = "전체") {
         trendReportChart.destroy();
     }
 
-    const series = buildTrendSeries(points, filterLabel);
+    const series = buildTrendSeries(points, filterLabel, latestScores);
 
     trendReportChart = new Chart(context, {
         type: "line",
@@ -406,6 +430,8 @@ function renderTrendChart(points, filterLabel = "전체") {
                 pointBorderColor: series.scores.map((score) => score !== null && score < 60 ? "#F94144" : "#14AE5C"),
                 pointRadius: 4,
                 pointHoverRadius: 5,
+                pointHitRadius: 10,
+                clip: false,
                 fill: true,
                 tension: 0.3,
                 spanGaps: false
@@ -414,6 +440,14 @@ function renderTrendChart(points, filterLabel = "전체") {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: {
+                padding: {
+                    top: 10,
+                    right: 6,
+                    bottom: 10,
+                    left: 2
+                }
+            },
             plugins: {
                 legend: {
                     display: false
@@ -437,6 +471,7 @@ function renderTrendChart(points, filterLabel = "전체") {
                 y: {
                     min: 0,
                     max: 100,
+                    grace: 0,
                     ticks: {
                         stepSize: 20
                     }
@@ -604,7 +639,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         const selectedFilter = getSelectedReportFilter(trendReportFilterButtons);
-        const series = buildTrendSeries(trendReportPoints, selectedFilter);
+        const series = buildTrendSeries(trendReportPoints, selectedFilter, latestQuestionTypeScores);
         const hasRenderableScore = series.scores.some((score) => score !== null && score !== undefined);
 
         if (!hasRenderableScore) {
@@ -618,7 +653,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         setEmptyState(trendReportEmpty, false);
-        renderTrendChart(trendReportPoints, selectedFilter);
+        renderTrendChart(trendReportPoints, selectedFilter, latestQuestionTypeScores);
     };
 
     const resetReportUi = (message) => {
@@ -718,14 +753,30 @@ document.addEventListener("DOMContentLoaded", async () => {
         await loadReportsForRecipient(recipient.recipientId, recipient.recipientName);
     };
 
-    downloadButtons.forEach((button) => {
-        button.addEventListener("click", async () => {
-            const sectionType = button.dataset.reportSection || "latest";
-            const sectionId = sectionType === "trend" ? "trend-report-section" : "latest-report-section";
+downloadButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+        const sectionType = button.dataset.reportSection || "latest";
+        const sectionId = sectionType === "trend" ? "trend-report-section" : "latest-report-section";
 
-            await downloadPDF(sectionId);
-        });
+        const pdfBlob = await downloadPDF(sectionId, true);
+
+        if (sectionType === "latest" && selectedRecipient && historySelect.value && pdfBlob) {
+            const formData = new FormData();
+            formData.append("recipientId", String(selectedRecipient.recipientId));
+            formData.append("performanceId", String(Number(historySelect.value)));
+            formData.append("pdfFile", pdfBlob, "report.pdf");
+
+            const response = await fetch("/api/reports/pdf-files", {
+                method: "POST",
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error("report_pdf_upload_failed");
+            }
+        }
     });
+});
 
     shareButtons.forEach((button) => {
         button.addEventListener("click", async () => {
