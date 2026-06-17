@@ -18,13 +18,18 @@
         <div class="form-row">
             <div class="form-label">요양보호사 자격번호</div>
             <div class="form-input-wrapper">
-                <input
-                        type="text"
-                        id="caregiver-license-number"
-                        class="form-input"
-                        placeholder="예: 2024-000000"
-                        autocomplete="off"
-                >
+                <div class="license-number-input-group">
+                    <span class="license-number-affix">제</span>
+                    <input
+                            type="text"
+                            id="caregiver-license-number"
+                            class="form-input license-number-input"
+                            placeholder="숫자만 입력"
+                            inputmode="numeric"
+                            autocomplete="off"
+                    >
+                    <span class="license-number-affix">호</span>
+                </div>
             </div>
         </div>
 

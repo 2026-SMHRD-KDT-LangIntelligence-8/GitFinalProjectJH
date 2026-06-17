@@ -2,6 +2,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const licenseNumberInput = document.getElementById("caregiver-license-number");
     const organizationNameInput = document.getElementById("caregiver-organization-name");
     const saveButton = document.getElementById("caregiver-info-save-button");
+    const sanitizeCaregiverLicenseNumber = (value) => String(value ?? "").replace(/\D/g, "");
 
     const params = new URLSearchParams(window.location.search);
     if (params.get("login") === "success") {
@@ -16,7 +17,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (response.ok) {
             const profile = await response.json();
-            licenseNumberInput.value = profile.caregiverLicenseNumber ?? "";
+            licenseNumberInput.value = sanitizeCaregiverLicenseNumber(profile.caregiverLicenseNumber);
             organizationNameInput.value = profile.organizationName ?? "";
 
             if (licenseNumberInput.value.trim() && organizationNameInput.value.trim()) {
@@ -28,8 +29,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         console.error(error);
     }
 
+    licenseNumberInput.addEventListener("input", () => {
+        licenseNumberInput.value = sanitizeCaregiverLicenseNumber(licenseNumberInput.value);
+    });
+
     saveButton.addEventListener("click", async () => {
-        const caregiverLicenseNumber = licenseNumberInput.value.trim();
+        const caregiverLicenseNumber = sanitizeCaregiverLicenseNumber(licenseNumberInput.value);
         const organizationName = organizationNameInput.value.trim();
 
         if (!caregiverLicenseNumber) {

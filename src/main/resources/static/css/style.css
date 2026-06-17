@@ -442,6 +442,27 @@ a {
     font-size: 14px;
 }
 
+.license-number-input-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.license-number-affix {
+    flex: 0 0 auto;
+    font-size: 14px;
+    font-weight: 700;
+    color: #325b45;
+    white-space: nowrap;
+}
+
+.license-number-input {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+}
+
 .caregiver-info-notice {
     margin-top: auto;
 }

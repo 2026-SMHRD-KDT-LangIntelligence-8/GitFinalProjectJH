@@ -101,7 +101,9 @@ public class UserController {
     public Map<String, Object> updateCaregiverInfo(@RequestBody Map<String, String> request) {
         ensureCaregiverInfoColumns();
         String userId = currentUserService.getRequiredUserId();
-        String caregiverLicenseNumber = request.getOrDefault("caregiverLicenseNumber", "").trim();
+        String caregiverLicenseNumber = sanitizeCaregiverLicenseNumber(
+                request.getOrDefault("caregiverLicenseNumber", "")
+        );
         String organizationName = request.getOrDefault("organizationName", "").trim();
 
         if (caregiverLicenseNumber.isBlank() || organizationName.isBlank()) {
@@ -127,18 +129,23 @@ public class UserController {
     public Map<String, Object> updateProfile(@RequestBody Map<String, String> request) {
         ensureCaregiverInfoColumns();
         String userId = currentUserService.getRequiredUserId();
-        String email = request.getOrDefault("email", "").trim();
-        String phoneNumber = request.getOrDefault("phoneNumber", "").trim();
-        String caregiverLicenseNumber = request.getOrDefault("caregiverLicenseNumber", "").trim();
-        String organizationName = request.getOrDefault("organizationName", "").trim();
+        Map<String, String> storedProfile = getStoredProfile(userId);
 
-        if (email.isBlank()) {
-            throw new IllegalArgumentException("이메일을 입력해주세요.");
-        }
+        String requestedEmail = request.getOrDefault("email", "").trim();
+        String requestedPhoneNumber = request.getOrDefault("phoneNumber", "").trim();
+        String requestedCaregiverLicenseNumber = sanitizeCaregiverLicenseNumber(
+                request.getOrDefault("caregiverLicenseNumber", "")
+        );
+        String requestedOrganizationName = request.getOrDefault("organizationName", "").trim();
 
-        if (caregiverLicenseNumber.isBlank() || organizationName.isBlank()) {
-            throw new IllegalArgumentException("요양보호사 자격번호와 소속 기관을 모두 입력해주세요.");
-        }
+        String email = requestedEmail.isBlank() ? storedProfile.get("email") : requestedEmail;
+        String phoneNumber = requestedPhoneNumber.isBlank() ? storedProfile.get("phoneNumber") : requestedPhoneNumber;
+        String caregiverLicenseNumber = requestedCaregiverLicenseNumber.isBlank()
+                ? storedProfile.get("caregiverLicenseNumber")
+                : requestedCaregiverLicenseNumber;
+        String organizationName = requestedOrganizationName.isBlank()
+                ? storedProfile.get("organizationName")
+                : requestedOrganizationName;
 
         jdbcTemplate.update(
                 """
@@ -157,6 +164,32 @@ public class UserController {
         );
 
         return Map.of("message", "saved");
+    }
+
+    private Map<String, String> getStoredProfile(String userId) {
+        return jdbcTemplate.query(
+                """
+                select email, phone_number, care_worker_cert_no, agency_name
+                from USERS
+                where user_id = ?
+                """,
+                rs -> {
+                    Map<String, String> profile = new HashMap<>();
+                    if (rs.next()) {
+                        profile.put("email", defaultString(rs.getString("email")));
+                        profile.put("phoneNumber", defaultString(rs.getString("phone_number")));
+                        profile.put("caregiverLicenseNumber", defaultString(rs.getString("care_worker_cert_no")));
+                        profile.put("organizationName", defaultString(rs.getString("agency_name")));
+                    } else {
+                        profile.put("email", "");
+                        profile.put("phoneNumber", "");
+                        profile.put("caregiverLicenseNumber", "");
+                        profile.put("organizationName", "");
+                    }
+                    return profile;
+                },
+                userId
+        );
     }
 
     @DeleteMapping("/me")
@@ -205,6 +238,14 @@ public class UserController {
         ensureColumn("phone_number", "varchar(30)");
         dropColumnIfExists("caregiver_license_number");
         dropColumnIfExists("organization_name");
+    }
+
+    private String sanitizeCaregiverLicenseNumber(String value) {
+        return value == null ? "" : value.replaceAll("\\D", "").trim();
+    }
+
+    private String defaultString(String value) {
+        return value == null ? "" : value.trim();
     }
 
     private void ensureColumn(String columnName, String columnDefinition) {

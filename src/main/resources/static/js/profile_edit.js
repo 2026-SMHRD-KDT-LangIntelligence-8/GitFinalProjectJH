@@ -13,6 +13,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const organizationNameInput = document.getElementById("profile-organization-name");
     const saveButton = document.getElementById("profile-save-button");
     const withdrawButton = document.getElementById("profile-withdraw-button");
+    const sanitizeCaregiverLicenseNumber = (value) => String(value ?? "").replace(/\D/g, "");
 
     const defaultProfile = {
         name: "",
@@ -31,7 +32,7 @@ document.addEventListener("DOMContentLoaded", () => {
         emailDomain: domainSelect.value,
         emailDomainCustom: customDomainInput.value.trim(),
         phone: phoneInput.value.trim(),
-        caregiverLicenseNumber: caregiverLicenseNumberInput.value.trim(),
+        caregiverLicenseNumber: sanitizeCaregiverLicenseNumber(caregiverLicenseNumberInput.value),
         organizationName: organizationNameInput.value.trim()
     });
 
@@ -79,7 +80,7 @@ document.addEventListener("DOMContentLoaded", () => {
         domainSelect.value = profile.emailDomain ?? "naver.com";
         customDomainInput.value = profile.emailDomainCustom ?? "";
         phoneInput.value = profile.phone ?? "";
-        caregiverLicenseNumberInput.value = profile.caregiverLicenseNumber ?? "";
+        caregiverLicenseNumberInput.value = sanitizeCaregiverLicenseNumber(profile.caregiverLicenseNumber);
         organizationNameInput.value = profile.organizationName ?? "";
 
         const isCustomDomain = domainSelect.value === "직접입력";
@@ -88,6 +89,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let originalProfile = loadSavedProfile();
     applyProfileToInputs(originalProfile);
+
+    caregiverLicenseNumberInput.addEventListener("input", () => {
+        caregiverLicenseNumberInput.value = sanitizeCaregiverLicenseNumber(caregiverLicenseNumberInput.value);
+    });
 
     const loadKakaoProfileName = async () => {
         try {
@@ -101,7 +106,7 @@ document.addEventListener("DOMContentLoaded", () => {
             nameInput.value = kakaoName;
             applyEmailToInputs(profile.email ?? "");
             phoneInput.value = profile.phoneNumber ?? "";
-            caregiverLicenseNumberInput.value = profile.caregiverLicenseNumber ?? "";
+            caregiverLicenseNumberInput.value = sanitizeCaregiverLicenseNumber(profile.caregiverLicenseNumber);
             organizationNameInput.value = profile.organizationName ?? "";
             const loadedProfile = getCurrentProfile();
             originalProfile = {
@@ -162,16 +167,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
     saveButton.addEventListener("click", async () => {
         const currentProfile = getCurrentProfile();
+        const hasEmailChange =
+            currentProfile.emailId !== originalProfile.emailId ||
+            currentProfile.emailDomain !== originalProfile.emailDomain ||
+            currentProfile.emailDomainCustom !== originalProfile.emailDomainCustom;
 
         // 이메일 도메인을 직접 입력으로 두었으면 실제 도메인 값을 꼭 확인한다.
-        if (currentProfile.emailDomain === "직접입력" && !currentProfile.emailDomainCustom) {
+        if (hasEmailChange && currentProfile.emailDomain === "직접입력" && !currentProfile.emailDomainCustom) {
             alert("이메일 도메인을 입력해주세요.");
             customDomainInput.focus();
             return;
         }
 
         const email = resolveEmail(currentProfile);
-        if (!email) {
+        if (hasEmailChange && !email) {
             alert("이메일을 입력해주세요.");
             emailIdInput.focus();
             return;
@@ -188,18 +197,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (!hasAnyChange) {
             alert("변경된 내용이 없습니다.");
-            return;
-        }
-
-        if (!currentProfile.caregiverLicenseNumber) {
-            alert("요양보호사 자격번호를 입력해주세요.");
-            caregiverLicenseNumberInput.focus();
-            return;
-        }
-
-        if (!currentProfile.organizationName) {
-            alert("소속 기관을 입력해주세요.");
-            organizationNameInput.focus();
             return;
         }
 
