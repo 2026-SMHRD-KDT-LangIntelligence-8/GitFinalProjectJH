@@ -1317,6 +1317,49 @@ a {
 .training-status-message { width: 100%; max-width: 280px; margin: 0 auto 14px; text-align: center; }
 .training-recipient-name { width: 100%; max-width: 280px; margin: 6px auto 0; text-align: center; }
 .training-graphic-hidden { display: none; }
+.training-phone-frame .title-container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    margin-top: 14px;
+}
+
+.training-phone-frame .graphic-container {
+    flex: 0 0 auto;
+    min-height: 160px;
+    margin-top: 64px;
+}
+
+.training-phone-frame .center-illustration {
+    width: 148px;
+    height: 148px;
+}
+
+.training-phone-frame .training-recipient-name {
+    max-width: 100%;
+    margin-top: 12px;
+}
+
+.training-phone-frame .training-status-message {
+    width: 100%;
+    max-width: none;
+    margin: 20px 0 0;
+    padding: 16px 18px;
+    border: 1px solid #d7e2d9;
+    border-radius: 16px;
+    background-color: #ffffff;
+    color: #728a7a;
+    line-height: 1.55;
+    box-sizing: border-box;
+}
+
+.training-phone-frame .action-container {
+    margin-top: auto;
+    margin-bottom: 0;
+    padding-top: 18px;
+}
 /* 검사 시작 전/후 화면을 같은 페이지 안에서 전환하기 위한 래퍼다. */
 .test-intro-view { width: 100%; display: flex; flex: 1; flex-direction: column; }
 .test-session-view { width: 100%; display: flex; flex: 1; flex-direction: column; gap: 16px; }
