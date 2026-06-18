@@ -794,7 +794,7 @@ downloadButtons.forEach((button) => {
 
         const pdfBlob = await downloadPDF(sectionId, true, pdfFileName);
 
-        if (sectionType === "latest" && selectedRecipient && historySelect.value && pdfBlob) {
+        if (selectedRecipient && historySelect.value && pdfBlob) {
             try {
                 const formData = new FormData();
                 formData.append("recipientId", String(selectedRecipient.recipientId));
