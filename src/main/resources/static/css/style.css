@@ -1499,3 +1499,41 @@ a {
 .pdf-section-export-mode .report-action-row {
     display: none !important;
 }
+
+/*태블릿 PC 전용 CSS 추가*/
+
+@media (min-width: 768px) and (max-width: 1279px) {
+    .phone-frame {
+        width: min(720px, calc(100vw - 48px));
+        height: min(1024px, calc(100vh - 48px));
+        border-radius: 28px;
+    }
+
+    .report-phone-frame,
+    .test-phone-frame,
+    .training-program-phone-frame,
+    .senior-detail-phone-frame,
+    .senior-edit-phone-frame,
+    .senior-create-phone-frame,
+    .profile-edit-phone-frame {
+        width: min(720px, calc(100vw - 48px));
+    }
+
+    .report-filter-buttons {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .report-filter-btn {
+        min-height: 44px;
+        font-size: 14px;
+    }
+
+    .report-chart-wrap {
+        height: 260px;
+    }
+
+    .report-chart-wrap-large {
+        height: 320px;
+    }
+}
