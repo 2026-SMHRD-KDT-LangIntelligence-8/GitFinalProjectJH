@@ -987,6 +987,27 @@ def analyze_question_answer(
         "sentence_length_score": length_result["sentence_length_score"],
     }
 
+
+def reprocess_question_result(
+    audio_path,
+    question_type_name,
+    question_text,
+    image_description=None,
+    use_llm_scoring=True
+):
+    """
+    기존 NULL 데이터 복구 시 사용하는 재분석 진입점.
+    내부 분석은 analyze_question_answer() 로직을 그대로 재사용한다.
+    """
+
+    return analyze_question_answer(
+        audio_path=audio_path,
+        question_type_name=question_type_name,
+        question_text=question_text,
+        image_description=image_description,
+        use_llm_scoring=use_llm_scoring
+    )
+
 # 리포트 집계 함수
 # app.py에서 calculate_report_summary 함수를 import하고 있으므로,
 # 서버 실행 시 ImportError가 발생하지 않도록 해당 함수를 파이프라인 파일에 추가한다.

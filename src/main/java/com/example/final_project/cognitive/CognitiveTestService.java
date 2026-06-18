@@ -1,5 +1,6 @@
 package com.example.final_project.cognitive;
 
+import com.example.final_project.analysis.AnalysisPipelineService;
 import com.example.final_project.analysis.dto.QuestionAnalysisResult;
 import com.example.final_project.cognitive.dto.CognitiveQuestionResponse;
 import com.example.final_project.cognitive.dto.CognitiveTestCompleteRequest;
@@ -26,7 +27,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
@@ -47,6 +50,7 @@ public class CognitiveTestService {
     private final RecipientRepository recipientRepository;
     private final ReportService reportService;
     private final CurrentUserService currentUserService;
+    private final AnalysisPipelineService analysisPipelineService;
     private final QuestionAnalysisAsyncService questionAnalysisAsyncService;
     private final List<String> fallbackImagePaths;
     private final Path voiceRootDirectory;
@@ -56,6 +60,7 @@ public class CognitiveTestService {
             RecipientRepository recipientRepository,
             ReportService reportService,
             CurrentUserService currentUserService,
+            AnalysisPipelineService analysisPipelineService,
             QuestionAnalysisAsyncService questionAnalysisAsyncService,
             @Value("${app.cognitive.image-dir:./cognitive-images}") String imageDirectory,
             @Value("${app.cognitive.voice-dir:./cognitive-voice}") String voiceDirectory
@@ -64,6 +69,7 @@ public class CognitiveTestService {
         this.recipientRepository = recipientRepository;
         this.reportService = reportService;
         this.currentUserService = currentUserService;
+        this.analysisPipelineService = analysisPipelineService;
         this.questionAnalysisAsyncService = questionAnalysisAsyncService;
         this.fallbackImagePaths = loadFallbackImagePaths(imageDirectory);
         this.voiceRootDirectory = Paths.get(voiceDirectory);
@@ -175,6 +181,69 @@ public class CognitiveTestService {
                     );
                 })
                 .toList();
+    }
+
+    public Map<String, Object> reprocessNullResults(Long performanceId) {
+        String userId = currentUserService.getRequiredUserId();
+        List<CognitiveTestRepository.ReprocessTarget> targets =
+                cognitiveTestRepository.findNullAnalysisTargetsByPerformanceId(performanceId, userId);
+
+        List<Map<String, Object>> results = new ArrayList<>();
+
+        for (CognitiveTestRepository.ReprocessTarget target : targets) {
+            Path absoluteAudioPath = voiceRootDirectory.resolve(target.voiceFilePath()).normalize().toAbsolutePath();
+
+            try {
+                QuestionAnalysisResult analysisResult = analysisPipelineService.analyzeQuestionAnswer(
+                        absoluteAudioPath,
+                        target.questionTypeName(),
+                        target.questionText(),
+                        target.imageDescriptionCriteria()
+                );
+
+                cognitiveTestRepository.updateQuestionResultTexts(
+                        target.questionResultId(),
+                        analysisResult.sttText()
+                );
+                cognitiveTestRepository.saveAnalysisResult(
+                        target.questionResultId(),
+                        analysisResult.preprocessedText(),
+                        analysisResult.responseTime(),
+                        analysisResult.repetitionRatio(),
+                        analysisResult.avgSentenceLength(),
+                        analysisResult.appropriatenessScore()
+                );
+
+                Map<String, Object> row = new HashMap<>();
+                row.put("questionResultId", target.questionResultId());
+                row.put("questionId", target.questionId());
+                row.put("voiceFilePath", target.voiceFilePath());
+                row.put("success", true);
+                results.add(row);
+            } catch (Exception exception) {
+                log.error("NULL 분석 복구 실패. questionResultId={}", target.questionResultId(), exception);
+
+                Map<String, Object> row = new HashMap<>();
+                row.put("questionResultId", target.questionResultId());
+                row.put("questionId", target.questionId());
+                row.put("voiceFilePath", target.voiceFilePath());
+                row.put("success", false);
+                row.put("error", exception.getMessage());
+                results.add(row);
+            }
+        }
+
+        long successCount = results.stream()
+                .filter(result -> Boolean.TRUE.equals(result.get("success")))
+                .count();
+
+        Map<String, Object> summary = new HashMap<>();
+        summary.put("performanceId", performanceId);
+        summary.put("requestedCount", targets.size());
+        summary.put("successCount", successCount);
+        summary.put("failureCount", targets.size() - successCount);
+        summary.put("results", results);
+        return summary;
     }
 
     private CognitiveTestStartResponse startSession(CognitiveTestStartRequest request, String questionPurpose) {

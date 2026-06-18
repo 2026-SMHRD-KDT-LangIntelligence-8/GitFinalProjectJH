@@ -300,6 +300,42 @@ public class CognitiveTestRepository {
         );
     }
 
+    public List<ReprocessTarget> findNullAnalysisTargetsByPerformanceId(Long performanceId, String userId) {
+        String sql = """
+                SELECT qr.question_result_id,
+                       qr.performance_id,
+                       qr.question_id,
+                       qr.voice_file_path,
+                       qt.question_type_name,
+                       q.question_text,
+                       q.image_description_criteria
+                FROM QUESTION_RESULTS qr
+                INNER JOIN PERFORMANCE_RECORDS pr ON pr.performance_id = qr.performance_id
+                INNER JOIN QUESTIONS q ON q.question_id = qr.question_id
+                INNER JOIN QUESTION_TYPES qt ON qt.question_type_id = q.question_type_id
+                WHERE qr.performance_id = ?
+                  AND pr.user_id = ?
+                  AND qr.voice_file_path IS NOT NULL
+                  AND (qr.stt_text IS NULL OR TRIM(qr.stt_text) = '')
+                ORDER BY qr.question_result_id ASC
+                """;
+
+        return jdbcTemplate.query(
+                sql,
+                (rs, rowNum) -> new ReprocessTarget(
+                        rs.getLong("question_result_id"),
+                        rs.getLong("performance_id"),
+                        rs.getLong("question_id"),
+                        rs.getString("voice_file_path"),
+                        rs.getString("question_type_name"),
+                        rs.getString("question_text"),
+                        rs.getString("image_description_criteria")
+                ),
+                performanceId,
+                userId
+        );
+    }
+
     public record QuestionAudioContext(
             Long performanceId,
             Long recipientId,
@@ -320,6 +356,17 @@ public class CognitiveTestRepository {
             String sttText,
             String preprocessedText,
             Integer appropriatenessScore
+    ) {
+    }
+
+    public record ReprocessTarget(
+            Long questionResultId,
+            Long performanceId,
+            Long questionId,
+            String voiceFilePath,
+            String questionTypeName,
+            String questionText,
+            String imageDescriptionCriteria
     ) {
     }
 }

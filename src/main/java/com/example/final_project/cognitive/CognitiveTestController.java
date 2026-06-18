@@ -60,4 +60,9 @@ public class CognitiveTestController {
     public List<QuestionAudioUploadResponse> getQuestionAudioResultsByPerformanceId(@PathVariable Long performanceId) {
         return cognitiveTestService.getQuestionAudioResultsByPerformanceId(performanceId);
     }
+
+    @PostMapping("/{performanceId}/reprocess-null-results")
+    public java.util.Map<String, Object> reprocessNullResults(@PathVariable Long performanceId) {
+        return cognitiveTestService.reprocessNullResults(performanceId);
+    }
 }
