@@ -342,11 +342,11 @@ a {
 
 .service-name {
     margin-top: 10px;
-    font-family: 'PyeongChangPeace-Bold', sans-serif;
+    font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
     font-size: 36px;
-    font-weight: 700;
+    font-weight: 800;
     color: #2e6f40;
-    letter-spacing: 5px;
+    letter-spacing: -0.5px;
     line-height: 1.1;
     transform: translateY(20px);
     z-index: 1;
@@ -362,18 +362,21 @@ a {
 }
 
 .welcome-box .main-title {
-    font-family: 'PyeongChangPeace-Bold', sans-serif;
+    font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
     font-size: 22px;
-    font-weight: 500;
+    font-weight: 800;
     color: #333333;
+    letter-spacing: -0.4px;
+    line-height: 1.5;
 }
 
 .welcome-box .highlight {
     display: inline-block;
     font-size: 25px;
     color: #2e6f40;
-    font-weight: 700;
+    font-weight: 800;
     margin-top: 5px;
+    letter-spacing: -0.4px;
 }
 
 .divider {
