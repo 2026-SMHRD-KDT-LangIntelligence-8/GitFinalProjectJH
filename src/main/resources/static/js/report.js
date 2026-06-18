@@ -1,4 +1,4 @@
-let latestReportChart = null;
+﻿let latestReportChart = null;
 let trendReportChart = null;
 
 const QUESTION_TYPE_ORDER = [
@@ -575,7 +575,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.getElementById("report-download-btn"),
         document.getElementById("trend-download-btn")
     ].filter(Boolean);
-    const shareButtons = Array.from(document.querySelectorAll(".report-share-btn-js"));
 
     if (!searchInput || !searchToggleButton || !comboBox || !searchWrap || !historySelect || !trendSelect || !trendSummaryHeader || !reportTypeSummary) {
         return;
@@ -802,54 +801,6 @@ downloadButtons.forEach((button) => {
     });
 });
 
-    shareButtons.forEach((button) => {
-        button.addEventListener("click", async () => {
-            if (!selectedRecipient || !historySelect.value) {
-                alert("수급자와 리포트를 먼저 선택해주세요.");
-                return;
-            }
-
-            try {
-                const response = await fetch("/api/reports/share-links", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        recipientId: selectedRecipient.recipientId,
-                        performanceId: Number(historySelect.value)
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error("share_link_create_failed");
-                }
-
-                const payload = await response.json();
-
-                if (navigator.share) {
-                    await navigator.share({
-                        title: payload.title,
-                        text: payload.description,
-                        url: payload.shareUrl
-                    });
-                    return;
-                }
-
-                if (navigator.clipboard?.writeText) {
-                    await navigator.clipboard.writeText(payload.shareUrl);
-                    alert(`공유 링크를 복사했습니다.\n${payload.shareUrl}`);
-                    return;
-                }
-
-                prompt("공유 링크를 복사해주세요.", payload.shareUrl);
-            } catch (error) {
-                console.error(error);
-                alert("공유 링크를 만들지 못했습니다.");
-            }
-        });
-    });
-
     latestReportFilterButtons.forEach((button) => {
         button.addEventListener("click", () => {
             setActiveReportFilter(latestReportFilterButtons, button);
@@ -1073,3 +1024,5 @@ downloadButtons.forEach((button) => {
         }
     }
 });
+
+

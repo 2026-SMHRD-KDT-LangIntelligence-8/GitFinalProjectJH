@@ -41,9 +41,7 @@ public class SecurityConfig {
                                 "/js/**",
                                 "/img/**",
                                 "/cognitive-images/**",
-                                "/api/users/status",
-                                "/reports/shared",
-                                "/api/reports/shared"
+                                "/api/users/status"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

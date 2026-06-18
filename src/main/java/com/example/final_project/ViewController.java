@@ -61,11 +61,6 @@ public class ViewController {
         return "report";
     }
 
-    @GetMapping("/reports/shared")
-    public String sharedReportPage() {
-        return "shared_report";
-    }
-
     // 테스트 화면을 렌더링한다.
     @GetMapping({"/test", "/test.html"})
     public String testPage() {
