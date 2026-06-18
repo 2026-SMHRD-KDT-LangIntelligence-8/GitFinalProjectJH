@@ -120,6 +120,17 @@ function buildPdfFileName(recipientName, sectionType) {
     return `${safeRecipientName}_${safeSectionLabel}.pdf`;
 }
 
+function triggerBlobDownload(blob, fileName) {
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(blobUrl);
+}
+
 async function downloadPDF(sectionId = "latest-report-section", shouldReturnBlob = false, fileName = null) {
     const sourceSection = document.getElementById(sectionId);
     const recipientName = document.getElementById("report-recipient-search")?.value?.trim() || "???";
@@ -166,7 +177,7 @@ async function downloadPDF(sectionId = "latest-report-section", shouldReturnBlob
         if (shouldReturnBlob) {
             const worker = html2pdf().set(opt).from(sourceSection);
             const blob = await worker.outputPdf("blob");
-            await worker.save();
+            triggerBlobDownload(blob, opt.filename);
             return blob;
         }
 
@@ -784,18 +795,28 @@ downloadButtons.forEach((button) => {
         const pdfBlob = await downloadPDF(sectionId, true, pdfFileName);
 
         if (sectionType === "latest" && selectedRecipient && historySelect.value && pdfBlob) {
-            const formData = new FormData();
-            formData.append("recipientId", String(selectedRecipient.recipientId));
-            formData.append("performanceId", String(Number(historySelect.value)));
-            formData.append("pdfFile", pdfBlob, pdfFileName);
+            try {
+                const formData = new FormData();
+                formData.append("recipientId", String(selectedRecipient.recipientId));
+                formData.append("performanceId", String(Number(historySelect.value)));
+                formData.append("pdfFile", pdfBlob, pdfFileName);
 
-            const response = await fetch("/api/reports/pdf-files", {
-                method: "POST",
-                body: formData
-            });
+                const response = await fetch("/api/reports/pdf-files", {
+                    method: "POST",
+                    body: formData
+                });
 
-            if (!response.ok) {
-                throw new Error("report_pdf_upload_failed");
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error("report_pdf_upload_failed", response.status, errorText);
+                    throw new Error("report_pdf_upload_failed");
+                }
+
+                const payload = await response.json();
+                console.info("report_pdf_upload_succeeded", payload.pdfFilePath);
+            } catch (error) {
+                console.error("report_pdf_upload_error", error);
+                alert("PDF는 다운로드되었지만 서버 저장에는 실패했습니다.");
             }
         }
     });

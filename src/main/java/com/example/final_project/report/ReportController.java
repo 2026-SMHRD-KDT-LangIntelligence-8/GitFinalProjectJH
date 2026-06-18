@@ -4,6 +4,8 @@ import com.example.final_project.report.dto.PerformanceReportResponse;
 import com.example.final_project.report.dto.PerformanceReportSummaryResponse;
 import com.example.final_project.report.dto.TrendReportResponse;
 import com.example.final_project.user.CurrentUserService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -20,6 +22,8 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/reports")
 public class ReportController {
+
+    private static final Logger log = LoggerFactory.getLogger(ReportController.class);
 
     private final ReportService reportService;
     private final CurrentUserService currentUserService;
@@ -60,6 +64,13 @@ public class ReportController {
             @RequestParam("performanceId") Long performanceId,
             @RequestParam("pdfFile") MultipartFile pdfFile
     ) throws Exception {
+        log.info(
+                "Report PDF upload requested. recipientId={}, performanceId={}, originalFileName={}, size={}",
+                recipientId,
+                performanceId,
+                pdfFile.getOriginalFilename(),
+                pdfFile.getSize()
+        );
         String savedPath = reportService.saveReportPdfPath(
                 recipientId,
                 performanceId,
@@ -67,6 +78,7 @@ public class ReportController {
                 pdfFile.getOriginalFilename(),
                 pdfFile.getBytes()
         );
+        log.info("Report PDF upload saved. recipientId={}, performanceId={}, path={}", recipientId, performanceId, savedPath);
         return Map.of("pdfFilePath", savedPath);
     }
 }

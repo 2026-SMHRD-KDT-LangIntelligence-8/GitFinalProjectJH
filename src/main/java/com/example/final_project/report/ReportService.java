@@ -350,6 +350,7 @@ public class ReportService {
             Path filePath = reportPdfDirectory.resolve(fileName);
 
             Files.write(filePath, pdfBytes);
+            log.info("Report PDF file written. recipientId={}, performanceId={}, path={}", recipientId, performanceId, filePath);
 
             reportRepository.upsertReportSnapshot(
                     userId,
