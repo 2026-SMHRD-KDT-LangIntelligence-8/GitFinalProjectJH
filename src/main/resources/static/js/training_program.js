@@ -493,16 +493,31 @@ function setTrainingVoiceState(mode, voiceBadge, voiceGuide, customMessage) {
 }
 
 function normalizeImagePath(imagePath) {
-    const normalized = String(imagePath || "").trim();
+    const normalized = String(imagePath || "").trim().replaceAll("\\", "/");
     if (!normalized) {
         return "";
     }
 
-    if (normalized.startsWith("http://") || normalized.startsWith("https://") || normalized.startsWith("/")) {
+    if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
         return normalized;
     }
 
-    return `/${normalized.replace(/^\.?\//, "")}`;
+    if (normalized.startsWith("/cognitive-images/")) {
+        return normalized;
+    }
+
+    const cognitiveImagesMarker = "/cognitive-images/";
+    const markerIndex = normalized.indexOf(cognitiveImagesMarker);
+    if (markerIndex >= 0) {
+        return normalized.substring(markerIndex);
+    }
+
+    const trimmedPath = normalized.replace(/^\.?\//, "");
+    if (trimmedPath.startsWith("cognitive-images/")) {
+        return `/${trimmedPath}`;
+    }
+
+    return `/cognitive-images/${trimmedPath.split("/").pop()}`;
 }
 
 function escapeHtml(value) {

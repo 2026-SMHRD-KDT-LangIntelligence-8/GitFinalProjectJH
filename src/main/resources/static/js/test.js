@@ -978,11 +978,22 @@ function normalizeImagePath(imageFilePath) {
         return normalizedPath;
     }
 
-    if (normalizedPath.startsWith("/")) {
+    if (normalizedPath.startsWith("/cognitive-images/")) {
         return normalizedPath;
     }
 
-    return `/cognitive-images/${normalizedPath.replace(/^\.?\//, "")}`;
+    const cognitiveImagesMarker = "/cognitive-images/";
+    const markerIndex = normalizedPath.indexOf(cognitiveImagesMarker);
+    if (markerIndex >= 0) {
+        return normalizedPath.substring(markerIndex);
+    }
+
+    const trimmedPath = normalizedPath.replace(/^\.?\//, "");
+    if (trimmedPath.startsWith("cognitive-images/")) {
+        return `/${trimmedPath}`;
+    }
+
+    return `/cognitive-images/${trimmedPath.split("/").pop()}`;
 }
 
 function delay(ms) {

@@ -9,6 +9,7 @@ Original file is located at
 
 import os
 import re
+import logging
 from pathlib import Path
 
 import torch
@@ -16,6 +17,8 @@ import librosa
 import numpy as np
 from transformers import pipeline
 from openai import OpenAI
+
+logger = logging.getLogger(__name__)
 
 # STT 모델 로드
 
@@ -494,11 +497,7 @@ def analyze_answer_length(text, question_type_name):
 # LLM 모델 불러오기
 
 API_KEY = os.getenv("OPENAI_API_KEY")
-
-if not API_KEY:
-    raise ValueError("OPENAI_API_KEY 환경변수가 설정되어 있지 않습니다.")
-
-client = OpenAI(api_key=API_KEY)
+client = OpenAI(api_key=API_KEY) if API_KEY else None
 
 LLM_MODEL_NAME = "gpt-5.4-mini-2026-03-17"
 
@@ -901,6 +900,9 @@ def score_appropriateness_with_llm(
         image_description=image_description
     )
 
+    if client is None:
+        raise ValueError("OPENAI_API_KEY 환경변수가 설정되어 있지 않습니다.")
+
     response = client.responses.create(
         model=LLM_MODEL_NAME,
         input=prompt,
@@ -953,12 +955,16 @@ def analyze_question_answer(
 
     # 6. 화행 적절성 LLM 채점
     if use_llm_scoring:
-        appropriateness_score = score_appropriateness_with_llm(
-            question_type_name=question_type_name,
-            question_text=question_text,
-            stt_text=preprocessed_text,
-            image_description=image_description
-        )
+        try:
+            appropriateness_score = score_appropriateness_with_llm(
+                question_type_name=question_type_name,
+                question_text=question_text,
+                stt_text=preprocessed_text,
+                image_description=image_description
+            )
+        except Exception as error:
+            logger.warning("LLM 채점에 실패하여 STT 결과만 저장합니다: %s", error)
+            appropriateness_score = None
     else:
         appropriateness_score = None
 
