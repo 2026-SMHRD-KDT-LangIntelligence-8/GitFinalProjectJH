@@ -1205,8 +1205,8 @@ a {
 .report-filter-btn.is-active { background-color: #1e5e3a; border-color: #1e5e3a; color: #ffffff; }
 .report-card-panel-large { min-height: 300px; }
 .report-summary-header { font-size: 13px; font-weight: 700; color: #436052; margin-bottom: 12px; }
-.report-chart-wrap { position: relative; width: 100%; height: 155px; }
-.report-chart-wrap-large { height: 220px; }
+.report-chart-wrap { position: relative; width: 100%; height: 210px; }
+.report-chart-wrap-large { height: 260px; }
 .report-type-summary { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
 
 .report-type-summary-item {
@@ -1420,14 +1420,14 @@ a {
 .pdf-section-export-mode .report-chart-wrap {
     position: relative !important;
     width: 100% !important;
-    height: 170px !important;
+    height: 220px !important;
     overflow: visible !important;
     break-inside: avoid;
     page-break-inside: avoid;
 }
 
 .pdf-section-export-mode .report-chart-wrap-large {
-    height: 270px !important;
+    height: 300px !important;
 }
 
 .pdf-section-export-mode .report-chart-wrap canvas {
