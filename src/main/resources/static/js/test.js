@@ -218,7 +218,18 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
 
             if (state.completed) {
-                clearPersistedTestProgress(state);
+                if (!isReloadNavigation()) {
+                    clearPersistedTestProgress(state);
+                    return;
+                }
+
+                introView.classList.add("hidden");
+                sessionView.classList.add("hidden");
+                reviewView.classList.remove("hidden");
+                await refreshPerformanceResults();
+                renderFinalReview();
+                updateReviewStatus();
+                startReviewPolling();
                 return;
             }
 
@@ -975,6 +986,19 @@ function clearPersistedTestProgress(state) {
     }
 
     sessionStorage.removeItem(TEST_PROGRESS_STORAGE_KEY);
+}
+
+function isReloadNavigation() {
+    const navigationEntry = performance.getEntriesByType("navigation")[0];
+    if (navigationEntry && navigationEntry.type) {
+        return navigationEntry.type === "reload";
+    }
+
+    if (performance.navigation) {
+        return performance.navigation.type === performance.navigation.TYPE_RELOAD;
+    }
+
+    return false;
 }
 
 function getFailureQuestionIds(state) {
