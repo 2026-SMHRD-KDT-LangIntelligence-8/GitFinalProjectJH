@@ -1218,12 +1218,13 @@ a {
 .report-chart-wrap { position: relative; width: 100%; height: 210px; }
 .report-chart-wrap-large { height: 260px; }
 .report-type-summary { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
-.trend-point-summary-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; width: 100%; }
-.trend-point-summary-main { display: flex; align-items: baseline; gap: 10px; flex: 1; min-width: 0; }
+.trend-point-summary-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; }
+.trend-point-summary-main { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
 .trend-point-summary-item .report-type-name { flex: 0 0 auto; font-size: 13px; font-weight: 800; }
-.trend-point-summary-item .report-type-score { white-space: nowrap; font-size: 12px; color: #55776d; }
-.trend-point-summary-item { flex-direction: column; align-items: stretch; }
-.trend-point-summary-message { font-size: 12px; font-weight: 600; line-height: 1.5; color: #436052; text-align: left; }
+.trend-point-summary-item .report-type-score { white-space: nowrap; font-size: 12px; font-weight: 700; color: #6f8578; }
+.trend-point-summary-item { flex-direction: column; align-items: stretch; gap: 6px; }
+.trend-point-summary-item .report-type-meta { min-width: auto; gap: 0; }
+.trend-point-summary-message { font-size: 12px; font-weight: 600; line-height: 1.45; color: #436052; text-align: left; padding-left: 2px; }
 
 .report-type-summary-item {
     display: flex;
@@ -1526,6 +1527,11 @@ a {
 
 .pdf-section-export-mode .trend-point-summary-item .report-type-name {
     font-size: 15px;
+}
+
+.pdf-section-export-mode .trend-point-summary-item .report-type-meta {
+    min-width: auto;
+    gap: 0;
 }
 
 .pdf-section-export-mode .trend-point-summary-item .report-type-score {
