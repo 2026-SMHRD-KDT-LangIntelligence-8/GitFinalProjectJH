@@ -1499,17 +1499,52 @@ a {
 .pdf-section-export-mode .report-type-summary {
     display: flex !important;
     flex-direction: column;
-    gap: 5px;
-    margin-top: 8px;
+    gap: 8px;
+    margin-top: 10px;
 }
 
 .pdf-section-export-mode .trend-point-summary-item {
-    padding: 8px 10px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 18px;
+    padding: 12px 16px;
+    min-height: 54px;
+}
+
+.pdf-section-export-mode .trend-point-summary-top {
+    flex: 0 0 290px;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 14px;
+}
+
+.pdf-section-export-mode .trend-point-summary-item .report-type-name {
+    font-size: 15px;
+}
+
+.pdf-section-export-mode .trend-point-summary-item .report-type-meta {
+    gap: 10px;
+    min-width: auto;
+}
+
+.pdf-section-export-mode .trend-point-summary-item .report-type-score {
+    font-size: 13px;
+}
+
+.pdf-section-export-mode .trend-point-summary-item .report-type-badge {
+    min-height: 24px;
+    min-width: 52px;
+    padding: 0 10px;
+    font-size: 11px;
 }
 
 .pdf-section-export-mode .trend-point-summary-message {
-    font-size: 10px;
-    line-height: 1.35;
+    flex: 1 1 auto;
+    font-size: 13px;
+    line-height: 1.45;
+    text-align: left;
+    word-break: keep-all;
 }
 
 .pdf-section-export-mode .report-type-summary-item,
