@@ -496,7 +496,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             const transcriptMarkup = failure
                 ? `<div class="test-review-pending">${escapeHtml(failure.message)}</div>`
                 : dbTranscript
-                    ? `<div class="test-review-transcript">${escapeHtml(dbTranscript)}</div>`
+                    ? `
+                        <div class="test-review-transcript-header">
+                            <span class="test-review-saved-badge">서버 저장 완료</span>
+                        </div>
+                        <div class="test-review-transcript">${escapeHtml(dbTranscript)}</div>
+                    `
                     : '<div class="test-review-pending">서버에서 음성 데이터를 텍스트로 변환중입니다. 잠시만 기다려주세요.</div>';
 
             return `
@@ -529,7 +534,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         reviewStatus.classList.add("is-complete");
-        reviewStatus.textContent = "모든 문항의 최종 인식 텍스트 확인이 완료되었습니다.";
+        reviewStatus.textContent = "모든 문항의 서버 저장 답변 텍스트 확인이 완료되었습니다.";
     }
 
     function startVoicePulse() {

@@ -1,6 +1,16 @@
 const TRAINING_SESSION_STORAGE_KEY = "trainingStartPayload";
 const TRAINING_AUDIO_FILE_NAME = "training-answer.webm";
 const TRAINING_DURATION_SECONDS = 70;
+const TRAINING_RESULT_POLL_INTERVAL_MS = 1500;
+const TRAINING_RESULT_MAX_ATTEMPTS = 20;
+
+const TRAINING_DIRECTION_BY_TYPE = {
+    "오늘 날짜 말하기": "달력이나 휴대폰 날짜를 함께 보며 오늘의 연도, 월, 일, 요일을 소리 내어 말하는 연습을 반복해 주세요.",
+    "그림 설명하기": "그림 속 인물, 장소, 행동을 순서대로 나누어 말하고 짧은 문장을 길게 확장하는 방식으로 설명 연습을 해 주세요.",
+    "상황 질문 답하기": "일상 상황을 하나씩 제시한 뒤 해야 할 행동을 차분히 한 문장 이상으로 답하는 연습을 해 주세요.",
+    "규칙 기반 언어추론": "공통점 찾기, 분류하기, 이유 설명하기 문제를 짧게라도 꾸준히 풀면서 생각한 근거를 함께 말해 보게 해 주세요.",
+    "추억 말하기": "최근 일이나 익숙한 옛일을 시간 순서대로 떠올려 말하고, 장소와 사람 이름을 함께 덧붙이는 연습을 해 주세요."
+};
 
 document.addEventListener("DOMContentLoaded", async () => {
     const params = new URLSearchParams(window.location.search);
@@ -11,7 +21,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const backButton = document.querySelector(".back-btn");
     let activeSessionBackHandler = null;
 
-    let payload = await resolveTrainingPayload(queryRecipientId);
+    const payload = await resolveTrainingPayload(queryRecipientId);
 
     if (!payload) {
         trainingList.innerHTML = "<p class=\"question-purpose\">훈련 데이터를 먼저 불러와 주세요.</p>";
@@ -42,9 +52,20 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const renderTrainingListView = () => {
         activeSessionBackHandler = null;
-        renderTrainingProgramList(trainingList, payload, weakPrograms, (backHandler) => {
-            activeSessionBackHandler = backHandler;
-        }, renderTrainingListView);
+        renderTrainingProgramList(trainingList, weakPrograms, async (questionTypeName) => {
+            activeSessionBackHandler = await renderTrainingQuestionSession(
+                trainingList,
+                payload,
+                questionTypeName,
+                (resultSummary) => {
+                    activeSessionBackHandler = async () => {
+                        renderTrainingListView();
+                    };
+                    renderTrainingResultView(trainingList, resultSummary, renderTrainingListView);
+                },
+                renderTrainingListView
+            );
+        });
     };
 
     backButton?.addEventListener("click", async (event) => {
@@ -93,7 +114,7 @@ async function resolveTrainingPayload(queryRecipientId) {
     return payload;
 }
 
-function renderTrainingProgramList(trainingList, payload, weakPrograms, onSessionStart, onSessionEnd) {
+function renderTrainingProgramList(trainingList, weakPrograms, onSelectQuestionType) {
     trainingList.innerHTML = "";
 
     weakPrograms.forEach((question) => {
@@ -110,24 +131,18 @@ function renderTrainingProgramList(trainingList, payload, weakPrograms, onSessio
 
         item.addEventListener("click", async (event) => {
             event.preventDefault();
-            const sessionBackHandler = await renderTrainingQuestionSession(
-                trainingList,
-                payload,
-                question.questionTypeName,
-                onSessionEnd
-            );
-            onSessionStart?.(sessionBackHandler);
+            await onSelectQuestionType(question.questionTypeName);
         });
 
         trainingList.appendChild(item);
     });
 }
 
-async function renderTrainingQuestionSession(trainingList, payload, selectedTypeName, onSessionEnd) {
+async function renderTrainingQuestionSession(trainingList, payload, selectedTypeName, onSessionCompleted, onSessionCanceled) {
     const selectedQuestions = payload.questions.filter((question) => question.questionTypeName === selectedTypeName);
     if (selectedQuestions.length === 0) {
         trainingList.innerHTML = "<p class=\"question-purpose\">선택한 훈련 문항을 찾지 못했습니다.</p>";
-        return;
+        return null;
     }
 
     let currentIndex = 0;
@@ -143,7 +158,8 @@ async function renderTrainingQuestionSession(trainingList, payload, selectedType
         voiceAnimationId: null,
         timerId: null,
         remainingSeconds: TRAINING_DURATION_SECONDS,
-        questionAdvancePending: false
+        questionAdvancePending: false,
+        uploadedQuestionResultIdsByQuestionId: {}
     };
 
     trainingList.innerHTML = `
@@ -227,7 +243,10 @@ async function renderTrainingQuestionSession(trainingList, payload, selectedType
         clearTrainingQuestionTimer();
 
         try {
-            await stopTrainingRecordingAndUpload(recordingState, payload.performanceId, currentQuestion, voiceTranscript);
+            const uploadResult = await stopTrainingRecordingAndUpload(recordingState, payload.performanceId, currentQuestion, voiceTranscript);
+            if (uploadResult?.questionResultId) {
+                recordingState.uploadedQuestionResultIdsByQuestionId[currentQuestion.questionId] = uploadResult.questionResultId;
+            }
         } catch (error) {
             console.error(error);
         } finally {
@@ -238,7 +257,13 @@ async function renderTrainingQuestionSession(trainingList, payload, selectedType
 
         if (currentIndex >= selectedQuestions.length - 1) {
             releaseTrainingMediaStream(recordingState, voiceTranscript);
-            onSessionEnd?.();
+            const resultSummary = await buildTrainingResultSummary(
+                payload.performanceId,
+                selectedTypeName,
+                selectedQuestions,
+                recordingState.uploadedQuestionResultIdsByQuestionId
+            );
+            onSessionCompleted?.(resultSummary);
             return;
         }
 
@@ -308,7 +333,10 @@ async function renderTrainingQuestionSession(trainingList, payload, selectedType
 
         if (currentQuestion) {
             try {
-                await stopTrainingRecordingAndUpload(recordingState, payload.performanceId, currentQuestion, voiceTranscript);
+                const uploadResult = await stopTrainingRecordingAndUpload(recordingState, payload.performanceId, currentQuestion, voiceTranscript);
+                if (uploadResult?.questionResultId) {
+                    recordingState.uploadedQuestionResultIdsByQuestionId[currentQuestion.questionId] = uploadResult.questionResultId;
+                }
             } catch (error) {
                 console.error(error);
             }
@@ -316,8 +344,116 @@ async function renderTrainingQuestionSession(trainingList, payload, selectedType
 
         recordingState.recordingStarted = false;
         releaseTrainingMediaStream(recordingState, voiceTranscript);
-        onSessionEnd?.();
+        onSessionCanceled?.();
     };
+}
+
+function renderTrainingResultView(trainingList, resultSummary, onClose) {
+    const statusBadgeClass = resultSummary.trainingNeeded ? "is-training-needed" : "is-stable";
+    const statusLabel = resultSummary.trainingNeeded ? "훈련 필요" : "안정";
+    const directionText = resultSummary.trainingNeeded
+        ? resultSummary.directionText
+        : "현재 점수는 안정권입니다. 지금처럼 같은 유형의 대화와 말하기 활동을 가볍게 유지해 주세요.";
+
+    trainingList.innerHTML = `
+        <div class="test-review-card training-result-card">
+            <div class="voice-review-header">
+                <strong class="voice-review-title">${escapeHtml(resultSummary.questionTypeName)} 훈련 결과</strong>
+                <span class="voice-review-caption">서버에 저장된 훈련 답변을 기준으로 점수와 훈련 방향을 정리했습니다.</span>
+            </div>
+            <div class="report-type-summary">
+                <div class="report-type-summary-item">
+                    <span class="report-type-name">평균 점수 ${formatScore(resultSummary.averageScore)}점</span>
+                    <div class="report-type-meta">
+                        <span class="report-type-badge ${statusBadgeClass}">${statusLabel}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="training-result-direction ${resultSummary.trainingNeeded ? "is-training-needed" : "is-stable"}">
+                <strong class="training-result-direction-title">${resultSummary.trainingNeeded ? "훈련 방향" : "유지 방향"}</strong>
+                <p class="training-result-direction-text">${escapeHtml(directionText)}</p>
+            </div>
+            <div class="training-result-note">${escapeHtml(resultSummary.noteText)}</div>
+        </div>
+        <div class="test-session-actions">
+            <button type="button" class="timer-start-btn" id="training-result-close-btn">다른 훈련 보기</button>
+        </div>
+    `;
+
+    document.getElementById("training-result-close-btn")?.addEventListener("click", () => {
+        onClose?.();
+    });
+}
+
+async function buildTrainingResultSummary(performanceId, selectedTypeName, selectedQuestions, uploadedQuestionResultIdsByQuestionId) {
+    const selectedQuestionIds = new Set(selectedQuestions.map((question) => Number(question.questionId)));
+    const questionResultIds = Object.values(uploadedQuestionResultIdsByQuestionId || {}).filter(Boolean);
+    let filteredResults = [];
+
+    for (let attempt = 0; attempt < TRAINING_RESULT_MAX_ATTEMPTS; attempt += 1) {
+        const allResults = await fetchTrainingQuestionResults(performanceId);
+        filteredResults = allResults.filter((result) => selectedQuestionIds.has(Number(result.questionId)));
+
+        if (
+            filteredResults.length >= selectedQuestions.length ||
+            (questionResultIds.length > 0 && filteredResults.length >= questionResultIds.length)
+        ) {
+            const allCompleted = filteredResults.every((result) => ["COMPLETED", "FAILED"].includes(result.analysisStatus));
+            if (allCompleted) {
+                break;
+            }
+        }
+
+        await delay(TRAINING_RESULT_POLL_INTERVAL_MS);
+    }
+
+    const numericScores = filteredResults
+        .map((result) => toTrainingNumericScore(result))
+        .filter((score) => typeof score === "number" && !Number.isNaN(score));
+
+    const averageScore = numericScores.length
+        ? numericScores.reduce((sum, score) => sum + score, 0) / numericScores.length
+        : 0;
+
+    const trainingNeeded = averageScore < 60;
+    const completedCount = filteredResults.filter((result) => result.analysisStatus === "COMPLETED").length;
+    const failedCount = filteredResults.filter((result) => result.analysisStatus === "FAILED").length;
+
+    return {
+        questionTypeName: selectedTypeName,
+        averageScore,
+        trainingNeeded,
+        directionText: getTrainingDirectionText(selectedTypeName),
+        noteText: failedCount > 0
+            ? `일부 문항은 분석에 실패해 완료 ${completedCount}건, 실패 ${failedCount}건 기준으로 결과를 표시했습니다.`
+            : "훈련이 끝난 직후 결과를 확인할 수 있도록 서버 저장 답변 기준 점수를 표시했습니다."
+    };
+}
+
+async function fetchTrainingQuestionResults(performanceId) {
+    const response = await fetch(`/api/cognitive-tests/${performanceId}/question-results`);
+    if (!response.ok) {
+        throw new Error("training_result_fetch_failed");
+    }
+
+    return response.json();
+}
+
+function toTrainingNumericScore(result) {
+    if (typeof result?.finalScore === "number" && !Number.isNaN(result.finalScore)) {
+        return Number(result.finalScore);
+    }
+
+    if (typeof result?.appropriatenessScore === "number" && !Number.isNaN(result.appropriatenessScore)) {
+        return Number(result.appropriatenessScore);
+    }
+
+    return 0;
+}
+
+function getTrainingDirectionText(questionTypeName) {
+    return TRAINING_DIRECTION_BY_TYPE[questionTypeName]
+        || "같은 유형의 질문을 짧게 나누어 반복하고, 답을 한 문장 이상으로 이어서 말하는 연습을 꾸준히 진행해 주세요.";
 }
 
 async function ensureTrainingMicrophoneReady(recordingState) {
@@ -419,7 +555,7 @@ function resetTrainingVoicePulse(voiceTranscript) {
 async function stopTrainingRecordingAndUpload(recordingState, performanceId, question, voiceTranscript) {
     if (!recordingState.mediaRecorder || recordingState.mediaRecorder.state === "inactive") {
         stopTrainingVoicePulse(recordingState, voiceTranscript);
-        return;
+        return null;
     }
 
     const audioBlob = await new Promise((resolve) => {
@@ -436,10 +572,10 @@ async function stopTrainingRecordingAndUpload(recordingState, performanceId, que
     stopTrainingVoicePulse(recordingState, voiceTranscript);
 
     if (!audioBlob || audioBlob.size === 0) {
-        return;
+        return null;
     }
 
-    await uploadTrainingQuestionAudio(performanceId, question.questionId, audioBlob);
+    return uploadTrainingQuestionAudio(performanceId, question.questionId, audioBlob);
 }
 
 function releaseTrainingMediaStream(recordingState, voiceTranscript) {
@@ -518,6 +654,17 @@ function normalizeImagePath(imagePath) {
     }
 
     return `/cognitive-images/${trimmedPath.split("/").pop()}`;
+}
+
+function formatScore(score) {
+    const numericScore = Number(score ?? 0);
+    return Number.isInteger(numericScore) ? `${numericScore}` : numericScore.toFixed(1);
+}
+
+function delay(ms) {
+    return new Promise((resolve) => {
+        window.setTimeout(resolve, ms);
+    });
 }
 
 function escapeHtml(value) {
