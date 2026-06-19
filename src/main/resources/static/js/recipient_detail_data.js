@@ -59,13 +59,17 @@ function renderTrainingStatuses(trainingStatuses, recipient) {
     const container = document.getElementById("training-status-list");
     const hasExamHistory = Number(recipient?.testCount ?? 0) > 0 || Boolean(recipient?.latestTestDate);
 
+    if (!container) {
+        return;
+    }
+
     if (trainingStatuses.length === 0) {
         container.innerHTML = `
             <div class="recipient-empty-message training-status-empty">
                 ${hasExamHistory
                     ? [
                         "1단계 검사 기록 확인은 완료되었습니다.",
-                        "2단계 문항 분석과 점수 계산이 진행 중입니다.",
+                        "2단계 문항 분석과 점수 계산을 진행 중입니다.",
                         "3단계 훈련 현황 조회는 분석 완료 후 자동으로 갱신됩니다.",
                         "예상 대기 시간은 약 1~3분입니다."
                     ].join("<br>")
@@ -88,9 +92,45 @@ function renderTrainingStatuses(trainingStatuses, recipient) {
     `;
 }
 
+function renderTrainingStatusError(message) {
+    const container = document.getElementById("training-status-list");
+    if (!container) {
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="recipient-empty-message training-status-empty">
+            ${escapeHtml(message)}
+        </div>
+    `;
+}
+
+function mapQuestionTypeScoresToTrainingStatuses(scores) {
+    return (Array.isArray(scores) ? scores : []).map((score) => ({
+        questionTypeId: score.questionTypeId,
+        questionTypeName: score.questionTypeName,
+        averageAppropriatenessScore: Math.round(Number(score.averageScore ?? 0)),
+        analyzedQuestionCount: 0,
+        statusLabel: score.trainingNeeded ? "훈련 필요" : "안정",
+        trainingNeeded: Boolean(score.trainingNeeded)
+    }));
+}
+
+function setActivePreviousReportItem(container, performanceId) {
+    container.querySelectorAll(".recipient-history-item").forEach((item) => {
+        const isActive = String(item.dataset.performanceId) === String(performanceId);
+        item.classList.toggle("is-active", isActive);
+        item.setAttribute("aria-pressed", String(isActive));
+    });
+}
+
 async function loadPreviousReports(recipientId, recipient) {
     const container = document.getElementById("previous-report-list");
     const hasExamHistory = Number(recipient?.testCount ?? 0) > 0 || Boolean(recipient?.latestTestDate);
+
+    if (!container) {
+        return;
+    }
 
     try {
         const response = await fetch(`/api/reports/recipients/${recipientId}/performances`);
@@ -131,7 +171,8 @@ async function loadPreviousReports(recipientId, recipient) {
                         performanceId: report.performanceId,
                         performedAt: report.performedAt,
                         averageScore,
-                        weakCount
+                        weakCount,
+                        trainingStatuses: mapQuestionTypeScoresToTrainingStatuses(scores)
                     };
                 } catch (error) {
                     console.error(error);
@@ -139,7 +180,8 @@ async function loadPreviousReports(recipientId, recipient) {
                         performanceId: report.performanceId,
                         performedAt: report.performedAt,
                         averageScore: null,
-                        weakCount: null
+                        weakCount: null,
+                        trainingStatuses: []
                     };
                 }
             })
@@ -147,8 +189,8 @@ async function loadPreviousReports(recipientId, recipient) {
 
         container.innerHTML = `
             <div class="recipient-history-scroll" aria-label="이전 리포트 목록">
-                ${reportDetails.map((report) => `
-                    <div class="recipient-history-item" data-performance-id="${report.performanceId}">
+                ${reportDetails.map((report, index) => `
+                    <div class="recipient-history-item ${index === 0 ? "is-active" : ""}" data-performance-id="${report.performanceId}" role="button" tabindex="0" aria-pressed="${index === 0 ? "true" : "false"}">
                         <div class="recipient-history-main">
                             <div class="recipient-history-date">${escapeHtml(report.performedAt)}</div>
                             <div class="recipient-history-meta">
@@ -162,6 +204,42 @@ async function loadPreviousReports(recipientId, recipient) {
                 `).join("")}
             </div>
         `;
+
+        const reportDetailMap = new Map(reportDetails.map((report) => [String(report.performanceId), report]));
+        const historyItems = Array.from(container.querySelectorAll(".recipient-history-item"));
+
+        const applySelectedReport = (performanceId) => {
+            const selectedReport = reportDetailMap.get(String(performanceId));
+            if (!selectedReport) {
+                return;
+            }
+
+            setActivePreviousReportItem(container, performanceId);
+
+            if (selectedReport.trainingStatuses.length) {
+                renderTrainingStatuses(selectedReport.trainingStatuses, recipient);
+                return;
+            }
+
+            renderTrainingStatusError("선택한 리포트의 훈련 현황을 불러오지 못했습니다.");
+        };
+
+        historyItems.forEach((item) => {
+            item.addEventListener("click", () => {
+                applySelectedReport(item.dataset.performanceId);
+            });
+
+            item.addEventListener("keydown", (event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    applySelectedReport(item.dataset.performanceId);
+                }
+            });
+        });
+
+        if (reportDetails[0]) {
+            applySelectedReport(reportDetails[0].performanceId);
+        }
     } catch (error) {
         console.error(error);
         container.innerHTML = `
@@ -188,8 +266,8 @@ async function loadTrendReport(recipientId, days, recipient) {
         if (!payload.points?.length) {
             destroyDetailTrendChart();
             summary.textContent = hasExamHistory
-                ? `${formatDaysLabel(days)} 동안의 평균 점수 추이는 아직 생성 중입니다.`
-                : `${formatDaysLabel(days)} 동안 표시할 검사 결과가 없습니다.`;
+                ? `최근 ${formatDaysLabel(days)} 동안의 평균 점수 추이가 아직 생성 중입니다.`
+                : `최근 ${formatDaysLabel(days)} 동안 표시할 검사 결과가 없습니다.`;
             empty.textContent = hasExamHistory
                 ? "리포트 생성 후 기간별 평균 점수 변화가 자동으로 표시됩니다."
                 : "기간별 추이를 그릴 검사 결과가 없습니다.";
@@ -204,7 +282,7 @@ async function loadTrendReport(recipientId, days, recipient) {
         console.error(error);
         destroyDetailTrendChart();
         summary.textContent = "기간별 변화 데이터를 불러오지 못했습니다.";
-        empty.textContent = "잠시 후 다시 시도해주세요.";
+        empty.textContent = "잠시 후 다시 시도해 주세요.";
         empty.classList.add("is-visible");
     }
 }
@@ -276,7 +354,7 @@ function buildHistoryMeta(report) {
     }
 
     if (report.weakCount == null) {
-        return "영역별 훈련 상태 계산 중입니다.";
+        return "영역별 훈련 상태를 계산 중입니다.";
     }
 
     return `영역 평균 ${formatScore(report.averageScore)}점 · 훈련 필요 ${report.weakCount}개`;

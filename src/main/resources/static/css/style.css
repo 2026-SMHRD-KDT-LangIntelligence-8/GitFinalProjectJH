@@ -882,6 +882,14 @@ a {
     border-radius: 14px;
     border: 1px solid #dfe8e1;
     background-color: #ffffff;
+    cursor: pointer;
+    transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.recipient-history-item.is-active {
+    border-color: #8fc2a2;
+    background-color: #f5fbf6;
+    box-shadow: 0 0 0 1px rgba(63, 159, 90, 0.14);
 }
 
 .recipient-history-main {
