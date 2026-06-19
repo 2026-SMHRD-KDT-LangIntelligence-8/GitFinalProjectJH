@@ -227,6 +227,16 @@ function getScoreStatus(score) {
     return Number(score ?? 0) < 60 ? "훈련 필요" : "안정";
 }
 
+function formatTrendAxisDate(value) {
+    const normalizedValue = normalizeText(value);
+    const matchedDate = normalizedValue.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!matchedDate) {
+        return normalizedValue;
+    }
+
+    return `${matchedDate[1].slice(2)}/${matchedDate[2]}/${matchedDate[3]}`;
+}
+
 function buildTrendSummaryMessage(point, filterLabel, fallbackScore) {
     const questionTypeScores = Array.isArray(point?.questionTypeScores) ? point.questionTypeScores : [];
 
@@ -535,6 +545,17 @@ function renderTrendChart(points, filterLabel = "??", latestScores = []) {
                 }
             },
             scales: {
+                x: {
+                    ticks: {
+                        callback(value, index) {
+                            const label = this.getLabelForValue(value) ?? series.labels[index] ?? "";
+                            return formatTrendAxisDate(label);
+                        },
+                        maxRotation: 0,
+                        minRotation: 0,
+                        autoSkip: false
+                    }
+                },
                 y: {
                     min: 0,
                     max: 100,
@@ -624,9 +645,11 @@ function renderTrendPointSummary(points, filterLabel = "전체", latestScores = 
             return `
                 <div class="report-type-summary-item trend-point-summary-item">
                     <div class="trend-point-summary-top">
-                        <span class="report-type-name">${escapeHtml(performedDate)}</span>
-                        <div class="report-type-meta">
+                        <div class="trend-point-summary-main">
+                            <span class="report-type-name">${escapeHtml(performedDate)}</span>
                             <span class="report-type-score">평균 ${formatScore(score)}점</span>
+                        </div>
+                        <div class="report-type-meta">
                             <span class="report-type-badge ${status === "훈련 필요" ? "is-training-needed" : "is-stable"}">${status}</span>
                         </div>
                     </div>
