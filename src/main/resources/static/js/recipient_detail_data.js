@@ -84,7 +84,11 @@ function renderTrainingStatuses(trainingStatuses, recipient) {
             ${trainingStatuses.map((status) => `
                 <div class="recipient-row">
                     <span class="recipient-cell w-name" title="${escapeHtml(status.questionTypeName)}">${escapeHtml(status.questionTypeName)}</span>
-                    <span class="recipient-cell w-grade" title="${escapeHtml(status.statusLabel)}">${escapeHtml(status.statusLabel)}</span>
+                    <span class="recipient-cell w-grade">
+                        <span class="training-status-badge ${status.trainingNeeded ? "is-training-needed" : "is-stable"}" title="${escapeHtml(status.statusLabel)}">
+                            ${escapeHtml(status.statusLabel)}
+                        </span>
+                    </span>
                     <span class="recipient-cell w-birth">평균 ${formatScore(status.averageAppropriatenessScore)}점</span>
                 </div>
             `).join("")}
@@ -190,10 +194,10 @@ async function loadPreviousReports(recipientId, recipient) {
         container.innerHTML = `
             <div class="recipient-history-scroll" aria-label="이전 리포트 목록">
                 ${reportDetails.map((report, index) => `
-                    <div class="recipient-history-item ${index === 0 ? "is-active" : ""}" data-performance-id="${report.performanceId}" role="button" tabindex="0" aria-pressed="${index === 0 ? "true" : "false"}">
+                    <div class="recipient-history-item ${index === 0 ? "is-active" : ""} ${report.weakCount > 0 ? "has-training-needed" : ""}" data-performance-id="${report.performanceId}" role="button" tabindex="0" aria-pressed="${index === 0 ? "true" : "false"}">
                         <div class="recipient-history-main">
                             <div class="recipient-history-date">${escapeHtml(report.performedAt)}</div>
-                            <div class="recipient-history-meta">
+                            <div class="recipient-history-meta ${report.weakCount > 0 ? "is-training-needed" : ""}">
                                 ${buildHistoryMeta(report)}
                             </div>
                         </div>

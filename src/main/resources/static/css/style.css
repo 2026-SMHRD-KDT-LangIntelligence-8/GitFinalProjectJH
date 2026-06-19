@@ -857,6 +857,30 @@ a {
     line-height: 1.35;
 }
 
+.training-status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 58px;
+    min-height: 28px;
+    padding: 0 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.training-status-badge.is-stable {
+    background-color: #dff2e3;
+    color: #1d6b32;
+}
+
+.training-status-badge.is-training-needed {
+    background-color: #fde9e8;
+    color: #b33b32;
+}
+
 .recipient-history-panel {
     min-height: 160px;
     max-height: 320px;
@@ -913,11 +937,25 @@ a {
     word-break: keep-all;
 }
 
+.recipient-history-meta.is-training-needed {
+    color: #b33b32;
+}
+
 .recipient-history-score {
     flex-shrink: 0;
     font-size: 13px;
     font-weight: 800;
     color: #2a6650;
+}
+
+.recipient-history-item.has-training-needed {
+    border-color: #f2c8c4;
+    background-color: #fff8f7;
+}
+
+.recipient-history-item.has-training-needed .recipient-history-score,
+.recipient-history-item.has-training-needed .recipient-history-date {
+    color: #b33b32;
 }
 
 .recipient-trend-panel {
