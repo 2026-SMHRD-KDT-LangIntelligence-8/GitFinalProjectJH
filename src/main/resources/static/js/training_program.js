@@ -2,7 +2,6 @@ const TRAINING_SESSION_STORAGE_KEY = "trainingStartPayload";
 const TRAINING_AUDIO_FILE_NAME = "training-answer.webm";
 const TRAINING_DURATION_SECONDS = 70;
 const TRAINING_RESULT_POLL_INTERVAL_MS = 1500;
-const TRAINING_RESULT_MAX_ATTEMPTS = 20;
 
 const TRAINING_DIRECTION_BY_TYPE = {
     "오늘 날짜 말하기": "달력이나 휴대폰 날짜를 함께 보며 오늘의 연도, 월, 일, 요일을 소리 내어 말하는 연습을 반복해 주세요.",
@@ -57,11 +56,17 @@ document.addEventListener("DOMContentLoaded", async () => {
                 trainingList,
                 payload,
                 questionTypeName,
-                (resultSummary) => {
+                () => {
                     activeSessionBackHandler = async () => {
                         renderTrainingListView();
                     };
-                    renderTrainingResultView(trainingList, resultSummary, renderTrainingListView);
+                    renderTrainingReviewView(
+                        trainingList,
+                        questionTypeName,
+                        payload.questions.filter((question) => question.questionTypeName === questionTypeName),
+                        payload.performanceId,
+                        renderTrainingListView
+                    );
                 },
                 renderTrainingListView
             );
@@ -240,6 +245,7 @@ async function renderTrainingQuestionSession(trainingList, payload, selectedType
 
         recordingState.questionAdvancePending = true;
         startButton.disabled = true;
+        startButton.textContent = "정리 중...";
         clearTrainingQuestionTimer();
 
         try {
@@ -257,13 +263,9 @@ async function renderTrainingQuestionSession(trainingList, payload, selectedType
 
         if (currentIndex >= selectedQuestions.length - 1) {
             releaseTrainingMediaStream(recordingState, voiceTranscript);
-            const resultSummary = await buildTrainingResultSummary(
-                payload.performanceId,
-                selectedTypeName,
-                selectedQuestions,
-                recordingState.uploadedQuestionResultIdsByQuestionId
-            );
-            onSessionCompleted?.(resultSummary);
+            onSessionCompleted?.({
+                uploadedQuestionResultIdsByQuestionId: {...recordingState.uploadedQuestionResultIdsByQuestionId}
+            });
             return;
         }
 
@@ -348,15 +350,142 @@ async function renderTrainingQuestionSession(trainingList, payload, selectedType
     };
 }
 
-function renderTrainingResultView(trainingList, resultSummary, onClose) {
+function renderTrainingReviewView(trainingList, selectedTypeName, selectedQuestions, performanceId, onClose) {
+    trainingList.innerHTML = `
+        <div class="test-review-card training-result-card">
+            <div class="voice-review-header">
+                <strong class="voice-review-title">${escapeHtml(selectedTypeName)} 훈련 내용 확인</strong>
+                <span class="voice-review-caption">서버에 저장된 답변부터 차례대로 확인할 수 있습니다.</span>
+            </div>
+            <div class="test-review-status" id="training-review-status">서버에 저장된 훈련 답변 텍스트를 확인하는 중입니다.</div>
+            <div class="test-review-list" id="training-review-list"></div>
+            <div id="training-result-summary-container"></div>
+        </div>
+        <div class="test-session-actions">
+            <button type="button" class="timer-start-btn" id="training-result-close-btn">다른 훈련 보기</button>
+        </div>
+    `;
+
+    const reviewStatus = document.getElementById("training-review-status");
+    const reviewList = document.getElementById("training-review-list");
+    const resultContainer = document.getElementById("training-result-summary-container");
+    const closeButton = document.getElementById("training-result-close-btn");
+    const selectedQuestionIds = new Set(selectedQuestions.map((question) => Number(question.questionId)));
+    let pollingTimerId = null;
+
+    closeButton?.addEventListener("click", () => {
+        if (pollingTimerId !== null) {
+            window.clearInterval(pollingTimerId);
+            pollingTimerId = null;
+        }
+        onClose?.();
+    });
+
+    const renderReviewItems = (results) => {
+        const resultMap = new Map(results.map((result) => [Number(result.questionId), result]));
+        reviewList.innerHTML = selectedQuestions.map((question, index) => {
+            const result = resultMap.get(Number(question.questionId));
+            const analysisStatus = String(result?.analysisStatus || "");
+            const transcript = String(result?.sttText || "").trim();
+            const content = analysisStatus === "FAILED"
+                ? '<div class="test-review-pending">텍스트 변환에 실패했습니다. 다시 훈련해 주세요.</div>'
+                : transcript
+                    ? `
+                        <div class="test-review-transcript-header">
+                            <span class="test-review-saved-badge">서버 저장 완료</span>
+                        </div>
+                        <div class="test-review-transcript">${escapeHtml(transcript)}</div>
+                    `
+                    : '<div class="test-review-pending">서버에서 음성 데이터를 텍스트로 변환중입니다. 잠시만 기다려주세요.</div>';
+
+            return `
+                <div class="test-review-item">
+                    <div class="test-review-question">${index + 1}. ${escapeHtml(question.questionText)}</div>
+                    ${content}
+                </div>
+            `;
+        }).join("");
+    };
+
+    const updateReview = async () => {
+        const allResults = await fetchTrainingQuestionResults(performanceId);
+        const filteredResults = allResults.filter((result) => selectedQuestionIds.has(Number(result.questionId)));
+        renderReviewItems(filteredResults);
+
+        const pendingCount = selectedQuestions.filter((question) => {
+            const result = filteredResults.find((item) => Number(item.questionId) === Number(question.questionId));
+            if (!result) {
+                return true;
+            }
+
+            return !["COMPLETED", "FAILED"].includes(String(result.analysisStatus || ""));
+        }).length;
+
+        if (pendingCount > 0) {
+            reviewStatus.classList.remove("is-complete", "is-error");
+            reviewStatus.textContent = `남은 ${pendingCount}건의 훈련 답변 텍스트를 서버에서 확인 중입니다.`;
+            return false;
+        }
+
+        const failedCount = filteredResults.filter((result) => String(result.analysisStatus || "") === "FAILED").length;
+        if (failedCount > 0) {
+            reviewStatus.classList.remove("is-complete");
+            reviewStatus.classList.add("is-error");
+            reviewStatus.textContent = `훈련 답변 ${failedCount}건은 텍스트 변환에 실패했습니다. 나머지 결과는 아래에서 확인할 수 있습니다.`;
+        } else {
+            reviewStatus.classList.remove("is-error");
+            reviewStatus.classList.add("is-complete");
+            reviewStatus.textContent = "모든 훈련 답변의 서버 저장 텍스트 확인이 완료되었습니다.";
+        }
+
+        const resultSummary = buildTrainingResultSummaryFromResults(selectedTypeName, filteredResults);
+        renderTrainingResultView(resultContainer, resultSummary);
+        return true;
+    };
+
+    updateReview()
+        .then((completed) => {
+            if (completed) {
+                return;
+            }
+
+            pollingTimerId = window.setInterval(() => {
+                updateReview()
+                    .then((done) => {
+                        if (done && pollingTimerId !== null) {
+                            window.clearInterval(pollingTimerId);
+                            pollingTimerId = null;
+                        }
+                    })
+                    .catch((error) => {
+                        console.error(error);
+                        reviewStatus.classList.remove("is-complete");
+                        reviewStatus.classList.add("is-error");
+                        reviewStatus.textContent = "훈련 답변 텍스트를 다시 불러오는 중 문제가 발생했습니다. 잠시 후 다시 확인해 주세요.";
+                    });
+            }, TRAINING_RESULT_POLL_INTERVAL_MS);
+        })
+        .catch((error) => {
+            console.error(error);
+            reviewStatus.classList.remove("is-complete");
+            reviewStatus.classList.add("is-error");
+            reviewStatus.textContent = "훈련 답변 텍스트를 불러오지 못했습니다. 잠시 후 다시 확인해 주세요.";
+        });
+}
+
+function renderTrainingResultView(container, resultSummary) {
+    if (!container) {
+        return;
+    }
+
     const statusBadgeClass = resultSummary.trainingNeeded ? "is-training-needed" : "is-stable";
     const statusLabel = resultSummary.trainingNeeded ? "훈련 필요" : "안정";
     const directionText = resultSummary.trainingNeeded
         ? resultSummary.directionText
         : "현재 점수는 안정권입니다. 지금처럼 같은 유형의 대화와 말하기 활동을 가볍게 유지해 주세요.";
 
-    trainingList.innerHTML = `
-        <div class="test-review-card training-result-card">
+    container.innerHTML = `
+        <div class="training-result-summary-card">
             <div class="voice-review-header">
                 <strong class="voice-review-title">${escapeHtml(resultSummary.questionTypeName)} 훈련 결과</strong>
                 <span class="voice-review-caption">서버에 저장된 훈련 답변을 기준으로 점수와 훈련 방향을 정리했습니다.</span>
@@ -375,38 +504,10 @@ function renderTrainingResultView(trainingList, resultSummary, onClose) {
             </div>
             <div class="training-result-note">${escapeHtml(resultSummary.noteText)}</div>
         </div>
-        <div class="test-session-actions">
-            <button type="button" class="timer-start-btn" id="training-result-close-btn">다른 훈련 보기</button>
-        </div>
     `;
-
-    document.getElementById("training-result-close-btn")?.addEventListener("click", () => {
-        onClose?.();
-    });
 }
 
-async function buildTrainingResultSummary(performanceId, selectedTypeName, selectedQuestions, uploadedQuestionResultIdsByQuestionId) {
-    const selectedQuestionIds = new Set(selectedQuestions.map((question) => Number(question.questionId)));
-    const questionResultIds = Object.values(uploadedQuestionResultIdsByQuestionId || {}).filter(Boolean);
-    let filteredResults = [];
-
-    for (let attempt = 0; attempt < TRAINING_RESULT_MAX_ATTEMPTS; attempt += 1) {
-        const allResults = await fetchTrainingQuestionResults(performanceId);
-        filteredResults = allResults.filter((result) => selectedQuestionIds.has(Number(result.questionId)));
-
-        if (
-            filteredResults.length >= selectedQuestions.length ||
-            (questionResultIds.length > 0 && filteredResults.length >= questionResultIds.length)
-        ) {
-            const allCompleted = filteredResults.every((result) => ["COMPLETED", "FAILED"].includes(result.analysisStatus));
-            if (allCompleted) {
-                break;
-            }
-        }
-
-        await delay(TRAINING_RESULT_POLL_INTERVAL_MS);
-    }
-
+function buildTrainingResultSummaryFromResults(selectedTypeName, filteredResults) {
     const numericScores = filteredResults
         .map((result) => toTrainingNumericScore(result))
         .filter((score) => typeof score === "number" && !Number.isNaN(score));
@@ -659,12 +760,6 @@ function normalizeImagePath(imagePath) {
 function formatScore(score) {
     const numericScore = Number(score ?? 0);
     return Number.isInteger(numericScore) ? `${numericScore}` : numericScore.toFixed(1);
-}
-
-function delay(ms) {
-    return new Promise((resolve) => {
-        window.setTimeout(resolve, ms);
-    });
 }
 
 function escapeHtml(value) {
