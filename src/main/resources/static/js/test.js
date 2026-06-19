@@ -2,6 +2,19 @@
 const TEST_PROGRESS_STORAGE_KEY = "latestCognitiveTestProgress";
 const DEFAULT_AUDIO_FILE_NAME = "answer.webm";
 const SpeechRecognitionConstructor = window.SpeechRecognition || window.webkitSpeechRecognition;
+const AUDIO_LEVEL_CHECK_MIN_RMS = 0.003;
+const AUDIO_LEVEL_CHECK_MIN_PEAK = 0.02;
+const AUDIO_LEVEL_CHECK_MIN_ACTIVE_RATIO = 0.015;
+
+const FAILURE_MESSAGE_BY_CODE = {
+    LOW_VOLUME_OR_SILENCE: "음성이 너무 작거나 무음으로 감지되었습니다. 휴대폰을 입 가까이에 두고 다시 검사해 주세요.",
+    AUDIO_UPLOAD_FAILED: "음성 업로드 중 문제가 발생했습니다. 네트워크 상태를 확인한 뒤 다시 검사해 주세요.",
+    RESULT_FETCH_FAILED: "서버에서 텍스트 변환 결과를 가져오지 못했습니다. 잠시 후 다시 확인해 주세요.",
+    RESULT_POLL_TIMEOUT: "서버의 텍스트 변환이 오래 걸리고 있습니다. 잠시 후 다시 확인해 주세요.",
+    ANALYSIS_SERVER_UNAVAILABLE: "음성 분석 서버와 연결하지 못했습니다. 잠시 후 다시 검사해 주세요.",
+    ANALYSIS_PROCESSING_FAILED: "음성 파일 분석 중 문제가 발생했습니다. 다시 검사해 주세요.",
+    TEXT_CONVERSION_FAILED: "텍스트 변환에 실패했습니다. 다시 검사해 주세요."
+};
 
 // 검사 페이지는 음성 인식, 음성 파일 저장, 텍스트 확인 UI를 한 스크립트에서 관리한다.
 document.addEventListener("DOMContentLoaded", async () => {
@@ -61,7 +74,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         voiceAnimationId: null,
         questionAdvancePending: false,
         pendingAnalysisTasks: new Map(),
-        analysisFailureQuestionIds: [],
+        analysisFailuresByQuestionId: {},
         finalizing: false,
         completed: false,
         reviewPollingTimerId: null,
@@ -105,7 +118,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             // 문항별 최종 점수는 훈련 추천과 리포트 계산에 다시 활용할 수 있게 별도로 저장한다.
             state.finalScoresByQuestionId = {};
             state.pendingAnalysisTasks = new Map();
-            state.analysisFailureQuestionIds = [];
+            state.analysisFailuresByQuestionId = {};
             state.finalizing = false;
             state.completed = false;
 
@@ -189,7 +202,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             state.transcriptsByQuestionId = {...(saved.transcriptsByQuestionId || {})};
             state.dbTranscriptsByQuestionId = {...(saved.dbTranscriptsByQuestionId || {})};
             state.finalScoresByQuestionId = {...(saved.finalScoresByQuestionId || saved.questionScoresById || {})};
-            state.analysisFailureQuestionIds = Array.isArray(saved.analysisFailureQuestionIds) ? saved.analysisFailureQuestionIds : [];
+            state.analysisFailuresByQuestionId = {...(saved.analysisFailuresByQuestionId || {})};
+            if (!Object.keys(state.analysisFailuresByQuestionId).length && Array.isArray(saved.analysisFailureQuestionIds)) {
+                saved.analysisFailureQuestionIds.forEach((questionId) => {
+                    state.analysisFailuresByQuestionId[questionId] = toFailureInfo({failureCode: "TEXT_CONVERSION_FAILED"});
+                });
+            }
             state.completed = Boolean(saved.completed);
             state.finalizing = false;
             state.timerStarted = false;
@@ -435,11 +453,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         const transcript = state.dbTranscriptsByQuestionId[questionId]?.trim() || "";
-        const analysisFailed = state.analysisFailureQuestionIds.includes(questionId);
+        const failure = getQuestionFailure(state, questionId);
         const questionCompleted = state.completedQuestionIds.includes(questionId);
 
-        if (analysisFailed) {
-            voiceReviewText.textContent = "음성 업로드 또는 텍스트 변환에 실패했습니다. 다시 검사해 주세요.";
+        if (failure) {
+            voiceReviewText.textContent = failure.message;
             voiceReviewText.classList.remove("hidden");
             return;
         }
@@ -462,19 +480,19 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        voiceReviewText.textContent = "검사를 시작하면 이 영역에 DB 저장 기준 최종 인식 텍스트가 표시됩니다.";
+        voiceReviewText.textContent = "검사를 시작하면 이 영역에 서버 기준 최종 인식 텍스트가 표시됩니다.";
         voiceReviewText.classList.remove("hidden");
     }
 
     function renderFinalReview() {
         reviewList.innerHTML = state.questions.map((question, index) => {
             const dbTranscript = String(state.dbTranscriptsByQuestionId[question.questionId] || "").trim();
-            const analysisFailed = state.analysisFailureQuestionIds.includes(question.questionId);
-            const transcriptMarkup = analysisFailed
-                ? '<div class="test-review-pending">텍스트 변환에 실패했습니다. 다시 검사해 주세요.</div>'
+            const failure = getQuestionFailure(state, question.questionId);
+            const transcriptMarkup = failure
+                ? `<div class="test-review-pending">${escapeHtml(failure.message)}</div>`
                 : dbTranscript
                     ? `<div class="test-review-transcript">${escapeHtml(dbTranscript)}</div>`
-                    : '<div class="test-review-pending">DB의 최종 인식 텍스트를 아직 불러오지 못했습니다.</div>';
+                    : '<div class="test-review-pending">서버에서 음성 데이터를 텍스트로 변환중입니다. 잠시만 기다려주세요.</div>';
 
             return `
                 <div class="test-review-item">
@@ -493,9 +511,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         const pendingQuestionIds = getPendingQuestionIds();
         reviewStatus.classList.remove("hidden", "is-complete", "is-error");
 
-        if (state.analysisFailureQuestionIds.length > 0) {
+        const failureQuestionIds = getFailureQuestionIds(state);
+        if (failureQuestionIds.length > 0) {
             reviewStatus.classList.add("is-error");
-            reviewStatus.textContent = `일부 문항의 음성 업로드 또는 분석이 아직 완료되지 않았습니다. 실패 ${state.analysisFailureQuestionIds.length}건은 다시 검사해 주세요.`;
+            reviewStatus.textContent = buildFailureSummaryText(state, failureQuestionIds);
             return;
         }
 
@@ -604,7 +623,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         return state.questions
             .map((question) => question.questionId)
             .filter((questionId) => {
-                if (state.analysisFailureQuestionIds.includes(questionId)) {
+                if (getQuestionFailure(state, questionId)) {
                     return false;
                 }
 
@@ -635,10 +654,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
 
             applyQuestionAnalysisResult(state, questionId, result);
-
-            if (result.analysisStatus === "FAILED" && !state.analysisFailureQuestionIds.includes(questionId)) {
-                state.analysisFailureQuestionIds.push(questionId);
-            }
         });
     }
 
@@ -742,9 +757,7 @@ function queueQuestionAnalysis(state, question) {
     const analysisTask = stopRecordingAndUpload(state, question)
         .catch((error) => {
             console.error(error);
-            if (!state.analysisFailureQuestionIds.includes(question.questionId)) {
-                state.analysisFailureQuestionIds.push(question.questionId);
-            }
+            setQuestionFailure(state, question.questionId, toFailureInfo(error));
         })
         .finally(() => {
             state.pendingAnalysisTasks.delete(question.questionId);
@@ -769,12 +782,13 @@ async function stopRecordingAndUpload(state, question) {
     state.recordedChunks = [];
 
     if (!audioBlob || audioBlob.size === 0) {
-        return;
+        throw createClientError("LOW_VOLUME_OR_SILENCE");
     }
 
+    await validateRecordedAudio(audioBlob);
+
     const uploadResult = await uploadQuestionAudio(state.performanceId, question.questionId, audioBlob);
-    state.analysisFailureQuestionIds = state.analysisFailureQuestionIds
-        .filter((questionId) => questionId !== question.questionId);
+    clearQuestionFailure(state, question.questionId);
     if (uploadResult?.questionResultId) {
         state.questionResultIdsByQuestionId[question.questionId] = uploadResult.questionResultId;
     }
@@ -807,7 +821,7 @@ async function uploadQuestionAudio(performanceId, questionId, audioBlob) {
     });
 
     if (!response.ok) {
-        throw new Error("question_audio_upload_failed");
+        throw createClientError("AUDIO_UPLOAD_FAILED");
     }
 
     return response.json();
@@ -815,9 +829,11 @@ async function uploadQuestionAudio(performanceId, questionId, audioBlob) {
 
 async function waitForQuestionAudioResult(questionResultId) {
     const maxAttempts = 20;
+    let lastResult = null;
 
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
         const result = await fetchQuestionAudioResult(questionResultId);
+        lastResult = result;
         if (result.analysisStatus === "COMPLETED" || result.analysisStatus === "FAILED") {
             return result;
         }
@@ -825,13 +841,17 @@ async function waitForQuestionAudioResult(questionResultId) {
         await delay(1500);
     }
 
-    return fetchQuestionAudioResult(questionResultId);
+    if (lastResult) {
+        return lastResult;
+    }
+
+    throw createClientError("RESULT_POLL_TIMEOUT");
 }
 
 async function fetchQuestionAudioResult(questionResultId) {
     const response = await fetch(`/api/cognitive-tests/question-results/${questionResultId}`);
     if (!response.ok) {
-        throw new Error("question_audio_result_fetch_failed");
+        throw createClientError("RESULT_FETCH_FAILED");
     }
 
     return response.json();
@@ -942,7 +962,7 @@ function saveTestProgress(state, completed = false) {
         questionTypeScores,
         transcriptsByQuestionId: {...state.transcriptsByQuestionId},
         dbTranscriptsByQuestionId: {...state.dbTranscriptsByQuestionId},
-        analysisFailureQuestionIds: [...state.analysisFailureQuestionIds],
+        analysisFailuresByQuestionId: {...state.analysisFailuresByQuestionId},
         questions: state.questions.map((question) => ({
             questionId: question.questionId,
             questionTypeId: question.questionTypeId,
@@ -961,6 +981,151 @@ function clearPersistedTestProgress(state) {
     }
 
     sessionStorage.removeItem(TEST_PROGRESS_STORAGE_KEY);
+}
+
+function getFailureQuestionIds(state) {
+    return Object.keys(state.analysisFailuresByQuestionId || {}).map((questionId) => Number(questionId));
+}
+
+function getQuestionFailure(state, questionId) {
+    return state.analysisFailuresByQuestionId?.[questionId] || null;
+}
+
+function setQuestionFailure(state, questionId, failure) {
+    if (!failure) {
+        return;
+    }
+
+    state.analysisFailuresByQuestionId[questionId] = failure;
+    saveTestProgress(state, Boolean(state.completed));
+}
+
+function clearQuestionFailure(state, questionId) {
+    if (!state.analysisFailuresByQuestionId?.[questionId]) {
+        return;
+    }
+
+    delete state.analysisFailuresByQuestionId[questionId];
+    saveTestProgress(state, Boolean(state.completed));
+}
+
+function createClientError(code, detail) {
+    const error = new Error(detail || FAILURE_MESSAGE_BY_CODE[code] || "텍스트 변환에 실패했습니다. 다시 검사해 주세요.");
+    error.failureCode = code;
+    error.failureDetail = detail || null;
+    return error;
+}
+
+function toFailureInfo(source) {
+    const detail = String(source?.failureDetail || source?.analysisMessage || source?.message || "").trim();
+    const code = String(source?.failureCode || "").trim() || inferFailureCodeFromDetail(detail);
+    return {
+        code,
+        detail,
+        message: resolveFailureMessage(code, detail)
+    };
+}
+
+function inferFailureCodeFromDetail(detail) {
+    if (detail.includes("너무 작") || detail.includes("무음")) {
+        return "LOW_VOLUME_OR_SILENCE";
+    }
+    if (detail.includes("분석 서버") || detail.includes("통신")) {
+        return "ANALYSIS_SERVER_UNAVAILABLE";
+    }
+    if (detail.includes("업로드")) {
+        return "AUDIO_UPLOAD_FAILED";
+    }
+    if (detail.includes("가져오지 못")) {
+        return "RESULT_FETCH_FAILED";
+    }
+    return "TEXT_CONVERSION_FAILED";
+}
+
+function resolveFailureMessage(code, detail) {
+    if (detail) {
+        return detail;
+    }
+
+    return FAILURE_MESSAGE_BY_CODE[code] || FAILURE_MESSAGE_BY_CODE.TEXT_CONVERSION_FAILED;
+}
+
+function buildFailureSummaryText(state, failureQuestionIds) {
+    const groupedCounts = new Map();
+
+    failureQuestionIds.forEach((questionId) => {
+        const failure = getQuestionFailure(state, questionId);
+        const code = failure?.code || "TEXT_CONVERSION_FAILED";
+        groupedCounts.set(code, (groupedCounts.get(code) || 0) + 1);
+    });
+
+    const summary = Array.from(groupedCounts.entries())
+        .map(([code, count]) => `${resolveFailureTitle(code)} ${count}건`)
+        .join(", ");
+
+    return `일부 문항의 텍스트 변환이 완료되지 않았습니다. ${summary}입니다. 실패 문항은 다시 검사해 주세요.`;
+}
+
+function resolveFailureTitle(code) {
+    switch (code) {
+        case "LOW_VOLUME_OR_SILENCE":
+            return "저음량 또는 무음";
+        case "AUDIO_UPLOAD_FAILED":
+            return "음성 업로드 실패";
+        case "RESULT_FETCH_FAILED":
+        case "RESULT_POLL_TIMEOUT":
+            return "결과 조회 지연";
+        case "ANALYSIS_SERVER_UNAVAILABLE":
+            return "분석 서버 연결 실패";
+        case "ANALYSIS_PROCESSING_FAILED":
+            return "음성 분석 실패";
+        default:
+            return "텍스트 변환 실패";
+    }
+}
+
+async function validateRecordedAudio(audioBlob) {
+    const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextConstructor) {
+        return;
+    }
+
+    const context = new AudioContextConstructor();
+
+    try {
+        const audioBuffer = await context.decodeAudioData(await audioBlob.arrayBuffer());
+        const channelData = audioBuffer.getChannelData(0);
+
+        if (!channelData?.length) {
+            throw createClientError("LOW_VOLUME_OR_SILENCE");
+        }
+
+        let squaredSum = 0;
+        let peak = 0;
+        let activeSampleCount = 0;
+
+        for (const sample of channelData) {
+            const amplitude = Math.abs(sample);
+            squaredSum += amplitude * amplitude;
+            peak = Math.max(peak, amplitude);
+            if (amplitude >= AUDIO_LEVEL_CHECK_MIN_PEAK) {
+                activeSampleCount += 1;
+            }
+        }
+
+        const rms = Math.sqrt(squaredSum / channelData.length);
+        const activeRatio = activeSampleCount / channelData.length;
+
+        if (rms < AUDIO_LEVEL_CHECK_MIN_RMS && peak < AUDIO_LEVEL_CHECK_MIN_PEAK && activeRatio < AUDIO_LEVEL_CHECK_MIN_ACTIVE_RATIO) {
+            throw createClientError("LOW_VOLUME_OR_SILENCE");
+        }
+    } catch (error) {
+        if (error?.failureCode) {
+            throw error;
+        }
+    } finally {
+        await context.close().catch(() => {});
+    }
 }
 
 // 그림 문항 이미지는 DB 경로나 fallback 파일명을 모두 브라우저용 정적 경로로 맞춰 준다.
@@ -1068,6 +1233,13 @@ function applyQuestionAnalysisResult(state, questionId, analysisResult) {
     if (!analysisResult) {
         return;
     }
+
+    if (analysisResult.analysisStatus === "FAILED") {
+        setQuestionFailure(state, questionId, toFailureInfo(analysisResult));
+        return;
+    }
+
+    clearQuestionFailure(state, questionId);
 
     if (typeof analysisResult.finalScore === "number") {
         state.finalScoresByQuestionId[questionId] = analysisResult.finalScore;

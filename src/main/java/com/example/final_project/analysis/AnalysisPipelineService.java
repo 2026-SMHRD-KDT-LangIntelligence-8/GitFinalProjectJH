@@ -3,6 +3,8 @@ package com.example.final_project.analysis;
 import com.example.final_project.analysis.dto.QuestionAnalysisResult;
 import com.example.final_project.analysis.dto.ReportAnalysisRow;
 import com.example.final_project.analysis.dto.ReportSummaryResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -20,6 +22,8 @@ import java.util.Map;
 // Java backend calls a long-running FastAPI speech-analysis server over HTTP.
 // This avoids reloading the Whisper model for every single question analysis.
 public class AnalysisPipelineService {
+
+    private static final Logger log = LoggerFactory.getLogger(AnalysisPipelineService.class);
 
     private final RestClient restClient;
     private final boolean useLlmScoring;
@@ -62,8 +66,14 @@ public class AnalysisPipelineService {
                     .retrieve()
                     .body(QuestionAnalysisResult.class);
         } catch (RestClientException exception) {
+            log.error(
+                    "Question analysis server call failed. audioPath={}, questionTypeName={}",
+                    audioPath.toAbsolutePath(),
+                    questionTypeName,
+                    exception
+            );
             throw new IllegalStateException(
-                    "문항 분석 서버 호출에 실패했습니다. FastAPI 음성 분석 서버(기본 http://localhost:8000)가 실행 중인지 확인하세요.",
+                    "ANALYSIS_SERVER_UNAVAILABLE: 문항 분석 서버 호출에 실패했습니다. FastAPI 음성 분석 서버(기본 http://localhost:8000)가 실행 중인지 확인하세요.",
                     exception
             );
         }

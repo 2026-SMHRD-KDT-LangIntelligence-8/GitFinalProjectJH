@@ -8,6 +8,8 @@ public record QuestionAudioUploadResponse(
         String voiceFilePath,
         String analysisStatus,
         String analysisMessage,
+        String failureCode,
+        String failureDetail,
         String sttText,
         String preprocessedText,
         Integer appropriatenessScore,
@@ -15,4 +17,35 @@ public record QuestionAudioUploadResponse(
         Integer sentenceLengthScore,
         Double finalScore
 ) {
+    public QuestionAudioUploadResponse(
+            Long questionResultId,
+            Long performanceId,
+            Long questionId,
+            String voiceFilePath,
+            String analysisStatus,
+            String analysisMessage,
+            String sttText,
+            String preprocessedText,
+            Integer appropriatenessScore,
+            Integer repetitionScore,
+            Integer sentenceLengthScore,
+            Double finalScore
+    ) {
+        this(
+                questionResultId,
+                performanceId,
+                questionId,
+                voiceFilePath,
+                analysisStatus,
+                analysisMessage,
+                null,
+                null,
+                sttText,
+                preprocessedText,
+                appropriatenessScore,
+                repetitionScore,
+                sentenceLengthScore,
+                finalScore
+        );
+    }
 }
