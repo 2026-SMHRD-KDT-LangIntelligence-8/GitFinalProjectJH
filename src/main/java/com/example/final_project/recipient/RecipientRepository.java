@@ -201,7 +201,7 @@ public class RecipientRepository {
         );
 
         for (Long recipientId : recipientIds) {
-            deletePerformanceDataByRecipientIdAndUserId(recipientId, userId);
+            deleteRecipientRelatedDataByRecipientIdAndUserId(recipientId, userId);
         }
 
         jdbcTemplate.update("DELETE FROM USER_RECIPIENTS WHERE user_id = ?", userId);
@@ -230,7 +230,7 @@ public class RecipientRepository {
             throw new IllegalArgumentException("해당 수급자를 찾을 수 없습니다. id=" + recipientId);
         }
 
-        deletePerformanceDataByRecipientIdAndUserId(recipientId, userId);
+        deleteRecipientRelatedDataByRecipientIdAndUserId(recipientId, userId);
 
         jdbcTemplate.update(
                 "DELETE FROM USER_RECIPIENTS WHERE user_id = ? AND recipient_id = ?",
@@ -249,7 +249,17 @@ public class RecipientRepository {
         }
     }
 
-    private void deletePerformanceDataByRecipientIdAndUserId(Long recipientId, String userId) {
+    private void deleteRecipientRelatedDataByRecipientIdAndUserId(Long recipientId, String userId) {
+        jdbcTemplate.update(
+                """
+                DELETE FROM REPORTS
+                WHERE recipient_id = ?
+                  AND user_id = ?
+                """,
+                recipientId,
+                userId
+        );
+
         jdbcTemplate.update(
                 """
                 DELETE ar
