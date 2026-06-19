@@ -218,13 +218,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
 
             if (state.completed) {
-                introView.classList.add("hidden");
-                sessionView.classList.add("hidden");
-                reviewView.classList.remove("hidden");
-                await refreshPerformanceResults();
-                renderFinalReview();
-                updateReviewStatus();
-                startReviewPolling();
+                clearPersistedTestProgress(state);
                 return;
             }
 
