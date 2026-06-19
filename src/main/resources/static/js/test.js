@@ -524,7 +524,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         if (pendingQuestionIds.length > 0) {
-            reviewStatus.textContent = `남은 ${pendingQuestionIds.length}건의 최종 텍스트를 DB에서 확인 중입니다. 이 화면을 벗어나지 않아도 다른 문항 결과부터 바로 확인할 수 있습니다.`;
+            reviewStatus.textContent = `남은 ${pendingQuestionIds.length}건의 최종 텍스트를 서버에서 확인 중입니다. 이 화면을 벗어나지 않아도 다른 문항 결과부터 바로 확인할 수 있습니다.`;
             return;
         }
 

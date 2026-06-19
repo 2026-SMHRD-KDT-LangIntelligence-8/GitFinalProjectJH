@@ -223,6 +223,10 @@ function formatScore(score) {
     return Number.isInteger(numericScore) ? `${numericScore}` : numericScore.toFixed(1);
 }
 
+function getScoreStatus(score) {
+    return Number(score ?? 0) < 60 ? "훈련 필요" : "안정";
+}
+
 function formatDaysLabel(days) {
     if (days === 7) {
         return "1주일";
@@ -568,6 +572,38 @@ function renderTypeSummary(scores, filterLabel = "전체", questionScores = []) 
     container.classList.toggle("hidden", filteredQuestions.length === 0);
 }
 
+function renderTrendPointSummary(points, filterLabel = "전체", latestScores = []) {
+    const container = document.getElementById("trend-point-summary");
+    if (!container) {
+        return;
+    }
+
+    const series = buildTrendSeries(points, filterLabel, latestScores);
+    const summaryItems = series.labels
+        .map((performedDate, index) => {
+            const score = series.scores[index];
+            if (score === null || score === undefined) {
+                return "";
+            }
+
+            const status = getScoreStatus(score);
+            return `
+                <div class="report-type-summary-item trend-point-summary-item">
+                    <span class="report-type-name">${escapeHtml(performedDate)}</span>
+                    <div class="report-type-meta">
+                        <span class="report-type-score">평균 ${formatScore(score)}점</span>
+                        <span class="report-type-badge ${status === "훈련 필요" ? "is-training-needed" : "is-stable"}">${status}</span>
+                    </div>
+                </div>
+            `;
+        })
+        .filter(Boolean)
+        .join("");
+
+    container.innerHTML = summaryItems;
+    container.classList.toggle("hidden", !summaryItems);
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
     const searchInput = document.getElementById("report-recipient-search");
     const searchToggleButton = document.getElementById("report-search-toggle");
@@ -580,6 +616,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const reportSummaryHeader = document.getElementById("report-summary-header");
     const trendSummaryHeader = document.getElementById("trend-summary-header");
     const reportTypeSummary = document.getElementById("report-type-summary");
+    const trendPointSummary = document.getElementById("trend-point-summary");
     const latestReportFilterButtons = Array.from(document.querySelectorAll('[data-report-filter-scope="latest"]'));
     const trendReportFilterButtons = Array.from(document.querySelectorAll('[data-report-filter-scope="trend"]'));
     const downloadButtons = [
@@ -587,7 +624,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.getElementById("trend-download-btn")
     ].filter(Boolean);
 
-    if (!searchInput || !searchToggleButton || !comboBox || !searchWrap || !historySelect || !trendSelect || !trendSummaryHeader || !reportTypeSummary) {
+    if (!searchInput || !searchToggleButton || !comboBox || !searchWrap || !historySelect || !trendSelect || !trendSummaryHeader || !reportTypeSummary || !trendPointSummary) {
         return;
     }
 
@@ -661,6 +698,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const applyTrendReportFilter = () => {
         if (!trendReportPoints.length) {
             setEmptyState(trendReportEmpty, true);
+            trendPointSummary.innerHTML = "";
+            trendPointSummary.classList.add("hidden");
             if (trendReportChart) {
                 trendReportChart.destroy();
                 trendReportChart = null;
@@ -675,6 +714,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (!hasRenderableScore) {
             trendReportEmpty.textContent = "선택한 문항 타입의 기간별 점수가 없습니다.";
             setEmptyState(trendReportEmpty, true);
+            trendPointSummary.innerHTML = "";
+            trendPointSummary.classList.add("hidden");
             if (trendReportChart) {
                 trendReportChart.destroy();
                 trendReportChart = null;
@@ -684,6 +725,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         setEmptyState(trendReportEmpty, false);
         renderTrendChart(trendReportPoints, selectedFilter, latestQuestionTypeScores);
+        renderTrendPointSummary(trendReportPoints, selectedFilter, latestQuestionTypeScores);
     };
 
     const resetReportUi = (message) => {
@@ -693,6 +735,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         trendSummaryHeader.textContent = "최근 기간의 검사일별 평균 점수 변화를 표시합니다.";
         reportTypeSummary.innerHTML = "";
         reportTypeSummary.classList.add("hidden");
+        trendPointSummary.innerHTML = "";
+        trendPointSummary.classList.add("hidden");
         latestQuestionTypeScores = [];
         latestQuestionScores = [];
         trendReportPoints = [];
@@ -958,6 +1002,8 @@ downloadButtons.forEach((button) => {
 
                 reportTypeSummary.innerHTML = "";
                 reportTypeSummary.classList.add("hidden");
+                trendPointSummary.innerHTML = "";
+                trendPointSummary.classList.add("hidden");
                 setEmptyState(latestReportEmpty, true);
                 setEmptyState(trendReportEmpty, true);
                 destroyCharts();
@@ -1024,6 +1070,8 @@ downloadButtons.forEach((button) => {
             if (!payload.points?.length) {
                 trendSummaryHeader.textContent = `최근 ${formatDaysLabel(days)} 동안 표시할 평균 점수 데이터가 없습니다.`;
                 trendReportPoints = [];
+                trendPointSummary.innerHTML = "";
+                trendPointSummary.classList.add("hidden");
                 setActiveReportFilter(trendReportFilterButtons, getAllReportFilterButton(trendReportFilterButtons));
                 setEmptyState(trendReportEmpty, true);
                 if (trendReportChart) {
@@ -1039,6 +1087,8 @@ downloadButtons.forEach((button) => {
         } catch (error) {
             console.error(error);
             trendReportPoints = [];
+            trendPointSummary.innerHTML = "";
+            trendPointSummary.classList.add("hidden");
             setActiveReportFilter(trendReportFilterButtons, getAllReportFilterButton(trendReportFilterButtons));
             trendSummaryHeader.textContent = "기간별 변화 추이를 불러오지 못했습니다.";
             setEmptyState(trendReportEmpty, true);

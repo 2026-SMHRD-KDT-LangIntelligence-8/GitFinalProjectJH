@@ -1218,6 +1218,8 @@ a {
 .report-chart-wrap { position: relative; width: 100%; height: 210px; }
 .report-chart-wrap-large { height: 260px; }
 .report-type-summary { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.trend-point-summary-item .report-type-name { font-weight: 700; }
+.trend-point-summary-item .report-type-score { white-space: nowrap; }
 
 .report-type-summary-item {
     display: flex;
@@ -1496,6 +1498,10 @@ a {
     flex-direction: column;
     gap: 5px;
     margin-top: 8px;
+}
+
+.pdf-section-export-mode .trend-point-summary-item {
+    padding: 8px 10px;
 }
 
 .pdf-section-export-mode .report-type-summary-item,
