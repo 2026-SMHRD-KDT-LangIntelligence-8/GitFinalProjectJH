@@ -227,6 +227,38 @@ function getScoreStatus(score) {
     return Number(score ?? 0) < 60 ? "훈련 필요" : "안정";
 }
 
+function buildTrendSummaryMessage(point, filterLabel, fallbackScore) {
+    const questionTypeScores = Array.isArray(point?.questionTypeScores) ? point.questionTypeScores : [];
+
+    if (isAllFilter(filterLabel)) {
+        const trainingNeededTypes = questionTypeScores
+            .filter((item) => item && item.trainingNeeded)
+            .map((item) => normalizeText(item.questionTypeName))
+            .filter(Boolean);
+
+        if (!trainingNeededTypes.length) {
+            return "현재 필요한 훈련이 없습니다.";
+        }
+
+        return `현재 ${trainingNeededTypes.join(", ")} 유형의 훈련이 필요합니다.`;
+    }
+
+    const targetName = normalizeQuestionTypeName(filterLabel);
+    const matchedItem = questionTypeScores.find(
+        (item) => normalizeQuestionTypeName(item.questionTypeName) === targetName
+    );
+
+    if (matchedItem) {
+        return matchedItem.trainingNeeded
+            ? `현재 ${normalizeText(matchedItem.questionTypeName)} 유형의 훈련이 필요합니다.`
+            : "현재 필요한 훈련이 없습니다.";
+    }
+
+    return getScoreStatus(fallbackScore) === "훈련 필요"
+        ? `현재 ${normalizeText(filterLabel)} 유형의 훈련이 필요합니다.`
+        : "현재 필요한 훈련이 없습니다.";
+}
+
 function formatDaysLabel(days) {
     if (days === 7) {
         return "1주일";
@@ -587,13 +619,18 @@ function renderTrendPointSummary(points, filterLabel = "전체", latestScores = 
             }
 
             const status = getScoreStatus(score);
+            const point = points[index];
+            const summaryMessage = buildTrendSummaryMessage(point, filterLabel, score);
             return `
                 <div class="report-type-summary-item trend-point-summary-item">
-                    <span class="report-type-name">${escapeHtml(performedDate)}</span>
-                    <div class="report-type-meta">
-                        <span class="report-type-score">평균 ${formatScore(score)}점</span>
-                        <span class="report-type-badge ${status === "훈련 필요" ? "is-training-needed" : "is-stable"}">${status}</span>
+                    <div class="trend-point-summary-top">
+                        <span class="report-type-name">${escapeHtml(performedDate)}</span>
+                        <div class="report-type-meta">
+                            <span class="report-type-score">평균 ${formatScore(score)}점</span>
+                            <span class="report-type-badge ${status === "훈련 필요" ? "is-training-needed" : "is-stable"}">${status}</span>
+                        </div>
                     </div>
+                    <span class="trend-point-summary-message">${escapeHtml(summaryMessage)}</span>
                 </div>
             `;
         })
