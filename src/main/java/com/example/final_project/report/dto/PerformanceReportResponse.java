@@ -7,6 +7,7 @@ public record PerformanceReportResponse(
         String recipientName,
         Long performanceId,
         String performedAt,
+        String reportType,
         List<QuestionTypeScoreResponse> questionTypeScores,
         List<QuestionScoreResponse> questionScores
 ) {

@@ -74,6 +74,7 @@ public class ReportService {
 
         LocalDateTime performedAt = reportRepository.findPerformedAtByPerformanceId(performanceId, recipientId, userId);
         String performedAtLabel = resolvePerformedAtLabel(recipientId, performanceId, userId, performedAt);
+        String reportType = resolveReportTypeLabel(recipientId, performanceId, userId);
 
         persistPerformanceSnapshotSafely(
                 recipient,
@@ -88,6 +89,7 @@ public class ReportService {
                 recipient.getRecipientName(),
                 performanceId,
                 performedAtLabel,
+                reportType,
                 questionTypeScores,
                 questionScores
         );
@@ -176,6 +178,14 @@ public class ReportService {
                 .map(PerformanceReportSummaryResponse::performedAt)
                 .findFirst()
                 .orElse(fallback.toLocalDate().toString());
+    }
+
+    private String resolveReportTypeLabel(Long recipientId, Long performanceId, String userId) {
+        return reportRepository.findAvailableReports(recipientId, userId).stream()
+                .filter(report -> report.performanceId().equals(performanceId))
+                .map(PerformanceReportSummaryResponse::reportType)
+                .findFirst()
+                .orElse("검사");
     }
 
     private void persistPerformanceSnapshotSafely(

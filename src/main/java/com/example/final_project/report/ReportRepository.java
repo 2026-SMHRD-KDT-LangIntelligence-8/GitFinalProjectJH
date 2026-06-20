@@ -28,16 +28,18 @@ public class ReportRepository {
     public List<PerformanceReportSummaryResponse> findAvailableReports(Long recipientId, String userId) {
         String sql = """
                 SELECT pr.performance_id,
-                       DATE_FORMAT(pr.performed_at, '%Y-%m-%d %H:%i') AS performed_at
+                       DATE_FORMAT(pr.performed_at, '%Y-%m-%d %H:%i') AS performed_at,
+                       CASE
+                           WHEN SUM(CASE WHEN q.question_purpose = '훈련' THEN 1 ELSE 0 END) > 0 THEN '훈련'
+                           ELSE '검사'
+                       END AS report_type
                 FROM PERFORMANCE_RECORDS pr
+                INNER JOIN QUESTION_RESULTS qr ON qr.performance_id = pr.performance_id
+                INNER JOIN QUESTIONS q ON q.question_id = qr.question_id
+                INNER JOIN ANALYSIS_RESULTS ar ON qr.question_result_id = ar.question_result_id
                 WHERE pr.recipient_id = ?
                   AND pr.user_id = ?
-                  AND EXISTS (
-                      SELECT 1
-                      FROM QUESTION_RESULTS qr
-                      INNER JOIN ANALYSIS_RESULTS ar ON qr.question_result_id = ar.question_result_id
-                      WHERE qr.performance_id = pr.performance_id
-                  )
+                GROUP BY pr.performance_id, pr.performed_at
                 ORDER BY pr.performed_at DESC
                 """;
 
@@ -45,7 +47,8 @@ public class ReportRepository {
                 sql,
                 (rs, rowNum) -> new PerformanceReportSummaryResponse(
                         rs.getLong("performance_id"),
-                        rs.getString("performed_at")
+                        rs.getString("performed_at"),
+                        rs.getString("report_type")
                 ),
                 recipientId,
                 userId

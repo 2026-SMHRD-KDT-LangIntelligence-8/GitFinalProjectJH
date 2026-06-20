@@ -106,6 +106,23 @@ function sanitizePdfFileNamePart(value) {
         .trim();
 }
 
+function formatReportHistoryDate(value) {
+    const raw = String(value ?? "").trim();
+    const matched = raw.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})$/);
+    if (!matched) {
+        return raw;
+    }
+
+    const [, year, month, day, hour, minute] = matched;
+    return `${year.slice(-2)}/${Number(month)}/${Number(day)}/${Number(hour)}/${Number(minute)}`;
+}
+
+function buildReportHistoryLabel(performedAt, reportType) {
+    const formattedDate = formatReportHistoryDate(performedAt);
+    const typeLabel = String(reportType ?? "").trim() || "검사";
+    return `${formattedDate} - ${typeLabel}`;
+}
+
 function getCurrentPdfSectionLabel(sectionType) {
     const buttons = Array.from(
         document.querySelectorAll(`[data-report-filter-scope="${sectionType === "trend" ? "trend" : "latest"}"]`)
@@ -1038,10 +1055,10 @@ downloadButtons.forEach((button) => {
             const reports = await response.json();
             historySelect.innerHTML = '<option value="">리포트 선택</option>';
 
-            reports.forEach((report, index) => {
+            reports.forEach((report) => {
                 const option = document.createElement("option");
                 option.value = String(report.performanceId);
-                option.textContent = index === 0 ? `최근 리포트 (${report.performedAt})` : report.performedAt;
+                option.textContent = buildReportHistoryLabel(report.performedAt, report.reportType);
                 historySelect.appendChild(option);
             });
 
@@ -1088,8 +1105,8 @@ downloadButtons.forEach((button) => {
 
             const payload = await response.json();
             reportSummaryHeader.textContent = payload.performedAt
-                ? `${payload.recipientName} 님의 ${payload.performedAt} 검사 결과입니다.`
-                : `${payload.recipientName} 님의 검사 결과입니다.`;
+                ? `${payload.recipientName} 님의 ${buildReportHistoryLabel(payload.performedAt, payload.reportType)} 결과입니다.`
+                : `${payload.recipientName} 님의 ${(payload.reportType || "검사")} 결과입니다.`;
 
             if (!payload.questionTypeScores?.length) {
                 latestQuestionTypeScores = [];
