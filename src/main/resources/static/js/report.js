@@ -167,11 +167,11 @@ async function downloadPDF(sectionId = "latest-report-section", shouldReturnBlob
     await waitForPaint();
 
     const opt = {
-        margin: 10,
+        margin: [8, 8, 10, 8],
         filename: fileName || `${sanitizePdfFileNamePart(recipientName)}_전체.pdf`,
         image: { type: "png", quality: 1 },
         html2canvas: {
-            scale: 4,
+            scale: 5,
             useCORS: true,
             backgroundColor: "#ffffff",
             scrollX: 0,
@@ -256,6 +256,7 @@ function formatTrendAxisDate(value) {
 
 function buildTrendSummaryMessage(point, filterLabel, fallbackScore) {
     const questionTypeScores = Array.isArray(point?.questionTypeScores) ? point.questionTypeScores : [];
+    const noTrainingMessage = "훈련 결과, 해당 유형은 더 이상 훈련이 필요하지 않습니다.";
 
     if (isAllFilter(filterLabel)) {
         const trainingNeededTypes = questionTypeScores
@@ -264,7 +265,7 @@ function buildTrendSummaryMessage(point, filterLabel, fallbackScore) {
             .filter(Boolean);
 
         if (!trainingNeededTypes.length) {
-            return "현재 필요한 훈련이 없습니다.";
+            return noTrainingMessage;
         }
 
         return `현재 ${trainingNeededTypes.join(", ")} 유형의 훈련이 필요합니다.`;
@@ -278,12 +279,12 @@ function buildTrendSummaryMessage(point, filterLabel, fallbackScore) {
     if (matchedItem) {
         return matchedItem.trainingNeeded
             ? `현재 ${normalizeText(matchedItem.questionTypeName)} 유형의 훈련이 필요합니다.`
-            : "현재 필요한 훈련이 없습니다.";
+            : noTrainingMessage;
     }
 
     return getScoreStatus(fallbackScore) === "훈련 필요"
         ? `현재 ${normalizeText(filterLabel)} 유형의 훈련이 필요합니다.`
-        : "현재 필요한 훈련이 없습니다.";
+        : noTrainingMessage;
 }
 
 function formatDaysLabel(days) {
