@@ -1526,24 +1526,64 @@ a {
     overflow: visible !important;
 }
 
+.pdf-section-export-mode .section-label-row {
+    margin-bottom: 10px;
+}
+
+.pdf-section-export-mode .section-title {
+    font-size: 21px;
+}
+
+.pdf-section-export-mode .select-period-box {
+    min-height: 32px;
+    padding: 0 12px;
+    font-size: 12px;
+}
+
 .pdf-section-export-mode .report-card-panel {
     min-height: auto !important;
+    padding: 14px 14px 12px;
     overflow: visible !important;
     break-inside: avoid;
     page-break-inside: avoid;
 }
 
+.pdf-section-export-mode .report-filter-buttons {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    margin-bottom: 10px;
+}
+
+.pdf-section-export-mode .report-filter-btn {
+    display: none;
+    min-height: 34px;
+    padding: 0 12px;
+    font-size: 12px;
+}
+
+.pdf-section-export-mode .report-filter-btn.is-active {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pdf-section-export-mode .report-summary-header {
+    margin-bottom: 10px;
+    font-size: 12px;
+    line-height: 1.45;
+}
+
 .pdf-section-export-mode .report-chart-wrap {
     position: relative !important;
     width: 100% !important;
-    height: 260px !important;
+    height: 220px !important;
     overflow: visible !important;
     break-inside: avoid;
     page-break-inside: avoid;
 }
 
 .pdf-section-export-mode .report-chart-wrap-large {
-    height: 350px !important;
+    height: 250px !important;
 }
 
 .pdf-section-export-mode .report-chart-wrap canvas {
@@ -1557,32 +1597,32 @@ a {
 .pdf-section-export-mode .report-type-summary {
     display: flex !important;
     flex-direction: column;
-    gap: 12px;
-    margin-top: 14px;
+    gap: 8px;
+    margin-top: 10px;
 }
 
 .pdf-section-export-mode .trend-point-summary-item {
     flex-direction: row;
     align-items: center;
     justify-content: flex-start;
-    gap: 22px;
-    padding: 16px 20px;
-    min-height: 72px;
+    gap: 14px;
+    padding: 12px 14px;
+    min-height: 0;
 }
 
 .pdf-section-export-mode .trend-point-summary-top {
-    flex: 0 0 330px;
+    flex: 0 0 270px;
     align-items: center;
     justify-content: flex-start;
-    gap: 16px;
+    gap: 12px;
 }
 
 .pdf-section-export-mode .trend-point-summary-main {
-    gap: 16px;
+    gap: 10px;
 }
 
 .pdf-section-export-mode .trend-point-summary-item .report-type-name {
-    font-size: 19px;
+    font-size: 16px;
 }
 
 .pdf-section-export-mode .trend-point-summary-item .report-type-meta {
@@ -1591,20 +1631,20 @@ a {
 }
 
 .pdf-section-export-mode .trend-point-summary-item .report-type-score {
-    font-size: 17px;
+    font-size: 14px;
 }
 
 .pdf-section-export-mode .trend-point-summary-item .report-type-badge {
-    min-height: 30px;
-    min-width: 68px;
-    padding: 0 14px;
-    font-size: 14px;
+    min-height: 26px;
+    min-width: 58px;
+    padding: 0 10px;
+    font-size: 12px;
 }
 
 .pdf-section-export-mode .trend-point-summary-message {
     flex: 1 1 auto;
-    font-size: 17px;
-    line-height: 1.55;
+    font-size: 13px;
+    line-height: 1.45;
     text-align: left;
     word-break: keep-all;
 }
@@ -1627,12 +1667,12 @@ a {
 }
 
 .pdf-section-export-mode .report-question-index {
-    font-size: 14px;
+    font-size: 13px;
 }
 
 .pdf-section-export-mode .report-question-text {
-    font-size: 16px;
-    line-height: 1.5;
+    font-size: 14px;
+    line-height: 1.45;
 }
 
 .pdf-section-export-mode .report-answer-box {
@@ -1642,36 +1682,82 @@ a {
 }
 
 .pdf-section-export-mode .report-answer-label {
-    font-size: 13px;
+    font-size: 12px;
 }
 
 .pdf-section-export-mode .report-answer-text {
-    font-size: 15px;
-    line-height: 1.5;
+    font-size: 13px;
+    line-height: 1.45;
 }
 
 .pdf-section-export-mode .report-type-score {
-    font-size: 15px;
-}
-
-.pdf-section-export-mode .report-type-badge {
-    min-height: 28px;
-    min-width: 64px;
-    padding: 0 12px;
     font-size: 13px;
 }
 
+.pdf-section-export-mode .report-type-badge {
+    min-height: 24px;
+    min-width: 56px;
+    padding: 0 10px;
+    font-size: 11px;
+}
+
 .pdf-section-export-mode .report-type-name {
-    font-size: 18px;
+    font-size: 15px;
 }
 
 .pdf-section-export-mode .report-type-meta {
-    min-width: 112px;
-    gap: 12px;
+    min-width: 92px;
+    gap: 8px;
 }
 
 .pdf-section-export-mode .report-action-row {
     display: none !important;
+}
+
+.pdf-section-export-mode.pdf-trend-export-mode .report-card-panel {
+    padding: 12px 12px 10px;
+}
+
+.pdf-section-export-mode.pdf-trend-export-mode .report-chart-wrap-large {
+    height: 230px !important;
+}
+
+.pdf-section-export-mode.pdf-trend-export-mode .report-type-summary {
+    gap: 7px;
+    margin-top: 8px;
+}
+
+.pdf-section-export-mode.pdf-trend-export-mode .trend-point-summary-item {
+    gap: 14px;
+    padding: 13px 16px;
+}
+
+.pdf-section-export-mode.pdf-trend-export-mode .trend-point-summary-top {
+    flex: 0 0 284px;
+    gap: 14px;
+}
+
+.pdf-section-export-mode.pdf-trend-export-mode .trend-point-summary-main {
+    gap: 12px;
+}
+
+.pdf-section-export-mode.pdf-trend-export-mode .trend-point-summary-item .report-type-name {
+    font-size: 16px;
+}
+
+.pdf-section-export-mode.pdf-trend-export-mode .trend-point-summary-item .report-type-score {
+    font-size: 14px;
+    min-width: 78px;
+}
+
+.pdf-section-export-mode.pdf-trend-export-mode .trend-point-summary-item .report-type-meta {
+    min-width: 70px;
+}
+
+.pdf-section-export-mode.pdf-trend-export-mode .trend-point-summary-message {
+    font-size: 12.5px;
+    line-height: 1.45;
+    padding-left: 4px;
 }
 
 /*태블릿 PC 전용 CSS 추가*/

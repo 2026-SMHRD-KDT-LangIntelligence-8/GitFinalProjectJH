@@ -151,6 +151,7 @@ function triggerBlobDownload(blob, fileName) {
 async function downloadPDF(sectionId = "latest-report-section", shouldReturnBlob = false, fileName = null) {
     const sourceSection = document.getElementById(sectionId);
     const recipientName = document.getElementById("report-recipient-search")?.value?.trim() || "???";
+    const isTrendSection = sectionId === "trend-report-section";
 
     if (!sourceSection) {
         alert("PDF? ??? ??? ??? ?? ?????.");
@@ -159,6 +160,9 @@ async function downloadPDF(sectionId = "latest-report-section", shouldReturnBlob
 
     const targetCharts = getChartsForSection(sectionId);
     sourceSection.classList.add("pdf-section-export-mode");
+    if (isTrendSection) {
+        sourceSection.classList.add("pdf-trend-export-mode");
+    }
 
     await waitForPaint();
     const restoreChartDpr = setChartDevicePixelRatio(targetCharts, 4);
@@ -209,6 +213,7 @@ async function downloadPDF(sectionId = "latest-report-section", shouldReturnBlob
             restoreChartDpr();
         }
         sourceSection.classList.remove("pdf-section-export-mode");
+        sourceSection.classList.remove("pdf-trend-export-mode");
         await waitForPaint();
         resizeCharts(targetCharts);
     }
@@ -931,13 +936,21 @@ downloadButtons.forEach((button) => {
                 if (!response.ok) {
                     const errorText = await response.text();
                     console.error("report_pdf_upload_failed", response.status, errorText);
-                    throw new Error("report_pdf_upload_failed");
+
+                    const uploadError = new Error("report_pdf_upload_failed");
+                    uploadError.status = response.status;
+                    throw uploadError;
                 }
 
                 const payload = await response.json();
                 console.info("report_pdf_upload_succeeded", payload.pdfFilePath);
             } catch (error) {
                 console.error("report_pdf_upload_error", error);
+                if (error?.status === 413) {
+                    alert("PDF는 다운로드되었지만 서버 업로드 용량 제한으로 저장되지 않았습니다.");
+                    return;
+                }
+
                 alert("PDF는 다운로드되었지만 서버 저장에는 실패했습니다.");
             }
         }
