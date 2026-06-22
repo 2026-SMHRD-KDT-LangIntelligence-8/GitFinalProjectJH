@@ -259,8 +259,8 @@ function formatTrendAxisDate(value) {
     return `${matchedDate[1].slice(2)}/${matchedDate[2]}/${matchedDate[3]}`;
 }
 
-function buildTrendSummaryMessage(point, filterLabel, fallbackScore) {
-    const questionTypeScores = Array.isArray(point?.questionTypeScores) ? point.questionTypeScores : [];
+function buildTrendSummaryMessage(filterLabel, latestScores = [], fallbackScore) {
+    const questionTypeScores = Array.isArray(latestScores) ? latestScores : [];
     const noTrainingMessage = "훈련 결과, 해당 유형은 더 이상 훈련이 필요하지 않습니다.";
 
     if (isAllFilter(filterLabel)) {
@@ -663,8 +663,7 @@ function renderTrendPointSummary(points, filterLabel = "전체", latestScores = 
             }
 
             const status = getScoreStatus(score);
-            const point = points[index];
-            const summaryMessage = buildTrendSummaryMessage(point, filterLabel, score);
+            const summaryMessage = buildTrendSummaryMessage(filterLabel, latestScores, score);
             return `
                 <div class="report-type-summary-item trend-point-summary-item">
                     <div class="trend-point-summary-top">
@@ -717,6 +716,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     let latestQuestionTypeScores = [];
     let latestQuestionScores = [];
     let trendReportPoints = [];
+    let latestTrendReferenceScores = [];
 
     const setEmptyState = (element, visible) => {
         element.classList.toggle("is-visible", visible);
@@ -791,7 +791,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         const selectedFilter = getSelectedReportFilter(trendReportFilterButtons);
-        const series = buildTrendSeries(trendReportPoints, selectedFilter, latestQuestionTypeScores);
+        const series = buildTrendSeries(trendReportPoints, selectedFilter, latestTrendReferenceScores);
         const hasRenderableScore = series.scores.some((score) => score !== null && score !== undefined);
 
         if (!hasRenderableScore) {
@@ -807,8 +807,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         setEmptyState(trendReportEmpty, false);
-        renderTrendChart(trendReportPoints, selectedFilter, latestQuestionTypeScores);
-        renderTrendPointSummary(trendReportPoints, selectedFilter, latestQuestionTypeScores);
+        renderTrendChart(trendReportPoints, selectedFilter, latestTrendReferenceScores);
+        renderTrendPointSummary(trendReportPoints, selectedFilter, latestTrendReferenceScores);
     };
 
     const resetReportUi = (message) => {
@@ -823,6 +823,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         latestQuestionTypeScores = [];
         latestQuestionScores = [];
         trendReportPoints = [];
+        latestTrendReferenceScores = [];
         latestReportEmpty.textContent = "검사 분석 결과가 아직 없습니다.";
         trendReportEmpty.textContent = "기간별 그래프로 표시할 검사 결과가 없습니다.";
         setActiveReportFilter(latestReportFilterButtons, getAllReportFilterButton(latestReportFilterButtons));
@@ -1161,6 +1162,9 @@ downloadButtons.forEach((button) => {
             if (!payload.points?.length) {
                 trendSummaryHeader.textContent = `최근 ${formatDaysLabel(days)} 동안 표시할 평균 점수 데이터가 없습니다.`;
                 trendReportPoints = [];
+                latestTrendReferenceScores = Array.isArray(payload.latestQuestionTypeScores)
+                    ? payload.latestQuestionTypeScores
+                    : [];
                 trendPointSummary.innerHTML = "";
                 trendPointSummary.classList.add("hidden");
                 setActiveReportFilter(trendReportFilterButtons, getAllReportFilterButton(trendReportFilterButtons));
@@ -1173,11 +1177,15 @@ downloadButtons.forEach((button) => {
             }
 
             trendReportPoints = payload.points;
+            latestTrendReferenceScores = Array.isArray(payload.latestQuestionTypeScores)
+                ? payload.latestQuestionTypeScores
+                : [];
             trendSummaryHeader.textContent = `최근 ${formatDaysLabel(days)} 동안 검사일별 평균 점수 추이입니다.`;
             applyTrendReportFilter();
         } catch (error) {
             console.error(error);
             trendReportPoints = [];
+            latestTrendReferenceScores = [];
             trendPointSummary.innerHTML = "";
             trendPointSummary.classList.add("hidden");
             setActiveReportFilter(trendReportFilterButtons, getAllReportFilterButton(trendReportFilterButtons));

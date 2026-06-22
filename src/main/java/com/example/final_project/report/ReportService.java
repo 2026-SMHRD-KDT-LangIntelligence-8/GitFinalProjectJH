@@ -100,6 +100,7 @@ public class ReportService {
         List<ReportRepository.PerformanceAnalysisRow> trendRows =
                 reportRepository.findTrendAnalysisRows(recipientId, userId, periodDays);
         List<TrendPointResponse> points = buildTrendPoints(trendRows);
+        List<QuestionTypeScoreResponse> latestQuestionTypeScores = getLatestQuestionTypeScores(recipientId, userId);
 
         persistTrendSnapshotSafely(recipient, periodDays, points, trendRows, userId);
 
@@ -107,7 +108,8 @@ public class ReportService {
                 recipientId,
                 recipient.getRecipientName(),
                 periodDays,
-                points
+                points,
+                latestQuestionTypeScores
         );
     }
 
