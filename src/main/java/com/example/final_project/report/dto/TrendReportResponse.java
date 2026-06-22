@@ -6,7 +6,6 @@ public record TrendReportResponse(
         Long recipientId,
         String recipientName,
         int periodDays,
-        List<TrendPointResponse> points,
-        List<QuestionTypeScoreResponse> latestQuestionTypeScores
+        List<TrendPointResponse> points
 ) {
 }

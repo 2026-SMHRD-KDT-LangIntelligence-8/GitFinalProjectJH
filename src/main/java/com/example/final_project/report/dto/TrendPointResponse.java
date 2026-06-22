@@ -5,6 +5,7 @@ import java.util.List;
 public record TrendPointResponse(
         String performedDate,
         double averageScore,
-        List<QuestionTypeScoreResponse> questionTypeScores
+        List<QuestionTypeScoreResponse> questionTypeScores,
+        List<QuestionTypeScoreResponse> referenceQuestionTypeScores
 ) {
 }

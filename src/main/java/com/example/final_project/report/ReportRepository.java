@@ -181,6 +181,7 @@ public class ReportRepository {
                 (rs, rowNum) -> new TrendPointResponse(
                         rs.getString("performed_date"),
                         rs.getDouble("average_score"),
+                        List.of(),
                         List.of()
                 ),
                 recipientId,
@@ -222,6 +223,42 @@ public class ReportRepository {
                                 getNullableDouble(rs, "avg_sentence_length"),
                                 getNullableInteger(rs, "appropriateness_score")
                         )
+                ),
+                recipientId,
+                userId,
+                Timestamp.valueOf(fromDateTime)
+        );
+    }
+
+    public List<TrendStatusRow> findTrendStatusRows(Long recipientId, String userId, int periodDays) {
+        LocalDateTime fromDateTime = LocalDateTime.now().minusDays(periodDays);
+
+        String sql = """
+                SELECT DATE_FORMAT(pr.performed_at, '%Y-%m-%d') AS performed_date,
+                       pr.performed_at,
+                       q.question_type_id,
+                       qt.question_type_name,
+                       ROUND(AVG(ar.appropriateness_score), 1) AS average_score
+                FROM PERFORMANCE_RECORDS pr
+                INNER JOIN QUESTION_RESULTS qr ON pr.performance_id = qr.performance_id
+                INNER JOIN ANALYSIS_RESULTS ar ON qr.question_result_id = ar.question_result_id
+                INNER JOIN QUESTIONS q ON qr.question_id = q.question_id
+                INNER JOIN QUESTION_TYPES qt ON q.question_type_id = qt.question_type_id
+                WHERE pr.recipient_id = ?
+                  AND pr.user_id = ?
+                  AND pr.performed_at >= ?
+                GROUP BY pr.performance_id, pr.performed_at, q.question_type_id, qt.question_type_name
+                ORDER BY pr.performed_at ASC, q.question_type_id ASC
+                """;
+
+        return jdbcTemplate.query(
+                sql,
+                (rs, rowNum) -> new TrendStatusRow(
+                        rs.getString("performed_date"),
+                        rs.getTimestamp("performed_at").toLocalDateTime(),
+                        rs.getLong("question_type_id"),
+                        rs.getString("question_type_name"),
+                        rs.getDouble("average_score")
                 ),
                 recipientId,
                 userId,
@@ -360,6 +397,15 @@ public class ReportRepository {
     public record PerformanceAnalysisRow(
             String performedDate,
             ReportAnalysisRow row
+    ) {
+    }
+
+    public record TrendStatusRow(
+            String performedDate,
+            LocalDateTime performedAt,
+            Long questionTypeId,
+            String questionTypeName,
+            double averageScore
     ) {
     }
 }

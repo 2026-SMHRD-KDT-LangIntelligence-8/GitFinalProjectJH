@@ -259,8 +259,16 @@ function formatTrendAxisDate(value) {
     return `${matchedDate[1].slice(2)}/${matchedDate[2]}/${matchedDate[3]}`;
 }
 
-function buildTrendSummaryMessage(filterLabel, latestScores = [], fallbackScore) {
-    const questionTypeScores = Array.isArray(latestScores) ? latestScores : [];
+function resolveTrendReferenceScores(point) {
+    if (Array.isArray(point?.referenceQuestionTypeScores) && point.referenceQuestionTypeScores.length) {
+        return point.referenceQuestionTypeScores;
+    }
+
+    return Array.isArray(point?.questionTypeScores) ? point.questionTypeScores : [];
+}
+
+function buildTrendSummaryMessage(point, filterLabel, fallbackScore) {
+    const questionTypeScores = resolveTrendReferenceScores(point);
     const noTrainingMessage = "훈련 결과, 해당 유형은 더 이상 훈련이 필요하지 않습니다.";
 
     if (isAllFilter(filterLabel)) {
@@ -382,13 +390,14 @@ function extractTrendScore(point, filterLabel) {
     return Number(matchedItem.averageScore ?? 0);
 }
 
-function findLatestQuestionTypeScore(latestScores, filterLabel) {
-    if (!Array.isArray(latestScores) || isAllFilter(filterLabel)) {
+function extractTrendReferenceScore(point, filterLabel) {
+    if (isAllFilter(filterLabel)) {
         return null;
     }
 
+    const referenceScores = resolveTrendReferenceScores(point);
     const targetName = normalizeQuestionTypeName(filterLabel);
-    const matchedItem = latestScores.find(
+    const matchedItem = referenceScores.find(
         (item) => normalizeQuestionTypeName(item.questionTypeName) === targetName
     );
 
@@ -399,13 +408,13 @@ function findLatestQuestionTypeScore(latestScores, filterLabel) {
     return Number(matchedItem.averageScore ?? 0);
 }
 
-function buildTrendSeries(points, filterLabel, latestScores = []) {
+function buildTrendSeries(points, filterLabel) {
     const scores = points.map((point) => extractTrendScore(point, filterLabel));
 
-    if (!isAllFilter(filterLabel) && points.length === 1) {
-        const latestScore = findLatestQuestionTypeScore(latestScores, filterLabel);
-        if (latestScore !== null) {
-            scores[0] = latestScore;
+    if (!isAllFilter(filterLabel) && points.length === 1 && scores[0] === null) {
+        const referenceScore = extractTrendReferenceScore(points[0], filterLabel);
+        if (referenceScore !== null) {
+            scores[0] = referenceScore;
         }
     }
 
@@ -505,7 +514,7 @@ function renderLatestChart(scores, filterLabel = "전체", questionScores = []) 
     });
 }
 
-function renderTrendChart(points, filterLabel = "??", latestScores = []) {
+function renderTrendChart(points, filterLabel = "??") {
     const context = document.getElementById("trend-report-chart");
     if (!context) {
         return;
@@ -515,7 +524,7 @@ function renderTrendChart(points, filterLabel = "??", latestScores = []) {
         trendReportChart.destroy();
     }
 
-    const series = buildTrendSeries(points, filterLabel, latestScores);
+    const series = buildTrendSeries(points, filterLabel);
 
     trendReportChart = new Chart(context, {
         type: "line",
@@ -648,13 +657,13 @@ function renderTypeSummary(scores, filterLabel = "전체", questionScores = []) 
     container.classList.toggle("hidden", filteredQuestions.length === 0);
 }
 
-function renderTrendPointSummary(points, filterLabel = "전체", latestScores = []) {
+function renderTrendPointSummary(points, filterLabel = "전체") {
     const container = document.getElementById("trend-point-summary");
     if (!container) {
         return;
     }
 
-    const series = buildTrendSeries(points, filterLabel, latestScores);
+    const series = buildTrendSeries(points, filterLabel);
     const summaryItems = series.labels
         .map((performedDate, index) => {
             const score = series.scores[index];
@@ -663,7 +672,8 @@ function renderTrendPointSummary(points, filterLabel = "전체", latestScores = 
             }
 
             const status = getScoreStatus(score);
-            const summaryMessage = buildTrendSummaryMessage(filterLabel, latestScores, score);
+            const point = points[index];
+            const summaryMessage = buildTrendSummaryMessage(point, filterLabel, score);
             return `
                 <div class="report-type-summary-item trend-point-summary-item">
                     <div class="trend-point-summary-top">
@@ -716,7 +726,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     let latestQuestionTypeScores = [];
     let latestQuestionScores = [];
     let trendReportPoints = [];
-    let latestTrendReferenceScores = [];
 
     const setEmptyState = (element, visible) => {
         element.classList.toggle("is-visible", visible);
@@ -791,7 +800,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         const selectedFilter = getSelectedReportFilter(trendReportFilterButtons);
-        const series = buildTrendSeries(trendReportPoints, selectedFilter, latestTrendReferenceScores);
+        const series = buildTrendSeries(trendReportPoints, selectedFilter);
         const hasRenderableScore = series.scores.some((score) => score !== null && score !== undefined);
 
         if (!hasRenderableScore) {
@@ -807,8 +816,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         setEmptyState(trendReportEmpty, false);
-        renderTrendChart(trendReportPoints, selectedFilter, latestTrendReferenceScores);
-        renderTrendPointSummary(trendReportPoints, selectedFilter, latestTrendReferenceScores);
+        renderTrendChart(trendReportPoints, selectedFilter);
+        renderTrendPointSummary(trendReportPoints, selectedFilter);
     };
 
     const resetReportUi = (message) => {
@@ -823,7 +832,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         latestQuestionTypeScores = [];
         latestQuestionScores = [];
         trendReportPoints = [];
-        latestTrendReferenceScores = [];
         latestReportEmpty.textContent = "검사 분석 결과가 아직 없습니다.";
         trendReportEmpty.textContent = "기간별 그래프로 표시할 검사 결과가 없습니다.";
         setActiveReportFilter(latestReportFilterButtons, getAllReportFilterButton(latestReportFilterButtons));
@@ -1162,9 +1170,6 @@ downloadButtons.forEach((button) => {
             if (!payload.points?.length) {
                 trendSummaryHeader.textContent = `최근 ${formatDaysLabel(days)} 동안 표시할 평균 점수 데이터가 없습니다.`;
                 trendReportPoints = [];
-                latestTrendReferenceScores = Array.isArray(payload.latestQuestionTypeScores)
-                    ? payload.latestQuestionTypeScores
-                    : [];
                 trendPointSummary.innerHTML = "";
                 trendPointSummary.classList.add("hidden");
                 setActiveReportFilter(trendReportFilterButtons, getAllReportFilterButton(trendReportFilterButtons));
@@ -1177,15 +1182,11 @@ downloadButtons.forEach((button) => {
             }
 
             trendReportPoints = payload.points;
-            latestTrendReferenceScores = Array.isArray(payload.latestQuestionTypeScores)
-                ? payload.latestQuestionTypeScores
-                : [];
             trendSummaryHeader.textContent = `최근 ${formatDaysLabel(days)} 동안 검사일별 평균 점수 추이입니다.`;
             applyTrendReportFilter();
         } catch (error) {
             console.error(error);
             trendReportPoints = [];
-            latestTrendReferenceScores = [];
             trendPointSummary.innerHTML = "";
             trendPointSummary.classList.add("hidden");
             setActiveReportFilter(trendReportFilterButtons, getAllReportFilterButton(trendReportFilterButtons));

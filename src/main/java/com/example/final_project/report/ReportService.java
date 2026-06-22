@@ -99,8 +99,9 @@ public class ReportService {
         RecipientResponse recipient = ensureRecipientAccess(recipientId, userId);
         List<ReportRepository.PerformanceAnalysisRow> trendRows =
                 reportRepository.findTrendAnalysisRows(recipientId, userId, periodDays);
-        List<TrendPointResponse> points = buildTrendPoints(trendRows);
-        List<QuestionTypeScoreResponse> latestQuestionTypeScores = getLatestQuestionTypeScores(recipientId, userId);
+        Map<String, List<QuestionTypeScoreResponse>> referenceScoresByDate =
+                buildReferenceScoresByDate(reportRepository.findTrendStatusRows(recipientId, userId, periodDays));
+        List<TrendPointResponse> points = buildTrendPoints(trendRows, referenceScoresByDate);
 
         persistTrendSnapshotSafely(recipient, periodDays, points, trendRows, userId);
 
@@ -108,12 +109,14 @@ public class ReportService {
                 recipientId,
                 recipient.getRecipientName(),
                 periodDays,
-                points,
-                latestQuestionTypeScores
+                points
         );
     }
 
-    private List<TrendPointResponse> buildTrendPoints(List<ReportRepository.PerformanceAnalysisRow> trendRows) {
+    private List<TrendPointResponse> buildTrendPoints(
+            List<ReportRepository.PerformanceAnalysisRow> trendRows,
+            Map<String, List<QuestionTypeScoreResponse>> referenceScoresByDate
+    ) {
         Map<String, List<ReportAnalysisRow>> rowsByDate = new LinkedHashMap<>();
 
         for (ReportRepository.PerformanceAnalysisRow trendRow : trendRows) {
@@ -159,10 +162,35 @@ public class ReportService {
                     return new TrendPointResponse(
                             entry.getKey(),
                             roundToSingleDecimal(averageScore),
-                            questionTypeScores
+                            questionTypeScores,
+                            referenceScoresByDate.getOrDefault(entry.getKey(), questionTypeScores)
                     );
                 })
                 .toList();
+    }
+
+    private Map<String, List<QuestionTypeScoreResponse>> buildReferenceScoresByDate(
+            List<ReportRepository.TrendStatusRow> trendStatusRows
+    ) {
+        Map<String, List<QuestionTypeScoreResponse>> referenceScoresByDate = new LinkedHashMap<>();
+        Map<String, QuestionTypeScoreResponse> latestScoresByType = new LinkedHashMap<>();
+
+        for (ReportRepository.TrendStatusRow trendStatusRow : trendStatusRows) {
+            QuestionTypeScoreResponse latestScore = new QuestionTypeScoreResponse(
+                    trendStatusRow.questionTypeId(),
+                    trendStatusRow.questionTypeName(),
+                    roundToSingleDecimal(trendStatusRow.averageScore()),
+                    trendStatusRow.averageScore() < 60
+            );
+
+            latestScoresByType.put(trendStatusRow.questionTypeName(), latestScore);
+            referenceScoresByDate.put(
+                    trendStatusRow.performedDate(),
+                    new ArrayList<>(latestScoresByType.values())
+            );
+        }
+
+        return referenceScoresByDate;
     }
 
     private double roundToSingleDecimal(double value) {
