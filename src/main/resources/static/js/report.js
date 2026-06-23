@@ -846,17 +846,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        const keyword = searchInput.value.trim();
-        if (!keyword) {
-            closeCombo();
-            return;
-        }
-
-        const normalizedKeyword = keyword.toLowerCase();
-        const matchedRecipients = recipients.filter((recipient) =>
-            String(recipient.recipientName ?? "").trim().toLowerCase().includes(normalizedKeyword)
-        );
-
+        const matchedRecipients = getMatchedRecipients(searchInput.value);
         if (!matchedRecipients.length) {
             closeCombo();
             return;
@@ -870,24 +860,60 @@ document.addEventListener("DOMContentLoaded", async () => {
         comboBox.classList.add("is-open");
     };
 
+    const normalizeRecipientKeyword = (value) => String(value ?? "")
+        .normalize("NFKC")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
+
+    const getMatchedRecipients = (value) => {
+        const normalizedKeyword = normalizeRecipientKeyword(value);
+        if (!normalizedKeyword) {
+            return [];
+        }
+
+        return recipients.filter((recipient) =>
+            normalizeRecipientKeyword(recipient.recipientName).includes(normalizedKeyword)
+        );
+    };
+
     const resolveSelectedRecipient = () => {
-        const typedName = searchInput.value.trim();
-        if (!typedName) {
+        const normalizedTypedName = normalizeRecipientKeyword(searchInput.value);
+        if (!normalizedTypedName) {
             return null;
         }
 
-        const normalizedTypedName = typedName.toLowerCase();
-
         if (
             selectedRecipient &&
-            String(selectedRecipient.recipientName ?? "").trim().toLowerCase() === normalizedTypedName
+            normalizeRecipientKeyword(selectedRecipient.recipientName) === normalizedTypedName
         ) {
             return selectedRecipient;
         }
 
-        return recipients.find((recipient) =>
-            String(recipient.recipientName ?? "").trim().toLowerCase() === normalizedTypedName
-        ) ?? null;
+        const exactMatch = recipients.find((recipient) =>
+            normalizeRecipientKeyword(recipient.recipientName) === normalizedTypedName
+        );
+        if (exactMatch) {
+            return exactMatch;
+        }
+
+        const matchedRecipients = getMatchedRecipients(searchInput.value);
+        return matchedRecipients.length === 1 ? matchedRecipients[0] : null;
+    };
+
+    const applyRecipientSelection = async (recipient) => {
+        if (!recipient) {
+            return;
+        }
+
+        selectedRecipient = recipient;
+        searchInput.value = recipient.recipientName;
+        isLocked = true;
+        searchInput.readOnly = true;
+        searchWrap.classList.add("is-locked");
+        closeCombo();
+
+        await loadReportsForRecipient(recipient.recipientId, recipient.recipientName);
     };
 
     const unlockSearchInput = () => {
@@ -909,14 +935,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        selectedRecipient = recipient;
-        searchInput.value = recipient.recipientName;
-        isLocked = true;
-        searchInput.readOnly = true;
-        searchWrap.classList.add("is-locked");
-        closeCombo();
-
-        await loadReportsForRecipient(recipient.recipientId, recipient.recipientName);
+        await applyRecipientSelection(recipient);
     };
 
 downloadButtons.forEach((button) => {
@@ -1037,10 +1056,8 @@ downloadButtons.forEach((button) => {
         }
 
         const recipientId = Number(option.dataset.id);
-        selectedRecipient = recipients.find((recipient) => recipient.recipientId === recipientId) ?? null;
-        searchInput.value = selectedRecipient?.recipientName ?? "";
-        closeCombo();
-        await lockSearchInput();
+        const recipient = recipients.find((recipient) => recipient.recipientId === recipientId) ?? null;
+        await applyRecipientSelection(recipient);
     });
 
     document.addEventListener("click", (event) => {
